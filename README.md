@@ -17,7 +17,7 @@ TopMat Agent 是一个基于 LangGraph 的智能材料优化系统，专注于�
 ### 环境要求
 
 **后端：**
-- Python 3.9+
+- Python 3.11+
 - pip 或 conda 包管理器
 
 **前端（推荐）：**
@@ -26,7 +26,7 @@ TopMat Agent 是一个基于 LangGraph 的智能材料优化系统，专注于�
 
 ### 安装步骤
 
-#### 方案一：Vue 3 前端（推荐 ⭐ - ChatGPT 风格界面）
+#### 方案一：Vue 3 前端
 
 **快速启动（推荐）**
 ```bash
