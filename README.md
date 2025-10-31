@@ -1,59 +1,76 @@
-# TopMat Agent - 硬质合金涂层优化专家系统
+# TopMat Agent - 硬质合金涂层智能优化系统
 
-## 📋 项目概述
+## 📋 项目简介
 
-TopMat Agent 是一个基于 LangGraph 的智能材料优化系统，专注于硬质合金涂层的成分开发、结构设计和工艺优化。系统采用先进的 AI 技术，为材料研发提供智能化的决策支持。
+TopMat Agent 是一个基于 **LangGraph** 的智能材料优化系统，专注于硬质合金涂层的成分设计、结构优化和工艺改进。系统采用先进的 AI 技术和流式交互设计，为材料研发提供实时、智能的决策支持。
 
-### 核心特点
+### ✨ 核心特点
 
-- 🔬 **专业性**: 专注于硬质合金涂层领域，提供专业的优化建议
-- 🤖 **智能化**: 集成阿里云百炼大模型，提供智能分析和预测
-- 🔄 **迭代优化**: 支持多轮迭代优化，持续改进涂层性能
-- 📊 **实时反馈**: 流式输出和WebSocket通信，提供实时状态更新
-- 📈 **数据驱动**: 基于历史数据和机器学习模型进行性能预测
+- 🐳 **一键部署**: Docker整合前后端，30秒启动完整系统
+- 🔬 **专业领域**: 专注硬质合金涂层优化，提供精准建议
+- 🤖 **AI驱动**: 集成qwen大模型，智能分析预测
+- 📊 **实时交互**: WebSocket流式输出，打字机效果展示
+- 🔄 **迭代优化**: 支持多轮实验闭环，持续改进性能
+- 💡 **多维分析**: 成分/结构/工艺三维度优化建议
 
 ## 🚀 快速开始
 
-### 环境要求
+### 0. 获取代码
 
-**后端：**
-- Python 3.11+
-- pip 或 conda 包管理器
-
-**前端（推荐）：**
-- Node.js 16+
-- npm 或 yarn
-
-### 安装步骤
-
-#### 方案一：Vue 3 前端
-
-**快速启动（推荐）**
 ```bash
-# 1. 一键安装前端依赖
-setup_chat_ui.bat
-
-# 2. 启动后端（终端1）
-python run.py
-# 选择选项 3 (仅FastAPI后端)
-
-# 3. 启动前端（终端2）
-start_vue.bat
+git clone http://192.168.6.104:3000/TangBin/TopMat_Agent.git
+cd TopMat_Agent
 ```
 
-**手动安装**
+### 方式一：Docker部署（⭐推荐）
 
-**1. 安装后端依赖**
+**最简单的部署方式，无需安装Python和Node.js！**
+
+#### 📦 前置要求
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+
+#### 🎯 启动
+
+**2. 配置API密钥**
+
+编辑 `.env` 文件：
+```
+DASHSCOPE_API_KEY=your_api_key_here
+DASHSCOPE_MODEL_NAME=qwen-plus
+```
+
+**3. 启动服务**
+```
+docker-compose up -d
+```
+
+**4. 访问系统**
+
+等待约30秒后，在浏览器打开：
+- 🌐 **前端界面**: http://localhost:5173
+- 🔌 **后端API**: http://localhost:8000
+- 📚 **API文档**: http://localhost:8000/docs
+
+#### 📖 Docker文档
+- 📘 **详细文档**: `DOCKER_README.md`
+
+### 方式二：本地开发部署
+
+#### 环境要求
+- Python 3.11+
+- Node.js 18+
+
+#### 安装步骤
+
+**1. 安装Python依赖**
 ```bash
-cd d:\Agent\TopMat_Agent_1.0
 pip install -r requirements.txt
 ```
 
 **2. 配置环境变量**
 ```bash
-# 复制环境变量模板
 copy .env.example .env
-# 编辑 .env 文件，填入阿里云百炼API密钥
+# 编辑 .env 文件，填入API密钥
 ```
 
 **3. 安装前端依赖**
@@ -62,233 +79,195 @@ cd frontend
 npm install
 ```
 
-**4. 启动服务**
+**4. 启动后端（终端1）**
 ```bash
-# 终端 1: 启动后端
 python run.py
-# 选择选项 3 (仅FastAPI后端)
+# 选择选项 1: FastAPI后端服务
+```
 
-# 终端 2: 启动前端
+**5. 启动前端（终端2）**
+```bash
 cd frontend
 npm run dev
 ```
 
-**5. 访问应用**
-- 前端界面: http://localhost:5173 （ChatGPT 风格对话界面）
-- API 文档: http://localhost:8000/docs
-
-> 💡 **新界面特性**: 
-> - ChatGPT 风格的对话式交互
-> - 实时流式输出，打字机效果
-> - Markdown 渲染，内容展示更清晰
-> - 快捷参数设置，简化操作流程
-> - 详细使用说明见 `CHATGPT_UI_GUIDE.md`
-
-#### 方式二：分别启动前后端
-
-```bash
-# 后端
-start_backend.bat
-# 或
-python run.py  # 选择选项 1: FastAPI后端服务
-
-# 前端（另开终端）
-cd frontend
-npm run dev
-```
-
-### 演示模式
-
-快速体验系统功能：
-
-```bash
-python run.py demo
-```
+**6. 访问应用**
+- 前端界面: http://localhost:5173
+- API文档: http://localhost:8000/docs
 
 ## 📖 使用指南
 
-### Vue 3 对话式界面（推荐）
+### 工作流程
 
-**快速开始**
-1. 在欢迎界面点击示例提示卡片快速开始
-2. 或在底部输入框描述您的涂层需求
-3. 点击⚙️按钮设置详细参数（可选）
-4. 按 Enter 发送，Shift+Enter 换行
+1. **输入参数**: 填写涂层成分、工艺参数、结构设计
+2. **性能预测**: 系统实时分析，给出性能预测和根因分析
+3. **优化建议**: 获得P1(成分)、P2(结构)、P3(工艺)三类优化方案
+4. **实验验证**: 选择方案进行实验，输入结果
+5. **迭代优化**: 系统分析实验结果，决定下一步行动
 
-**对话流程**
-- **需求分析**: AI 理解并提取您的需求
-- **性能预测**: 实时流式显示预测结果和根因分析
-- **优化建议**: 展示 P1/P2/P3 三类优化方案
-- **迭代优化**: 持续改进直到达到目标
+### 界面特性
 
-**界面特性**
-- 💬 类似 ChatGPT 的对话体验
-- ⚡ 实时流式输出，打字机效果
-- 📝 Markdown 格式渲染
-- 📊 性能数据卡片化展示
-- 🎯 快捷参数面板
-- 🔄 节点独立显示，内容不覆盖
+- 💬 **流式对话**: 实时显示AI分析过程，打字机效果
+- 📊 **分步展示**: 各节点结果独立卡片显示，清晰明了
+- 🎨 **Markdown渲染**: 支持表格、列表、代码块等丰富格式
+- 🔄 **热重载**: Docker环境支持代码修改自动生效
+- 💾 **会话管理**: 支持多会话管理和历史记录
 
-> 📘 详细使用说明：`CHATGPT_UI_GUIDE.md`  
-> 🔧 流式优化方案：`STREAMING_OPTIMIZATION.md`
-
-### 更多信息
-
-详细的启动和使用说明请参考：
-- 📘 启动指南：`启动说明.md`
-- 📘 Vue前端指南：`docs/Vue前端实现指南.md`
-- 📘 ChatGPT风格界面：`CHATGPT_UI_GUIDE.md`
+### 详细文档
+- 📘 **启动说明**: `启动说明.md`
+- 📘 **Docker部署**: `DOCKER_README.md`
 
 ## 🏗️ 系统架构
+
+### Docker部署架构（推荐）
+```
+┌─────────────────────────────────────┐
+│   Docker 容器 (topmat-agent-dev)     │
+│                                     │
+│  ┌──────────────┐  ┌─────────────┐ │
+│  │  Vue 前端    │  │  FastAPI    │ │
+│  │  (5173端口)  │  │  后端       │ │
+│  │              │←→│  (8000端口) │ │
+│  └──────────────┘  └─────────────┘ │
+│         ↓               ↓           │
+│    热重载支持      LangGraph引擎    │
+└─────────────────────────────────────┘
+         ↓                   ↓
+    localhost:5173      localhost:8000
+```
+
+**特点**：
+- ✅ 前后端整合，一键启动
+- ✅ 支持代码热重载
+- ✅ 无需安装开发环境
 
 ### 项目结构
 ```
 TopMat_Agent_1.0/
 ├── frontend/           # Vue 3 前端
 │   ├── src/
-│   │   ├── components/ # Vue 组件
-│   │   ├── composables/# 组合式函数
-│   │   ├── App.vue     # 根组件
-│   │   └── main.js     # 入口文件
-│   ├── vite.config.js  # Vite 配置
+│   │   ├── components/ # 表单、结果展示等组件
+│   │   ├── composables/# WebSocket、状态管理
+│   │   └── App.vue     # 主应用
 │   └── package.json    # 前端依赖
 ├── src/
-│   ├── models/         # 数据模型定义
-│   ├── graph/          # LangGraph工作流
-│   ├── llm/            # LLM配置和集成
-│   └── api/            # FastAPI后端服务
-├── tests/              # 测试用例
-├── docs/               # 文档资料
-├── run.py              # 主运行脚本（后端启动、演示模式）
+│   ├── api/            # FastAPI后端服务
+│   ├── graph/          # LangGraph工作流定义
+│   │   ├── workflow.py # 工作流编排
+│   │   ├── nodes.py    # 节点实现
+│   │   └── state.py    # 状态定义
+│   ├── llm/            # LLM配置和提示词
+│   └── models/         # 数据模型
+├── Dockerfile          # Docker镜像定义
+├── docker-compose.yml  # Docker编排配置
+├── docker_run.py       # Docker启动脚本
 ├── requirements.txt    # Python依赖
 └── .env.example        # 环境变量模板
 ```
 
-### 技术架构图
-```
-┌─────────────────────────────────────┐
-│  Vue 3 前端 (Port 3000)              │
-│  ┌──────────────────────────────┐   │
-│  │  工单界面         │   │
-│  │  - 流式消息展示               │   │
-│  │  - Markdown 渲染              │   │
-│  │  - 快捷参数设置               │   │
-│  │  - WebSocket 实时通信         │   │
-│  └──────────────────────────────┘   │
-└─────────────────────────────────────┘
-            ↕ WebSocket/HTTP
-┌─────────────────────────────────────┐
-│  FastAPI 后端 (Port 8000)            │
-│  ┌──────────────────────────────┐   │
-│  │  LangGraph 工作流引擎         │   │
-│  │  ├─ 需求提取                 │   │
-│  │  ├─ 性能预测                 │   │
-│  │  ├─ 优化建议                 │   │
-│  │  └─ 迭代优化                 │   │
-│  └──────────────────────────────┘   │
-└─────────────────────────────────────┘
-            ↕ API
-┌─────────────────────────────────────┐
-│  阿里云百炼 LLM                      │
-│  - 材料专家分析                      │
-│  - 优化建议生成                      │
-│  - 根因分析                         │
-└─────────────────────────────────────┘
-```
+### 技术栈
 
-## 🔧 API 接口
+#### 前端
+- **框架**: Vue 3 + Composition API
+- **UI库**: Element Plus
+- **构建**: Vite
+- **通信**: WebSocket (原生)
+- **渲染**: Markdown (marked)
 
-### REST API
+#### 后端
+- **框架**: FastAPI
+- **工作流**: LangGraph
+- **LLM**: DeepSeek / 阿里云百炼
+- **异步**: asyncio
 
-- `POST /api/coating/submit` - 提交涂层优化任务
-- `GET /api/coating/task/{task_id}` - 获取任务状态
-- `POST /api/coating/optimize` - 请求优化建议
-- `POST /api/coating/iterate` - 执行迭代优化
+#### 部署
+- **容器化**: Docker + Docker Compose
+- **开发模式**: 热重载支持
+- **端口**: 5173 (前端), 8000 (后端)
 
-### WebSocket
+## 🔧 工作流节点
 
-- `/ws/coating/{task_id}` - 实时任务状态更新
+系统采用LangGraph构建多节点工作流：
 
-访问 `http://localhost:8000/docs` 查看完整的 API 文档。
+1. **input_validation** - 输入参数验证
+2. **topphi_simulation** - TopPhi第一性原理模拟
+3. **ml_prediction** - 机器学习模型预测
+4. **historical_comparison** - 历史数据比对
+5. **integrated_analysis** - 综合分析与根因
+6. **p1_composition_optimization** - 成分优化建议
+7. **p2_structure_optimization** - 结构优化建议
+8. **p3_process_optimization** - 工艺优化建议
+9. **optimization_summary** - 优化方案汇总
+10. **experiment_workorder_generation** - 实验工单生成
+11. **experiment_result_analysis** - 实验结果分析
+12. **decide_next_iteration** - 迭代决策
 
-## 🧪 测试
+### API接口
 
-运行测试套件：
+访问 `http://localhost:8000/docs` 查看完整的 Swagger API 文档。
 
-```bash
-pytest tests/ -v
-```
+主要接口：
+- **WebSocket**: `/ws` - 实时双向通信
+- **POST**: 提交参数、选择方案、输入实验结果
 
-或通过主脚本运行：
+## 🎯 核心功能
 
-```bash
-python run.py
-# 选择选项 4
-```
+### 1. 智能分析
+- ✅ 多源数据融合（TopPhi模拟 + ML预测 + 历史数据）
+- ✅ 根因分析，解释性能背后的物理机制
+- ✅ 流式输出，实时展示分析过程
 
-## 🎯 技术特性
+### 2. 三维优化
+- ✅ **P1 成分优化**: 调整元素配比、添加微量元素
+- ✅ **P2 结构优化**: 多层/梯度/纳米复合结构设计
+- ✅ **P3 工艺优化**: 温度/气压/偏压等参数调整
 
-### 前端技术 (Vue 3)
+### 3. 实验闭环
+- ✅ 生成详细实验工单
+- ✅ 输入实验结果
+- ✅ 智能决策下一步行动（完成/继续/尝试其他）
 
-- **现代化框架**: Vue 3 + Composition API
-- **UI 组件库**: Element Plus 完整组件
-- **实时通信**: WebSocket 原生支持，自动重连
-- **状态管理**: 响应式状态管理
-- **流式展示**: 平滑的实时数据更新，打字机效果
-- **Markdown 渲染**: marked 库支持完整 Markdown 语法
-- **对话式交互**: ChatGPT 风格的对话界面设计
-
-### LangGraph 工作流
-
-- **状态管理**: 使用 TypedDict 定义工作流状态
-- **节点设计**: 模块化的处理节点（验证、预测、优化等）
-- **条件路由**: 基于状态的智能路由决策
-- **内存存储**: 支持历史数据和知识积累
-
-### 流式处理
-
-- 支持多种流模式（updates、messages、custom）
-- WebSocket 实时通信
-- 异步任务处理
-- 前端平滑展示
-
-### 性能优化
-
-- 结果缓存机制
-- 并行任务处理
-- 批量预测优化
-- 前端按需渲染
+### 4. 会话管理
+- ✅ 多会话支持
+- ✅ 会话重命名、删除
+- ✅ 历史记录保存（LocalStorage）
 
 ## 📝 开发计划
 
-- [x] 基础框架搭建
-- [x] LangGraph 工作流实现
-- [x] 阿里云百炼集成
+**已完成**
+- [x] LangGraph工作流引擎
 - [x] Vue 3 现代化前端
-- [x] WebSocket 实时通信
-- [x] 流式输出展示
-- [x] ChatGPT 风格对话界面（推荐）
-- [x] Markdown 内容渲染
-- [x] 流式输出优化（节点独立、内容累积）
-- [ ] 对话历史保存
-- [ ] 性能预测模型集成（预留接口）
+- [x] WebSocket实时通信
+- [x] 流式输出优化
+- [x] Docker一键部署
+- [x] 会话管理系统
+
+**规划中**
+- [ ] TopPhi/ML模型真实接入（当前为模拟数据）
 - [ ] 数据库持久化
 - [ ] 用户认证系统
-- [ ] 生产部署优化
+- [ ] 生产环境优化
 - [ ] 更多材料体系支持
 
-## 🤝 贡献指南
+## 🐛 故障排查
 
-欢迎提交 Issue 和 Pull Request！
+### Docker相关
+查看容器日志：
+```bash
+docker-compose logs -f
+```
+### 本地开发
+后端日志会实时输出到控制台，前端问题请检查浏览器控制台。
 
-1. Fork 项目
-2. 创建功能分支 (`git checkout -b feature/AmazingFeature`)
-3. 提交更改 (`git commit -m '添加某个功能'`)
-4. 推送到分支 (`git push origin feature/AmazingFeature`)
-5. 开启 Pull Request
+详细故障排查见 `DOCKER_README.md`。
 
 ## 📄 许可证
 
-本项目采用 MIT 许可证。
+MIT License
+
+## 🤝 贡献
+
+欢迎提交 Issue 和 Pull Request！
 
 ---
+
