@@ -1,0 +1,33 @@
+# TopMat Agent 开发环境 Docker Compose 配置
+version: '3.8'
+
+services:
+  topmat-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: topmat-agent-dev
+    ports:
+      - "5173:5173"  # 前端开发服务器
+      - "8000:8000"  # 后端API服务
+    volumes:
+      # 挂载源代码实现热重载
+      - ./src:/app/src
+      - ./frontend/src:/app/frontend/src
+      - ./.env:/app/.env
+    environment:
+      # Python环境变量
+      - PYTHONUNBUFFERED=1
+      # Node环境变量
+      - NODE_ENV=development
+      # API地址
+      - VITE_API_BASE_URL=http://localhost:8000
+    stdin_open: true
+    tty: true
+    restart: unless-stopped
+    networks:
+      - topmat-network
+
+networks:
+  topmat-network:
+    driver: bridge

@@ -11,7 +11,6 @@ TopMat Agent 是一个基于 LangGraph 的智能材料优化系统，专注于�
 - 🔄 **迭代优化**: 支持多轮迭代优化，持续改进涂层性能
 - 📊 **实时反馈**: 流式输出和WebSocket通信，提供实时状态更新
 - 📈 **数据驱动**: 基于历史数据和机器学习模型进行性能预测
-- 💬 **对话式交互**: ChatGPT 风格的对话界面，自然流畅的交互体验
 
 ## 🚀 快速开始
 
@@ -85,18 +84,17 @@ npm run dev
 > - 快捷参数设置，简化操作流程
 > - 详细使用说明见 `CHATGPT_UI_GUIDE.md`
 
-#### 方案二：Streamlit 前端（快速原型）
+#### 方式二：分别启动前后端
 
 ```bash
-# 安装依赖
-pip install -r requirements.txt
+# 后端
+start_backend.bat
+# 或
+python run.py  # 选择选项 1: FastAPI后端服务
 
-# 配置环境变量
-copy .env.example .env
-
-# 运行
-python run.py
-# 选择选项 2 (仅Streamlit)
+# 前端（另开终端）
+cd frontend
+npm run dev
 ```
 
 ### 演示模式
@@ -134,41 +132,12 @@ python run.py demo
 > 📘 详细使用说明：`CHATGPT_UI_GUIDE.md`  
 > 🔧 流式优化方案：`STREAMING_OPTIMIZATION.md`
 
-### Streamlit 界面（备选）
+### 更多信息
 
-**1. 需求提取**
-
-在 Streamlit 界面的"需求提取"标签页中输入：
-
-- **涂层成分**: Al、Ti、N 及可选 X 元素的含量
-- **工艺参数**: 沉积气压、气体流量、偏压、温度等
-- **结构设计**: 涂层厚度、层数结构
-- **目标需求**: 应用场景和性能要求描述
-
-**2. 性能预测**
-
-系统自动预测涂层性能：
-
-- 硬度预测 (GPa)
-- 结合力等级
-- 耐磨性评估
-- 抗氧化温度
-- 微观结构特征
-
-**3. 优化建议**
-
-系统提供三类优化方案：
-
-- **P1 - 成分优化**: 调整元素配比
-- **P2 - 结构优化**: 多层或梯度结构设计
-- **P3 - 工艺优化**: 参数调整建议
-
-**4. 迭代优化**
-
-- 选择优化方案
-- 输入实验验证结果
-- 系统自动分析并推荐下一步优化方向
-- 达到收敛条件后生成最终报告
+详细的启动和使用说明请参考：
+- 📘 启动指南：`启动说明.md`
+- 📘 Vue前端指南：`docs/Vue前端实现指南.md`
+- 📘 ChatGPT风格界面：`CHATGPT_UI_GUIDE.md`
 
 ## 🏗️ 系统架构
 
@@ -190,8 +159,7 @@ TopMat_Agent_1.0/
 │   └── api/            # FastAPI后端服务
 ├── tests/              # 测试用例
 ├── docs/               # 文档资料
-├── streamlit_app.py    # Streamlit前端（备选）
-├── run.py              # 主运行脚本
+├── run.py              # 主运行脚本（后端启动、演示模式）
 ├── requirements.txt    # Python依赖
 └── .env.example        # 环境变量模板
 ```
@@ -199,9 +167,9 @@ TopMat_Agent_1.0/
 ### 技术架构图
 ```
 ┌─────────────────────────────────────┐
-│  Vue 3 前端 (Port 5173)              │
+│  Vue 3 前端 (Port 3000)              │
 │  ┌──────────────────────────────┐   │
-│  │  ChatGPT 风格对话界面         │   │
+│  │  工单界面         │   │
 │  │  - 流式消息展示               │   │
 │  │  - Markdown 渲染              │   │
 │  │  - 快捷参数设置               │   │
@@ -270,13 +238,6 @@ python run.py
 - **Markdown 渲染**: marked 库支持完整 Markdown 语法
 - **对话式交互**: ChatGPT 风格的对话界面设计
 
-**为什么选择 Vue 3？**
-- ✅ 与 LangGraph 异步流式输出完美配合
-- ✅ 无需页面刷新，用户体验流畅
-- ✅ 组件化开发，易于维护和扩展
-- ✅ 性能优异，虚拟 DOM 高效渲染
-- ✅ ChatGPT 风格界面，专注内容展示
-
 ### LangGraph 工作流
 
 - **状态管理**: 使用 TypedDict 定义工作流状态
@@ -303,7 +264,6 @@ python run.py
 - [x] 基础框架搭建
 - [x] LangGraph 工作流实现
 - [x] 阿里云百炼集成
-- [x] Streamlit UI 界面（原型）
 - [x] Vue 3 现代化前端
 - [x] WebSocket 实时通信
 - [x] 流式输出展示
@@ -331,19 +291,4 @@ python run.py
 
 本项目采用 MIT 许可证。
 
-## 📞 联系方式
-
-如有问题或建议，请通过以下方式联系：
-
-- 提交 GitHub Issue
-- 发送邮件至：topmat-support@example.com
-
-## 🙏 致谢
-
-- LangChain 和 LangGraph 团队
-- 阿里云百炼平台
-- 所有贡献者和用户
-
 ---
-
-**TopMat Agent** - 打通产品研发-生产链条，在核心场景提供独有价值！

@@ -166,9 +166,11 @@
                   </div>
                   <el-tag 
                     :type="currentNode === 'historical_comparison' && isThinking ? 'warning' : 'success'" 
-                    size="small"
+                    size="default"
+                    effect="dark"
                   >
-                    {{ currentNode === 'historical_comparison' && isThinking ? '检索中...' : '已完成' }}
+                    <el-icon v-if="currentNode === 'historical_comparison' && isThinking" class="is-loading" style="margin-right: 4px;"><Loading /></el-icon>
+                    {{ currentNode === 'historical_comparison' && isThinking ? '正在检索...' : '已完成' }}
                   </el-tag>
                 </div>
               </template>
@@ -322,10 +324,11 @@
                 </div>
               </template>
               
-              <!-- 综合建议流式生成中 -->
+              <!-- 综合建议内容（始终保留显示） -->
               <div 
-                v-if="currentNode === 'optimization_summary' && isStreaming && getNodeMessage('optimization_summary')?.content"
-                class="node-content streaming"
+                v-if="getNodeMessage('optimization_summary')?.content"
+                class="node-content"
+                :class="{ 'streaming': currentNode === 'optimization_summary' && isStreaming }"
                 style="margin-bottom: 20px; padding: 16px; background: #F5F9FF; border-radius: 8px; border-left: 4px solid #409EFF;"
               >
                 <h3 style="margin: 0 0 12px 0; color: #409EFF; font-size: 16px;">💡 综合建议</h3>
@@ -366,7 +369,7 @@
               </template>
               
               <!-- 生成中提示 -->
-              <div v-if="currentNode === 'experiment_workorder_generation' && isThinking" class="processing-indicator">
+              <div v-if="currentNode === 'experiment_workorder_generation' && isThinking && !isStreaming" class="processing-indicator">
                 <el-icon class="is-loading"><Loading /></el-icon>
                 <span>{{ thinkingText }}</span>
               </div>
@@ -380,7 +383,7 @@
               ></div>
             </el-card>
 
-            <!-- 8. 等待实验结果输入节点 -->
+            <!-- 8. 实验结果接收节点 -->
             <el-card 
               v-if="getNodeMessage('await_experiment_results')"
               class="node-card" 
@@ -394,17 +397,104 @@
                     </el-icon>
                     <span>等待实验结果</span>
                   </div>
-                  <el-tag type="info" size="small">待输入</el-tag>
+                  <el-tag type="warning" size="small">等待输入</el-tag>
                 </div>
               </template>
               <div class="node-content">
-                <el-alert 
-                  type="info" 
-                  :closable="false"
-                  title="请输入实验测试结果"
-                  description="完成实验后，请输入实际测得的性能数据以进行对比分析"
-                />
-                <!-- TODO: 添加实验结果输入表单 -->
+                <p style="margin-bottom: 16px; color: #606266;">实验工单已生成，请输入实验测试结果：</p>
+                
+                <!-- 实验结果输入表单 -->
+                <el-form :model="experimentResultsForm" label-width="140px" size="default">
+                  <el-form-item label="涂层硬度 (GPa)">
+                    <el-input-number 
+                      v-model="experimentResultsForm.hardness" 
+                      :precision="2" 
+                      :step="0.1" 
+                      :min="0" 
+                      :max="100"
+                      placeholder="如: 29.2"
+                    />
+                  </el-form-item>
+                  
+                  <el-form-item label="硬度标准差 (GPa)">
+                    <el-input-number 
+                      v-model="experimentResultsForm.hardness_std" 
+                      :precision="2" 
+                      :step="0.1" 
+                      :min="0" 
+                      :max="10"
+                      placeholder="如: 0.8"
+                    />
+                  </el-form-item>
+                  
+                  <el-form-item label="结合力等级">
+                    <el-select v-model="experimentResultsForm.adhesion_level" placeholder="请选择结合力等级">
+                      <el-option label="HF1 (最优)" value="HF1" />
+                      <el-option label="HF2" value="HF2" />
+                      <el-option label="HF3" value="HF3" />
+                      <el-option label="HF4" value="HF4" />
+                      <el-option label="HF5" value="HF5" />
+                      <el-option label="HF6 (最差)" value="HF6" />
+                    </el-select>
+                  </el-form-item>
+                  
+                  <el-form-item label="磨损率 (mm³/Nm)">
+                    <el-input 
+                      v-model="experimentResultsForm.wear_rate" 
+                      placeholder="如: 2.1e-6"
+                    />
+                  </el-form-item>
+                  
+                  <el-form-item label="涂层厚度 (μm)">
+                    <el-input-number 
+                      v-model="experimentResultsForm.coating_thickness" 
+                      :precision="2" 
+                      :step="0.1" 
+                      :min="0" 
+                      :max="50"
+                      placeholder="如: 3.2"
+                    />
+                  </el-form-item>
+                  
+                  <el-form-item label="氧化温度 (℃)">
+                    <el-input-number 
+                      v-model="experimentResultsForm.oxidation_temperature" 
+                      :precision="0" 
+                      :step="10" 
+                      :min="0" 
+                      :max="1500"
+                      placeholder="如: 850"
+                    />
+                  </el-form-item>
+                  
+                  <el-form-item label="测试日期">
+                    <el-date-picker
+                      v-model="experimentResultsForm.test_date"
+                      type="date"
+                      placeholder="选择测试日期"
+                      format="YYYY-MM-DD"
+                      value-format="YYYY-MM-DD"
+                    />
+                  </el-form-item>
+                  
+                  <el-form-item label="操作员">
+                    <el-input 
+                      v-model="experimentResultsForm.operator" 
+                      placeholder="如: 实验员A"
+                    />
+                  </el-form-item>
+                  
+                  <el-form-item>
+                    <el-button 
+                      type="primary" 
+                      @click="submitExperimentResults"
+                      :loading="isSubmittingResults"
+                    >
+                      提交实验结果
+                    </el-button>
+                    <el-button @click="fillExampleResults">填充示例数据</el-button>
+                  </el-form-item>
+                </el-form>
               </div>
             </el-card>
 
@@ -524,13 +614,24 @@ const activeOptimizationTab = ref('p1')
 const autoScrollEnabled = ref(true)
 const showScrollToBottom = ref(false)
 
+// ============ 实验结果表单 ============
+const experimentResultsForm = ref({
+  hardness: null,
+  hardness_std: null,
+  adhesion_level: '',
+  wear_rate: '',
+  coating_thickness: null,
+  oxidation_temperature: null,
+  test_date: '',
+  operator: ''
+})
+const isSubmittingResults = ref(false)
+
 // WebSocket连接
 const { connect, send, disconnect, isConnected } = useWebSocket()
 
 // 处理表单提交
 const handleFormSubmit = (formData) => {
-  console.log('表单提交:', formData)
-  
   // 清空之前的消息（开始新任务）
   messages.value = []
   streamBuffer.value = {}
@@ -547,6 +648,73 @@ const handleFormSubmit = (formData) => {
   })
   
   ElMessage.success('已提交，开始分析...')
+}
+
+// 提交实验结果
+const submitExperimentResults = () => {
+  // 验证必填项
+  if (!experimentResultsForm.value.hardness) {
+    ElMessage.warning('请输入涂层硬度')
+    return
+  }
+  if (!experimentResultsForm.value.adhesion_level) {
+    ElMessage.warning('请选择结合力等级')
+    return
+  }
+  
+  isSubmittingResults.value = true
+  
+  // 转换磨损率为科学计数法格式的数字
+  const resultsData = {
+    ...experimentResultsForm.value,
+    wear_rate: experimentResultsForm.value.wear_rate ? 
+      parseFloat(experimentResultsForm.value.wear_rate) : null
+  }
+  
+  // 发送到后端
+  send({
+    type: 'submit_experiment_results',
+    data: resultsData
+  })
+  
+  // 移除等待实验结果的消息卡片
+  const msgIndex = messages.value.findIndex(msg => msg.nodeId === 'await_experiment_results')
+  if (msgIndex !== -1) {
+    messages.value.splice(msgIndex, 1)
+  }
+  
+  // 添加已提交的消息
+  messages.value.push(createAIMessage(
+    '实验结果已提交，正在分析实验数据...',
+    resultsData,
+    'experiment_results_submitted'
+  ))
+  
+  // 重置状态
+  isSubmittingResults.value = false
+  isProcessing.value = true
+  isStreaming.value = true
+  
+  ElMessage.success('实验结果已提交，继续执行工作流...')
+  
+  // 保存消息
+  saveCurrentSession()
+  saveSessions()
+}
+
+// 填充示例数据
+const fillExampleResults = () => {
+  experimentResultsForm.value = {
+    hardness: 29.2,
+    hardness_std: 0.8,
+    adhesion_level: 'HF1',
+    wear_rate: '2.1e-6',
+    coating_thickness: 3.2,
+    oxidation_temperature: 850,
+    test_date: new Date().toISOString().split('T')[0],
+    operator: '实验员A'
+  }
+  ElMessage.info('已填充示例数据')
 }
 
 // 渲染Markdown内容（使用marked库统一渲染）
@@ -651,11 +819,7 @@ const handleUserScroll = () => {
   scrollTimeout = setTimeout(() => {
     const isAtBottom = checkIfAtBottom()
     
-    console.log('[滚动检测]', { 
-      isAtBottom, 
-      autoScrollEnabled: autoScrollEnabled.value, 
-      showButton: showScrollToBottom.value 
-    })
+    // 滚动检测状态更新
     
     if (isAtBottom) {
       // 用户滚动到底部，恢复自动滚动
@@ -682,16 +846,12 @@ watch(isStreaming, (newVal) => {
 
 // 手动恢复自动滚动
 const resumeAutoScroll = () => {
-  console.log('[点击按钮] 恢复自动滚动')
   autoScrollEnabled.value = true
   showScrollToBottom.value = false
   scrollToBottom(true)  // 强制滚动到底部
 }
 
-// 监听按钮显示状态变化（调试用）
-watch(showScrollToBottom, (newVal) => {
-  console.log('[按钮状态]', newVal ? '显示' : '隐藏')
-})
+// 监听按钮显示状态变化
 
 // 监听当前节点变化，自动切换tab
 watch(currentNode, (newNode) => {
@@ -857,7 +1017,7 @@ const handleSelectSession = (sessionId) => {
       tryRestoreTask(session.taskId)
     }
     
-    console.log(`已切换到会话: ${session.title}`)
+    // 会话切换完成
   }
 }
 
@@ -926,7 +1086,7 @@ const loadSessions = () => {
     
     if (savedSessions) {
       sessions.value = JSON.parse(savedSessions)
-      console.log(`已加载 ${sessions.value.length} 个会话`)
+      // 会话加载完成
     }
     
     // 恢复当前会话
@@ -954,17 +1114,6 @@ const loadSessions = () => {
 }
 
 // ============ 消息管理函数 ============
-// 保存消息到localStorage（已废弃，使用saveCurrentSession）
-const saveMessagesToStorage = () => {
-  saveCurrentSession()
-  saveSessions()
-}
-
-// 从 localStorage 恢复消息（已废弃，使用loadSessions）
-const restoreMessagesFromStorage = () => {
-  // 这个函数现在被loadSessions替代
-  console.log('使用loadSessions替代restoreMessagesFromStorage')
-}
 
 // 清除localStorage中的任务数据
 const clearTaskStorage = () => {
@@ -1018,8 +1167,7 @@ const handleWebSocketMessage = (data) => {
       currentTaskId.value = data.task_id
       console.log(`任务 ${data.task_id} 已恢复`, data.state)
       
-      // 恢复消息历史
-      restoreMessagesFromStorage()
+      // 消息历史已在会话加载时恢复
       
       // 根据状态恢复界面
       if (data.state.workflow_status === 'awaiting_optimization_selection') {
@@ -1077,16 +1225,27 @@ const handleWebSocketMessage = (data) => {
         'p3_process_optimization',
         'optimization_summary',  // 综合建议生成
         'experiment_workorder_generation',  // 实验工单生成
-        'experiment_result_analysis'  // 实验结果分析
+        'experiment_result_analysis',  // 实验结果分析
+        'decide_next_iteration'  // 迭代决策
       ]
+      
+      // TopPhi和ML节点需要显示计算/预测中状态
+      const computingNodes = ['topphi_simulation', 'ml_prediction']
       
       if (llmNodes.includes(data.node) && !streamBuffer.value[data.node]) {
         // 为LLM节点创建消息占位，准备接收流式输出
         createNodeMessage(data.node)
         streamBuffer.value[data.node] = 'processing' // 标记为处理中
-        isThinking.value = false
+        
+        // TopPhi和ML节点需要显示thinking状态（正在计算/预测）
+        if (computingNodes.includes(data.node)) {
+          isThinking.value = true
+          thinkingText.value = data.node === 'topphi_simulation' ? '正在进行第一性原理模拟计算...' : '正在进行ML模型性能预测...'
+        } else {
+          isThinking.value = false
+        }
         isStreaming.value = false
-        console.log(`[Status] 为LLM节点 ${data.node} 创建占位`)
+        console.log(`[Status] 为LLM节点 ${data.node} 创建占位, thinking: ${isThinking.value}`)
       } else if (!isStreaming.value) {
         // 非LLM节点显示思考指示器
         isThinking.value = true
@@ -1104,7 +1263,8 @@ const handleWebSocketMessage = (data) => {
       // 收到节点结果后，清除thinking状态
       isThinking.value = false
       // 保存消息
-      saveMessagesToStorage()
+      saveCurrentSession()
+      saveSessions()
       break
 
     case 'await_user_selection':
@@ -1149,7 +1309,28 @@ const handleWebSocketMessage = (data) => {
       isThinking.value = false
       thinkingText.value = data.message || '请选择优化方案'
       // 保存消息历史，以便重连恢复
-      saveMessagesToStorage()
+      saveCurrentSession()
+      saveSessions()
+      break
+
+    case 'await_experiment_results':
+      // 等待用户输入实验结果
+      console.log('[前端] 等待实验结果输入')
+      
+      // 创建等待实验结果的消息节点
+      if (!getNodeMessage('await_experiment_results')) {
+        messages.value.push(createAIMessage(
+          '实验工单已生成，请输入实验测试结果',
+          data.required_data || {},
+          'await_experiment_results'
+        ))
+      }
+      
+      isProcessing.value = false
+      isStreaming.value = false
+      isThinking.value = false
+      saveCurrentSession()
+      saveSessions()
       break
 
     case 'complete':
@@ -1407,6 +1588,33 @@ ${cases.map((c, i) =>
       createNodeMessage(nodeName)
     }
     updateNodeMessage(nodeName, content, { p3_suggestions: result.suggestions })
+    streamBuffer.value[nodeName] = 'completed'
+  }
+
+  // 实验结果接收（演示模式）
+  if (nodeName === 'await_experiment_results') {
+    console.log('[实验结果] 收到数据', result)
+    
+    const experimentData = result.experiment_results || {}
+    const content = `**📊 实验结果已接收（演示数据）**
+
+🔬 **测试数据**
+- 硬度: **${experimentData.hardness || 'N/A'} GPa** ${experimentData.hardness_std ? `(标准差: ±${experimentData.hardness_std} GPa)` : ''}
+- 结合力等级: **${experimentData.adhesion_level || 'N/A'}**
+- 涂层厚度: **${experimentData.coating_thickness || 'N/A'} μm**
+- 耐磨性: ${experimentData.wear_rate ? experimentData.wear_rate.toExponential(2) : 'N/A'} mm³/Nm
+- 抗氧化温度: **${experimentData.oxidation_temperature || 'N/A'}℃**
+
+📅 测试信息
+- 测试日期: ${experimentData.test_date || 'N/A'}
+- 操作人员: ${experimentData.operator || 'N/A'}
+
+✅ 数据已提交，开始分析实验结果与预测结果的差异...`
+    
+    if (!streamBuffer.value[nodeName] || streamBuffer.value[nodeName] === 'processing') {
+      createNodeMessage(nodeName)
+    }
+    updateNodeMessage(nodeName, content, { experiment_results: experimentData })
     streamBuffer.value[nodeName] = 'completed'
   }
 

@@ -14,6 +14,7 @@ from ..models.coating_models import (
 from ..graph.stream_callback import send_stream_chunk_sync
 import json
 import logging
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -25,14 +26,24 @@ def input_validation_node(state: CoatingWorkflowState) -> Dict:
     """
     logger.info(f"开始验证任务 {state['task_id']} 的输入参数")
     
+    # 调试：打印接收到的state
+    logger.info(f"[调试] 接收到的state数据:")
+    logger.info(f"  - coating_composition: {state.get('coating_composition')}")
+    logger.info(f"  - process_params: {state.get('process_params')}")
+    logger.info(f"  - structure_design: {state.get('structure_design')}")
+    
     validation_errors = []
     
     # 验证涂层成分
     try:
         composition = state.get("coating_composition", {})
+        logger.info(f"[调试] 成分数据: {composition}, 类型: {type(composition)}")
+        
         # 过滤掉None值，只计算数值
         valid_values = [v for v in composition.values() if v is not None]
         total = sum(valid_values) if valid_values else 0
+        logger.info(f"[调试] 成分总和: {total}, 有效值: {valid_values}")
+        
         if total > 100:
             validation_errors.append(f"成分总和超过100%: {total}%")
         
@@ -40,16 +51,24 @@ def input_validation_node(state: CoatingWorkflowState) -> Dict:
         if "al_content" not in composition and "ti_content" not in composition:
             validation_errors.append("缺少主要元素(Al或Ti)")
     except Exception as e:
+        logger.error(f"[调试] 成分验证异常: {str(e)}", exc_info=True)
         validation_errors.append(f"成分验证失败: {str(e)}")
     
     # 验证工艺参数
     try:
         params = state.get("process_params", {})
-        if params.get("deposition_pressure", 0) <= 0:
+        logger.info(f"[调试] 工艺参数: {params}")
+        
+        deposition_pressure = params.get("deposition_pressure", 0)
+        deposition_temperature = params.get("deposition_temperature", 0)
+        logger.info(f"[调试] 沉积气压: {deposition_pressure}, 沉积温度: {deposition_temperature}")
+        
+        if deposition_pressure <= 0:
             validation_errors.append("沉积气压必须大于0")
-        if params.get("deposition_temperature", 0) < 400 or params.get("deposition_temperature", 0) > 800:
+        if deposition_temperature < 400 or deposition_temperature > 800:
             validation_errors.append("沉积温度应在400-800℃之间")
     except Exception as e:
+        logger.error(f"[调试] 工艺参数验证异常: {str(e)}", exc_info=True)
         validation_errors.append(f"工艺参数验证失败: {str(e)}")
     
     # 预处理数据
@@ -60,7 +79,7 @@ def input_validation_node(state: CoatingWorkflowState) -> Dict:
     }
     
     # 更新状态
-    return {
+    result = {
         "input_validated": len(validation_errors) == 0,
         "validation_errors": validation_errors,
         "preprocessed_data": preprocessed_data,
@@ -68,6 +87,13 @@ def input_validation_node(state: CoatingWorkflowState) -> Dict:
         "next_step": "performance_prediction" if len(validation_errors) == 0 else "error",
         "workflow_status": "validated" if len(validation_errors) == 0 else "validation_failed"
     }
+    
+    # 调试：输出验证结果
+    logger.info(f"[调试] 验证结果: input_validated={result['input_validated']}")
+    if validation_errors:
+        logger.error(f"[调试] 验证错误列表: {validation_errors}")
+    
+    return result
 
 
 # ==================== 性能预测模块拆分 ====================
@@ -82,6 +108,9 @@ def topphi_simulation_node(state: CoatingWorkflowState) -> Dict:
     
     composition = state.get("coating_composition", {})
     params = state.get("process_params", {})
+    
+    # 模拟计算时间（实际接入TopPhi时会有真实计算时间）
+    time.sleep(4)
     
     # TODO: 接入MCP工具 - TopPhi模拟服务
     # 示例：使用MCP协议调用外部TopPhi模拟工具
@@ -116,6 +145,9 @@ def ml_model_prediction_node(state: CoatingWorkflowState) -> Dict:
     composition = state.get("coating_composition", {})
     params = state.get("process_params", {})
     structure = state.get("structure_design", {})
+    
+    # 模拟预测计算时间（实际接入ML模型时会有真实推理时间）
+    time.sleep(4)
     
     # TODO: 接入MCP工具 - ML预测服务
     # 示例：使用MCP协议调用外部ML模型
@@ -158,6 +190,9 @@ def historical_comparison_node(state: CoatingWorkflowState) -> Dict:
     
     composition = state.get("coating_composition", {})
     params = state.get("process_params", {})
+    
+    # 模拟数据库检索时间（实际接入RAG时会有真实检索时间）
+    time.sleep(4)
     
     # TODO: 接入RAG系统 - 向量数据库检索
     # 示例：使用RAG检索相似的历史案例
@@ -1170,6 +1205,8 @@ def experiment_workorder_generation_node(state: CoatingWorkflowState) -> Dict:
 
 ## 6. 预计工期
 
+不要出现人物和单位等
+
 使用Markdown格式，专业规范。
 """
     
@@ -1206,23 +1243,42 @@ def experiment_workorder_generation_node(state: CoatingWorkflowState) -> Dict:
 
 
 def await_experiment_results_node(state: CoatingWorkflowState) -> Dict:
-    """等待用户输入实验测试结果"""
+    """等待用户输入实验测试结果
+    
+    当前使用示例数据演示完整迭代流程
+    TODO: 后续改为真正等待用户输入
+    """
     logger.info(f"[等待实验结果] 任务 {state['task_id']}")
     
     workorder = state.get("experiment_workorder", {})
     
+    # 检查是否已有实验结果（用户输入后恢复）
+    if state.get("experiment_results"):
+        logger.info(f"[等待实验结果] 已收到实验结果，继续执行")
+        return {
+            "workflow_status": "experiment_results_received",
+            "current_step": "results_received"
+        }
+    
+    # 暂停等待用户输入实验结果
+    logger.info(f"[等待实验结果] 等待用户手动输入实验测试数据")
+    
+    # 返回等待状态，触发工作流暂停
     return {
         "workflow_status": "awaiting_experiment_results",
         "workorder_id": workorder.get("workorder_id", ""),
+        "current_step": "awaiting_results",
+        # 告知前端需要采集的数据字段
         "required_data": {
-            "hardness": {"unit": "GPa", "required": True},
-            "hardness_std": {"unit": "GPa", "required": False},
-            "adhesion_level": {"options": ["HF1", "HF2", "HF3", "HF4", "HF5", "HF6"], "required": True},
-            "wear_rate": {"unit": "mm³/Nm", "required": False},
-            "coating_thickness": {"unit": "μm", "required": True},
-            "oxidation_temperature": {"unit": "℃", "required": False}
-        },
-        "current_step": "awaiting_results"
+            "hardness": {"type": "float", "unit": "GPa", "description": "涂层硬度"},
+            "hardness_std": {"type": "float", "unit": "GPa", "description": "硬度标准差"},
+            "adhesion_level": {"type": "string", "description": "结合力等级 (如HF1-HF6)"},
+            "wear_rate": {"type": "float", "unit": "mm³/Nm", "description": "磨损率"},
+            "coating_thickness": {"type": "float", "unit": "μm", "description": "涂层厚度"},
+            "oxidation_temperature": {"type": "float", "unit": "℃", "description": "氧化温度"},
+            "test_date": {"type": "string", "description": "测试日期"},
+            "operator": {"type": "string", "description": "操作员"}
+        }
     }
 
 

@@ -353,6 +353,9 @@ async def websocket_general_endpoint(websocket: WebSocket):
                 # 绑定任务到客户端
                 manager.bind_task(client_id, current_task_id)
                 
+                # 打印接收到的数据用于调试
+                logger.info(f"接收到工作流启动请求，数据: {data.get('data')}")
+                
                 await manager.send_json({
                     "type": "status",
                     "node": "system",
@@ -393,6 +396,44 @@ async def websocket_general_endpoint(websocket: WebSocket):
                         current_task_id = task_id_to_use
                     except ValueError as e:
                         logger.error(f"更新任务选择失败: {str(e)}")
+                        await manager.send_json({
+                            "type": "error",
+                            "message": f"任务不存在或已过期，请重新提交"
+                        }, client_id)
+                else:
+                    await manager.send_json({
+                        "type": "error",
+                        "message": "没有活动的任务，请先提交涂层数据"
+                    }, client_id)
+            
+            elif data["type"] == "submit_experiment_results":
+                # 用户提交实验结果
+                task_id_to_use = current_task_id or manager.get_task_id(client_id)
+                
+                if task_id_to_use:
+                    await manager.send_json({
+                        "type": "status",
+                        "task_id": task_id_to_use,
+                        "node": "experiment_results",
+                        "message": "已接收实验结果，继续执行工作流..."
+                    }, client_id)
+                    
+                    # 更新实验结果
+                    try:
+                        workflow_manager.update_experiment_results(
+                            task_id_to_use,
+                            data["data"]
+                        )
+                        
+                        # 继续执行工作流
+                        asyncio.create_task(
+                            continue_workflow_after_experiment_results(task_id_to_use, client_id)
+                        )
+                        
+                        # 更新局部变量
+                        current_task_id = task_id_to_use
+                    except ValueError as e:
+                        logger.error(f"更新实验结果失败: {str(e)}")
                         await manager.send_json({
                             "type": "error",
                             "message": f"任务不存在或已过期，请重新提交"
@@ -659,6 +700,141 @@ async def continue_workflow_after_selection(task_id: str, client_id: str):
         }, current_client)
 
 
+async def continue_workflow_after_experiment_results(task_id: str, client_id: str):
+    """
+    接收实验结果后继续执行工作流
+    """
+    try:
+        logger.info(f"继续执行任务 {task_id} - 实验结果已接收")
+        
+        # 获取当前任务状态
+        task_state = workflow_manager.get_task_state(task_id)
+        thread_id = task_state.get("thread_id", task_id)
+        experiment_results = task_state.get("experiment_results", {})
+        
+        logger.info(f"实验结果: {experiment_results}")
+        
+        # 设置流式输出回调
+        async def stream_callback(node: str, content: str):
+            """LLM流式输出回调"""
+            try:
+                current_client = manager.get_client_id(task_id) or client_id
+                await manager.send_json({
+                    "type": "llm_stream",
+                    "node": node,
+                    "content": content
+                }, current_client)
+                await asyncio.sleep(0.01)
+            except Exception as e:
+                logger.error(f"流式输出回调失败: {str(e)}")
+        
+        workflow_manager.set_stream_callback(stream_callback)
+        
+        # 使用Command恢复工作流，传递实验结果
+        from langgraph.types import Command
+        resume_command = Command(resume=experiment_results)
+        logger.info(f"使用Command恢复工作流，传递实验结果")
+        
+        # 继续流式执行工作流
+        current_node = None
+        llm_streaming_node = None
+        async for chunk in workflow_manager.stream_task(task_id, resume_command, thread_id):
+            if isinstance(chunk, tuple) and len(chunk) == 2:
+                mode, data = chunk
+                
+                # 处理节点更新
+                if mode == "updates":
+                    if isinstance(data, dict):
+                        for node_name, node_data in data.items():
+                            if node_name == "__interrupt__":
+                                continue
+                            
+                            if node_name != "__interrupt__":
+                                current_node = node_name
+                                logger.info(f"节点更新: {node_name}")
+                                
+                                # 发送节点状态
+                                current_client = manager.get_client_id(task_id) or client_id
+                                await manager.send_json({
+                                    "type": "status",
+                                    "node": node_name,
+                                    "message": f"正在执行 {node_name}..."
+                                }, current_client)
+                                
+                                # 检测LLM节点
+                                if node_name in ["experiment_result_analysis", "decide_next_iteration"]:
+                                    llm_streaming_node = node_name
+                                    logger.info(f"设置LLM流式输出节点: {node_name}")
+                                
+                                # 处理特殊节点结果
+                                if isinstance(node_data, dict):
+                                    # 实验结果分析
+                                    if "experiment_analysis" in node_data:
+                                        current_client = manager.get_client_id(task_id) or client_id
+                                        await manager.send_json({
+                                            "type": "node_result",
+                                            "node": "experiment_result_analysis",
+                                            "result": node_data
+                                        }, current_client)
+                                        logger.info("已发送实验结果分析")
+                                        await asyncio.sleep(0.1)
+                                    
+                                    # 迭代决策
+                                    if "next_action" in node_data:
+                                        current_client = manager.get_client_id(task_id) or client_id
+                                        await manager.send_json({
+                                            "type": "node_result",
+                                            "node": "decide_next_iteration",
+                                            "result": node_data
+                                        }, current_client)
+                                        logger.info("已发送迭代决策")
+                                        await asyncio.sleep(0.1)
+                                    
+                                    # 最终总结
+                                    if "final_summary" in node_data:
+                                        current_client = manager.get_client_id(task_id) or client_id
+                                        await manager.send_json({
+                                            "type": "node_result",
+                                            "node": "result_summary",
+                                            "result": node_data
+                                        }, current_client)
+                                        logger.info("已发送最终总结")
+                                        await asyncio.sleep(0.1)
+                
+                # 处理LLM流式输出
+                elif mode == "llm_stream":
+                    chunk_data = data.get("chunk")
+                    metadata = data.get("metadata", {})
+                    
+                    if chunk_data and hasattr(chunk_data, 'content') and chunk_data.content:
+                        target_node = llm_streaming_node or current_node or "unknown"
+                        
+                        if target_node in ["experiment_result_analysis", "decide_next_iteration"]:
+                            current_client = manager.get_client_id(task_id) or client_id
+                            await manager.send_json({
+                                "type": "llm_stream",
+                                "node": target_node,
+                                "content": chunk_data.content
+                            }, current_client)
+                            await asyncio.sleep(0.01)
+        
+        # 工作流完成
+        current_client = manager.get_client_id(task_id) or client_id
+        await manager.send_json({
+            "type": "complete",
+            "task_id": task_id,
+            "message": "工作流全部完成"
+        }, current_client)
+        
+    except Exception as e:
+        logger.error(f"继续执行工作流失败: {str(e)}", exc_info=True)
+        current_client = manager.get_client_id(task_id) or client_id
+        await manager.send_json({
+            "type": "error",
+            "message": f"继续执行失败: {str(e)}"
+        }, current_client)
+
+
 async def execute_workflow_stream(task_id: str, thread_id: str, input_data: Dict, client_id: str):
     """
     执行工作流并流式发送结果
@@ -695,6 +871,7 @@ async def execute_workflow_stream(task_id: str, thread_id: str, input_data: Dict
         # 使用workflow_manager流式执行任务
         current_node = None
         llm_streaming_node = None  # 跟踪LLM流式输出的节点
+        workflow_paused = False  # 标记工作流是否暂停等待用户输入
         async for event in workflow_manager.stream_task(task_id, input_data, thread_id):
             # astream_events返回：(event_type, data)
             if isinstance(event, tuple) and len(event) == 2:
@@ -743,10 +920,16 @@ async def execute_workflow_stream(task_id: str, thread_id: str, input_data: Dict
                                 continue
                             
                             if node_name != "__interrupt__":
+                                # 过滤掉条件路由函数（以should_开头的都是路由函数）
+                                if node_name.startswith("should_"):
+                                    logger.debug(f"忽略条件路由函数: {node_name}")
+                                    continue
+                                    
                                 current_node = node_name
                                 # 只有LLM节点才设置llm_streaming_node
                                 if node_name in ["integrated_analysis", "p1_composition_optimization", 
-                                                "p2_structure_optimization", "p3_process_optimization"]:
+                                                "p2_structure_optimization", "p3_process_optimization",
+                                                "experiment_workorder_generation", "experiment_result_analysis"]:
                                     llm_streaming_node = node_name
                                     logger.info(f"设置LLM流式输出节点: {node_name}")
                                 logger.info(f"节点更新: {node_name}")
@@ -861,17 +1044,47 @@ async def execute_workflow_stream(task_id: str, thread_id: str, input_data: Dict
                                         logger.info("已发送优化建议")
                                         await asyncio.sleep(0.1)
                                     
-                                    # 等待用户选择
+                                    # 等待实验结果节点 - 检测节点名称和状态
+                                    if node_name == "await_experiment_results":
+                                        logger.info(f"[API] 检测到await_experiment_results节点，状态: {node_data.get('workflow_status')}")
+                                        
+                                        # 如果是等待状态 - 发送等待消息
+                                        if node_data.get("workflow_status") == "awaiting_experiment_results":
+                                            workflow_paused = True  # 标记工作流已暂停
+                                            await manager.send_json({
+                                                "type": "await_experiment_results",
+                                                "task_id": task_id,
+                                                "node": "await_experiment_results",
+                                                "message": "请输入实验测试结果",
+                                                "required_data": node_data.get("required_data", {})
+                                            }, get_current_client())
+                                            logger.info(f"[API] 任务 {task_id} 等待实验结果输入 - 已发送前端消息，工作流暂停")
+                                            # 不要return，让循环正常结束，通过workflow_paused标志来控制后续行为
+                                        
+                                        # 如果已收到实验结果（用户提交后恢复）
+                                        elif node_data.get("experiment_results"):
+                                            await manager.send_json({
+                                                "type": "node_result",
+                                                "node": "await_experiment_results",
+                                                "result": {
+                                                    "experiment_results": node_data.get("experiment_results"),
+                                                    "message": "已收到实验测试结果"
+                                                }
+                                            }, get_current_client())
+                                            logger.info("已发送实验结果数据")
+                                            await asyncio.sleep(0.3)
+                                    
+                                    # 等待用户选择优化方案
                                     if node_data.get("workflow_status") == "awaiting_optimization_selection":
+                                        workflow_paused = True  # 标记工作流已暂停
                                         await manager.send_json({
                                             "type": "await_user_selection",
                                             "task_id": task_id,
                                             "node": "user_selection",
                                             "message": "请选择优化方案"
                                         }, get_current_client())
-                                        logger.info(f"任务 {task_id} 等待用户选择")
-                                        # 工作流暂停，等待用户输入
-                                        return
+                                        logger.info(f"任务 {task_id} 等待用户选择，工作流暂停")
+                                        # 不要return，让循环正常结束
                 
                 # 处理LLM流式输出 - 这是关键！
                 elif event_type == "llm_stream":
@@ -884,7 +1097,9 @@ async def execute_workflow_stream(task_id: str, thread_id: str, input_data: Dict
                         
                         # 只有当目标节点是LLM节点时才发送流式输出
                         if target_node in ["integrated_analysis", "p1_composition_optimization", 
-                                         "p2_structure_optimization", "p3_process_optimization"]:
+                                         "p2_structure_optimization", "p3_process_optimization",
+                                         "experiment_workorder_generation", "experiment_result_analysis",
+                                         "optimization_summary"]:
                             content_preview = chunk.content[:50] if len(chunk.content) > 50 else chunk.content
                             logger.info(f"[LLM流式] 节点={target_node} 内容长度={len(chunk.content)} 预览=[{content_preview}...]")
                             await manager.send_json({
@@ -912,14 +1127,17 @@ async def execute_workflow_stream(task_id: str, thread_id: str, input_data: Dict
                         current_node = node_name
                         logger.info(f"节点更新(兼容格式): {node_name}")
         
-        # 发送完成信号
-        await manager.send_json({
-            "type": "complete",
-            "task_id": task_id,
-            "message": "工作流执行完成"
-        }, get_current_client())
-        
-        logger.info(f"工作流任务完成: {task_id}")
+        # 检查工作流是否暂停等待用户输入
+        if not workflow_paused:
+            # 发送完成信号
+            await manager.send_json({
+                "type": "complete",
+                "task_id": task_id,
+                "message": "工作流执行完成"
+            }, get_current_client())
+            logger.info(f"工作流任务完成: {task_id}")
+        else:
+            logger.info(f"工作流任务暂停，等待用户输入: {task_id}")
         
     except Exception as e:
         logger.error(f"工作流执行失败: {str(e)}", exc_info=True)

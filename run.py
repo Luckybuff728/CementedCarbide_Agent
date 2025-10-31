@@ -20,23 +20,6 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def run_streamlit():
-    """运行Streamlit应用"""
-    import streamlit.web.cli as stcli
-    import sys
-    
-    sys.argv = [
-        "streamlit",
-        "run",
-        "streamlit_app.py",
-        "--server.port", os.getenv("STREAMLIT_PORT", "8501"),
-        "--server.address", "localhost",
-        "--theme.base", "light",
-        "--theme.primaryColor", "#4CAF50"
-    ]
-    sys.exit(stcli.main())
-
-
 def run_fastapi():
     """运行FastAPI服务"""
     import uvicorn
@@ -81,68 +64,31 @@ def main():
     
     # 选择运行模式
     print("请选择运行模式:")
-    print("1. 完整模式 (Streamlit + FastAPI)")
-    print("2. 仅Streamlit前端")
-    print("3. 仅FastAPI后端")
-    print("4. 运行测试")
-    print("5. 退出")
+    print("1. FastAPI后端服务")
+    print("2. 演示模式")
+    print("3. 运行测试")
+    print("4. 退出")
     
-    choice = input("\n请输入选项 (1-5): ").strip()
+    choice = input("\n请输入选项 (1-4): ").strip()
     
     if choice == "1":
-        # 完整模式
-        logger.info("启动完整模式...")
-        
-        # 创建进程
-        fastapi_process = multiprocessing.Process(target=run_fastapi)
-        streamlit_process = multiprocessing.Process(target=run_streamlit)
-        
-        try:
-            # 启动进程
-            fastapi_process.start()
-            logger.info("FastAPI服务已启动: http://localhost:8000")
-            
-            # 等待FastAPI启动
-            import time
-            time.sleep(2)
-            
-            streamlit_process.start()
-            logger.info("Streamlit应用已启动: http://localhost:8501")
-            
-            print("\n服务已启动:")
-            print("- Streamlit UI: http://localhost:8501")
-            print("- FastAPI Docs: http://localhost:8000/docs")
-            print("\n按 Ctrl+C 停止所有服务...")
-            
-            # 等待进程结束
-            fastapi_process.join()
-            streamlit_process.join()
-            
-        except KeyboardInterrupt:
-            logger.info("正在停止服务...")
-            fastapi_process.terminate()
-            streamlit_process.terminate()
-            fastapi_process.join()
-            streamlit_process.join()
-            logger.info("服务已停止")
-    
-    elif choice == "2":
-        # 仅Streamlit
-        logger.info("启动Streamlit前端...")
-        run_streamlit()
-    
-    elif choice == "3":
-        # 仅FastAPI
-        logger.info("启动FastAPI后端...")
+        # FastAPI后端
+        logger.info("启动FastAPI后端服务...")
+        logger.info("提示: 使用 start_vue.bat 同时启动前后端")
         run_fastapi()
     
-    elif choice == "4":
+    elif choice == "2":
+        # 演示模式
+        logger.info("启动演示模式...")
+        demo_mode()
+    
+    elif choice == "3":
         # 运行测试
         logger.info("运行测试...")
         import pytest
         pytest.main(["tests/", "-v", "--tb=short"])
     
-    elif choice == "5":
+    elif choice == "4":
         print("再见!")
         sys.exit(0)
     

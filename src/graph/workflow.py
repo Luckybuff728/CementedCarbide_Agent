@@ -59,6 +59,31 @@ def should_continue_after_iteration(state: CoatingWorkflowState) -> Literal["top
         return "topphi_simulation"
 
 
+def should_continue_after_await_results(state: CoatingWorkflowState) -> Literal["experiment_result_analysis", "END"]:
+    """等待实验结果后的路由决策"""
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    workflow_status = state.get("workflow_status")
+    has_results = state.get("experiment_results")
+    
+    logger.info(f"[路由决策] workflow_status={workflow_status}, has_results={bool(has_results)}")
+    
+    # 检查是否有实验结果数据
+    if has_results:
+        # 有实验结果，继续分析
+        logger.info("[路由决策] 有实验结果，继续分析 -> experiment_result_analysis")
+        return "experiment_result_analysis"
+    elif workflow_status == "awaiting_experiment_results":
+        # 明确等待状态，暂停工作流
+        logger.info("[路由决策] 等待实验结果，暂停工作流 -> END")
+        return "END"
+    else:
+        # 没有结果也没有等待状态，暂停工作流等待用户输入
+        logger.warning(f"[路由决策] 未检测到实验结果或等待状态(status={workflow_status})，暂停工作流 -> END")
+        return "END"
+
+
 def should_continue_after_iteration_decision(state: CoatingWorkflowState) -> Literal["result_summary", "performance_improvement_prediction", "p1_composition_optimization"]:
     """迭代决策后的路由"""
     next_action = state.get("next_action", "complete")
@@ -76,6 +101,12 @@ def error_handler_node(state: CoatingWorkflowState) -> Dict:
     """错误处理节点"""
     errors = state.get("validation_errors", [])
     error_message = "输入验证失败:\n" + "\n".join(errors)
+    
+    # 调试：输出错误处理信息
+    logger.error(f"[调试] 错误处理节点被调用")
+    logger.error(f"  - validation_errors: {errors}")
+    logger.error(f"  - input_validated: {state.get('input_validated')}")
+    logger.error(f"  - workflow_status: {state.get('workflow_status')}")
     
     return {
         "error_message": error_message,
@@ -178,12 +209,22 @@ def create_coating_workflow(
     
     # 实验闭环流程（完整迭代）
     # await_user_selection → performance_improvement_prediction → experiment_workorder_generation 
-    # → await_experiment_results → experiment_result_analysis → decide_next_iteration
+    # → await_experiment_results → (等待用户输入 | experiment_result_analysis) → decide_next_iteration
     # → (完成|继续优化|尝试其他方案)
     workflow.add_edge("await_user_selection", "performance_improvement_prediction")
     workflow.add_edge("performance_improvement_prediction", "experiment_workorder_generation")
     workflow.add_edge("experiment_workorder_generation", "await_experiment_results")
-    workflow.add_edge("await_experiment_results", "experiment_result_analysis")
+    
+    # 条件边：根据是否有实验结果决定是否继续
+    workflow.add_conditional_edges(
+        "await_experiment_results",
+        should_continue_after_await_results,
+        {
+            "experiment_result_analysis": "experiment_result_analysis",
+            "END": END  # 暂停工作流，等待用户输入
+        }
+    )
+    
     workflow.add_edge("experiment_result_analysis", "decide_next_iteration")
     
     # 迭代决策的条件边
@@ -324,6 +365,13 @@ class CoatingWorkflowManager:
                 "workflow_status": "started"
             }
             
+            # 调试：打印构建的初始状态
+            logger.info(f"[调试] 任务 {task_id} 初始状态构建:")
+            logger.info(f"  - coating_composition: {initial_state['coating_composition']}")
+            logger.info(f"  - process_params: {initial_state['process_params']}")
+            logger.info(f"  - structure_design: {initial_state['structure_design']}")
+            logger.info(f"  - target_requirements: {initial_state['target_requirements']}")
+            
             config = {
                 "configurable": {
                     "thread_id": thread_id or task_id
@@ -435,6 +483,26 @@ class CoatingWorkflowManager:
         # 更新实验结果
         self.active_tasks[task_id]["state"]["experimental_results"] = results
         logger.info(f"任务 {task_id} 已添加实验结果")
+    
+    def update_experiment_results(
+        self,
+        task_id: str,
+        results: Dict[str, Any]
+    ) -> None:
+        """
+        更新实验结果到工作流状态
+        
+        Args:
+            task_id: 任务ID
+            results: 实验结果数据
+        """
+        if task_id not in self.active_tasks:
+            raise ValueError(f"任务 {task_id} 不存在")
+        
+        # 更新状态中的实验结果
+        self.active_tasks[task_id]["state"]["experiment_results"] = results
+        self.active_tasks[task_id]["state"]["workflow_status"] = "experiment_results_received"
+        logger.info(f"任务 {task_id} 已更新实验结果，准备恢复工作流")
     
     def get_task_state(self, task_id: str) -> Dict:
         """获取任务当前状态"""

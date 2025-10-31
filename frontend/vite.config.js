@@ -7,8 +7,8 @@ export default defineConfig({
   plugins: [vue()],
   
   server: {
-    port: 3000,
-    host: '0.0.0.0',
+    port: 5173,  // 统一使用5173端口
+    host: '0.0.0.0',  // 允许外部访问（Docker需要）
     proxy: {
       // 代理API请求到FastAPI后端
       '/api': {
