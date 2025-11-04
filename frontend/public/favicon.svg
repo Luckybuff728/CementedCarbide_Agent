@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- 背景圆形 -->
+  <circle cx="50" cy="50" r="48" fill="#3b82f6"/>
+  
+  <!-- 涂层符号 - 三层结构 -->
+  <g transform="translate(25, 35)">
+    <!-- 第一层 -->
+    <rect x="0" y="0" width="50" height="8" fill="#ffffff" opacity="0.9" rx="2"/>
+    <!-- 第二层 -->
+    <rect x="0" y="12" width="50" height="8" fill="#ffffff" opacity="0.7" rx="2"/>
+    <!-- 第三层 -->
+    <rect x="0" y="24" width="50" height="8" fill="#ffffff" opacity="0.5" rx="2"/>
+  </g>
+  
+  <!-- 智能符号 - 小齿轮 -->
+  <g transform="translate(62, 62)">
+    <circle cx="8" cy="8" r="4" fill="#fbbf24"/>
+    <circle cx="8" cy="8" r="2.5" fill="#3b82f6"/>
+    <!-- 齿轮齿 -->
+    <rect x="7" y="0" width="2" height="3" fill="#fbbf24"/>
+    <rect x="7" y="13" width="2" height="3" fill="#fbbf24"/>
+    <rect x="0" y="7" width="3" height="2" fill="#fbbf24"/>
+    <rect x="13" y="7" width="3" height="2" fill="#fbbf24"/>
+  </g>
+</svg>

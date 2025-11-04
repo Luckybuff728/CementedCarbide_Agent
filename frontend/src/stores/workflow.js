@@ -30,6 +30,7 @@ export const useWorkflowStore = defineStore('workflow', () => {
   const comprehensiveRecommendation = ref('')
   
   // 分析结果
+  const validationResult = ref(null)  // 验证结果（包含错误信息）
   const performancePrediction = ref(null)
   const historicalComparison = ref(null)
   const integratedAnalysis = ref(null)
@@ -129,6 +130,7 @@ export const useWorkflowStore = defineStore('workflow', () => {
     p2Content.value = ''
     p3Content.value = ''
     comprehensiveRecommendation.value = ''
+    validationResult.value = null
     performancePrediction.value = null
     historicalComparison.value = null
     integratedAnalysis.value = null
@@ -149,6 +151,7 @@ export const useWorkflowStore = defineStore('workflow', () => {
     p2Content,
     p3Content,
     comprehensiveRecommendation,
+    validationResult,
     performancePrediction,
     historicalComparison,
     integratedAnalysis,

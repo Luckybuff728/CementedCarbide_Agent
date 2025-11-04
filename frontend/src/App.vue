@@ -180,7 +180,7 @@ const generateStructuredContent = (nodeId, data) => {
   // 根据不同节点类型生成不同格式的内容
   if (nodeId === 'topphi_simulation') {
     const topphi = data.topphi_simulation || data
-    return `## 🔬 TopPhi第一性原理模拟结果
+    return `## TopPhi第一性原理模拟结果
 
 ### 晶体结构参数
 - **晶粒尺寸**: ${topphi.grain_size_nm || 'N/A'} nm
@@ -198,7 +198,7 @@ const generateStructuredContent = (nodeId, data) => {
   
   if (nodeId === 'ml_prediction') {
     const mlData = data.performance_prediction || data.ml_prediction || data
-    return `## 🎯 ML模型性能预测结果
+    return `## ML模型性能预测结果
 
 ### 预测性能指标
 - **硬度**: ${mlData.hardness || mlData.hardness_gpa || 'N/A'} GPa
@@ -220,7 +220,7 @@ const generateStructuredContent = (nodeId, data) => {
   
   if (nodeId === 'historical_comparison') {
     const histData = data.historical_comparison || data
-    return `## 📊 历史数据比对结果
+    return `## 历史数据比对结果
 
 ### 匹配案例统计
 - **相似案例数**: ${histData.total_cases || histData.length || 0} 个
@@ -236,7 +236,7 @@ ${histData.similar_cases ? histData.similar_cases.slice(0, 3).map((c, i) =>
   }
   
   // 默认显示
-  return `## ✅ ${nodeId} 执行完成
+  return `## ${nodeId} 执行完成
 
 节点处理成功，数据已保存。`
 }
@@ -245,15 +245,21 @@ ${histData.similar_cases ? histData.similar_cases.slice(0, 3).map((c, i) =>
 const handleNodeOutput = (data) => {
   // data格式: { "input_validation": {...}, "topphi_simulation": {...}, ...}
   
+  console.log('[🔍 前端接收] node_output数据类型:', typeof data)
+  console.log('[🔍 前端接收] node_output数据键:', Object.keys(data || {}))
+  
   if (!data || typeof data !== 'object') {
-    console.warn('[状态] node_output数据无效:', data)
+    console.warn('[❌ 状态] node_output数据无效:', data)
     return
   }
   
   // 遍历chunk中的所有节点
   for (const [nodeId, nodeData] of Object.entries(data)) {
+    console.log(`[🔍 前端处理] 节点=${nodeId}, 数据类型=${typeof nodeData}`)
+    
     // 跳过非节点字段（如__typename等）
     if (!nodeId || typeof nodeData !== 'object' || nodeId.startsWith('__')) {
+      console.log(`[⏭️ 跳过] 节点=${nodeId}`)
       continue
     }
     
@@ -262,14 +268,9 @@ const handleNodeOutput = (data) => {
     
     if (step) {
       // 节点已存在（llm_stream创建的），只标记为完成，保留流式内容
+      const oldStatus = step.status
       step.status = 'completed'
-      
-      // 添加到completedNodes
-      if (!workflowStore.completedNodes.includes(nodeId)) {
-        workflowStore.completedNodes.push(nodeId)
-      }
-      
-      console.log(`[状态] ${nodeId} → completed，内容长度: ${step.content?.length || 0}`)
+      console.log(`[✅ 状态更新] ${nodeId}: ${oldStatus} → completed，内容长度: ${step.content?.length || 0}`)
     } else {
       // 节点不存在（某些节点可能没有llm_stream），直接创建为completed
       // 生成结构化的内容显示
@@ -281,14 +282,31 @@ const handleNodeOutput = (data) => {
         content: structuredContent
       })
       
-      if (!workflowStore.completedNodes.includes(nodeId)) {
-        workflowStore.completedNodes.push(nodeId)
-      }
-      
-      console.log(`[状态] ${nodeId} → completed (生成结构化内容)`)
+      console.log(`[✅ 状态创建] ${nodeId} → completed (生成结构化内容)`)
+    }
+    
+    // ⚠️ 关键修复：节点完成后，清除currentNode（如果是当前节点）
+    if (workflowStore.currentNode === nodeId) {
+      workflowStore.currentNode = ''
+      console.log(`[🔄 清除currentNode] ${nodeId}已完成`)
     }
     
     // 存储特定节点的数据到store
+    if (nodeId === 'input_validation') {
+      // 存储验证结果（包含错误信息）
+      console.log('[🔍 input_validation] 原始数据:', nodeData)
+      console.log('[🔍 input_validation] input_validated=', nodeData.input_validated)
+      console.log('[🔍 input_validation] validation_errors=', nodeData.validation_errors)
+      console.log('[🔍 input_validation] workflow_status=', nodeData.workflow_status)
+      
+      const validationData = {
+        input_validated: nodeData.input_validated !== false,  // 是否验证通过
+        validation_errors: nodeData.validation_errors || [],  // 错误列表
+        workflow_status: nodeData.workflow_status || 'validated'
+      }
+      workflowStore.validationResult = validationData
+      console.log('[💾 存储] 验证结果:', validationData)
+    }
     if (nodeId === 'ml_prediction') {
       // 数据结构: { ml_prediction: { hardness_gpa, adhesion_level, ... }, performance_prediction: {...} }
       // 优先使用performance_prediction（整合后的数据），其次使用ml_prediction
@@ -345,7 +363,12 @@ const handleNodeOutput = (data) => {
 const handleLLMStream = (data) => {
   const { node, content } = data
   
-  if (!node || !content) return
+  if (!node || !content) {
+    console.log('[⏭️ llm_stream跳过] node或content为空')
+    return
+  }
+  
+  console.log(`[📝 llm_stream] 节点=${node}, 内容长度=${content.length}`)
   
   // P1/P2/P3使用独立存储
   if (node === 'p1_composition_optimization') {
@@ -367,6 +390,7 @@ const handleLLMStream = (data) => {
   if (step) {
     // 节点已存在，追加内容
     step.content += content
+    console.log(`[📝 追加内容] ${node}, 当前总长度=${step.content.length}`)
   } else {
     // 节点不存在，创建为processing状态
     workflowStore.addProcessStep({
@@ -378,7 +402,7 @@ const handleLLMStream = (data) => {
     // 更新当前节点
     workflowStore.currentNode = node
     
-    console.log(`[状态] ${node} → processing`)
+    console.log(`[🟡 状态创建] ${node} → processing (首次流式内容)`)
   }
 }
 

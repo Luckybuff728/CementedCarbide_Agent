@@ -9,16 +9,26 @@
         </el-tag>
       </div>
       <div class="actions">
-        <el-button text size="small" @click="expandAll" icon="Expand">全部展开</el-button>
-        <el-button text size="small" @click="collapseAll" icon="Fold">全部收起</el-button>
+        <n-button text size="small" @click="expandAll">
+          <template #icon>
+            <n-icon><Expand /></n-icon>
+          </template>
+          全部展开
+        </n-button>
+        <n-button text size="small" @click="collapseAll">
+          <template #icon>
+            <n-icon><Contract /></n-icon>
+          </template>
+          全部收起
+        </n-button>
       </div>
     </div>
     
     <div class="panel-content" ref="scrollContainer" @scroll="handleScroll">
       <!-- 空状态 -->
       <div v-if="workflowStore.processSteps.length === 0" class="empty-state">
-        <el-icon class="empty-icon"><DocumentAdd /></el-icon>
-        <p>请在左侧输入参数并点击"开始分析"</p>
+        <n-icon class="empty-icon" :component="DocumentTextOutline" />
+        <p>请在左侧输入参数并点击“开始分析”</p>
       </div>
       
       <!-- 前期分析卡片（排除P1/P2/P3和优化方案汇总） -->
@@ -32,7 +42,7 @@
         @toggle="workflowStore.toggleNodeCollapse(step.nodeId)"
       />
       
-      <!-- 💡 优化建议（Tab卡片，整合P1/P2/P3） -->
+      <!-- 优化建议（Tab卡片，整合P1/P2/P3） -->
       <div 
         v-if="showOptimizationCards" 
         ref="optimizationCardRef"
@@ -40,8 +50,9 @@
       >
         <div class="card-header" @click="toggleOptimizationCollapse">
           <div class="header-left">
-            <span class="status-icon">✅</span>
-            <h4>💡 优化建议</h4>
+            <n-icon class="status-icon completed" :component="CheckmarkCircle" />
+            <n-icon class="title-icon" :component="BulbOutline" />
+            <h4>优化建议</h4>
             <el-tag type="success" size="small">已完成</el-tag>
           </div>
           <div class="header-right">
@@ -55,27 +66,42 @@
             <el-tabs v-model="activeOptimizationTab" class="optimization-tabs">
               <el-tab-pane 
                 v-if="workflowStore.p1Content" 
-                label="🧪 P1 成分优化" 
                 name="p1"
               >
+                <template #label>
+                  <div class="tab-label">
+                    <n-icon :component="FlaskOutline" />
+                    <span>P1 成分优化</span>
+                  </div>
+                </template>
                 <div ref="p1TabContent" class="tab-content-wrapper" @scroll="handleTabScroll">
                   <MarkdownRenderer :content="workflowStore.p1Content" :streaming="workflowStore.isProcessing && workflowStore.currentNode === 'p1_composition_optimization'" />
                 </div>
               </el-tab-pane>
               <el-tab-pane 
                 v-if="workflowStore.p2Content" 
-                label="🏗️ P2 结构优化" 
                 name="p2"
               >
+                <template #label>
+                  <div class="tab-label">
+                    <n-icon :component="BuildOutline" />
+                    <span>P2 结构优化</span>
+                  </div>
+                </template>
                 <div ref="p2TabContent" class="tab-content-wrapper" @scroll="handleTabScroll">
                   <MarkdownRenderer :content="workflowStore.p2Content" :streaming="workflowStore.isProcessing && workflowStore.currentNode === 'p2_structure_optimization'" />
                 </div>
               </el-tab-pane>
               <el-tab-pane 
                 v-if="workflowStore.p3Content" 
-                label="⚙️ P3 工艺优化" 
                 name="p3"
               >
+                <template #label>
+                  <div class="tab-label">
+                    <n-icon :component="SettingsOutlineIcon" />
+                    <span>P3 工艺优化</span>
+                  </div>
+                </template>
                 <div ref="p3TabContent" class="tab-content-wrapper" @scroll="handleTabScroll">
                   <MarkdownRenderer :content="workflowStore.p3Content" :streaming="workflowStore.isProcessing && workflowStore.currentNode === 'p3_process_optimization'" />
                 </div>
@@ -120,6 +146,17 @@
 import { ref, computed, watch, nextTick } from 'vue'
 import { Loading, ArrowDown, ArrowUp, DocumentCopy } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
+import { NButton, NIcon } from 'naive-ui'
+import {
+  DocumentTextOutline,
+  Expand,
+  Contract,
+  BulbOutline,
+  FlaskOutline,
+  BuildOutline,
+  SettingsOutline as SettingsOutlineIcon,
+  CheckmarkCircle
+} from '@vicons/ionicons5'
 import { useWorkflowStore } from '../stores/workflow'
 import ProcessCard from './ProcessCard.vue'
 import MarkdownRenderer from './MarkdownRenderer.vue'
@@ -375,7 +412,7 @@ defineExpose({
 <style scoped>
 .center-panel {
   flex: 1;
-  background: var(--bg-secondary);
+  background: #f9fafb;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -426,6 +463,7 @@ defineExpose({
   font-size: 64px;
   margin-bottom: 16px;
   opacity: 0.3;
+  color: var(--text-tertiary);
 }
 
 .empty-state p {
@@ -435,16 +473,18 @@ defineExpose({
 /* ProcessCard样式（与ProcessCard.vue保持一致） */
 .process-card {
   background: white;
-  border-radius: var(--radius-md);
+  border-radius: 8px;
   margin-bottom: 16px;
+  border: 1px solid var(--border-color);
   border-left: 4px solid var(--border-color);
   overflow: hidden;
   transition: all 0.3s ease;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
 .process-card:hover {
-  box-shadow: var(--shadow-md);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transform: translateY(-1px);
 }
 
 .process-card.completed {
@@ -456,17 +496,17 @@ defineExpose({
 }
 
 .card-header {
-  padding: 16px 20px;
+  padding: 14px 18px;
   cursor: pointer;
   display: flex;
   justify-content: space-between;
   align-items: center;
   border-bottom: 1px solid var(--border-light);
-  transition: background 0.2s;
+  transition: all 0.2s;
 }
 
 .card-header:hover {
-  background: var(--bg-secondary);
+  background: #f9fafb;
 }
 
 .header-left {
@@ -483,7 +523,16 @@ defineExpose({
 }
 
 .status-icon {
-  font-size: 18px;
+  font-size: 20px;
+}
+
+.status-icon.completed {
+  color: var(--success);
+}
+
+.title-icon {
+  font-size: 20px;
+  color: var(--warning);
 }
 
 .header-right {
@@ -532,18 +581,28 @@ defineExpose({
   padding: 0 20px;
 }
 
+.tab-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tab-label .n-icon {
+  font-size: 16px;
+}
+
 .optimization-tabs :deep(.el-tabs__item.is-active) {
   background: white;
   border-radius: var(--radius-sm);
 }
 
 .optimization-tabs :deep(.el-tabs__content) {
-  max-height: 400px;
+  max-height: 700px;
   overflow-y: auto;
 }
 
 .tab-content-wrapper {
-  max-height: 400px;
+  max-height: 600px;
   overflow-y: auto;
   scroll-behavior: smooth;
 }

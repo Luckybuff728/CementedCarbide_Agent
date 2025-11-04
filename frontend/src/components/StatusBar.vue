@@ -15,7 +15,7 @@
             @click="handleNodeClick(node)"
           >
             <div class="step-content">
-              <span class="step-icon">{{ getStatusIcon(node.status) }}</span>
+              <n-icon class="step-icon" :component="getStatusIcon(node.status)" />
               <span class="step-name">{{ node.name }}</span>
             </div>
             <div v-if="index < nodes.length - 1" class="step-connector"></div>
@@ -24,37 +24,70 @@
       </div>
       
       <div class="actions">
-        <el-button size="small" @click="handleExport" :disabled="!canExport">
-          <el-icon><Download /></el-icon>
+        <n-button 
+          size="small" 
+          @click="handleExport" 
+          :disabled="!canExport"
+          secondary
+        >
+          <template #icon>
+            <n-icon><Download /></n-icon>
+          </template>
           导出
-        </el-button>
-        <el-button size="small" @click="handleClear" :disabled="!canClear">
-          <el-icon><Delete /></el-icon>
+        </n-button>
+        <n-button 
+          size="small" 
+          @click="handleClear" 
+          :disabled="!canClear"
+          secondary
+        >
+          <template #icon>
+            <n-icon><Trash /></n-icon>
+          </template>
           清空
-        </el-button>
+        </n-button>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, h } from 'vue'
 import { ElMessageBox, ElMessage } from 'element-plus'
-import { Download, Delete } from '@element-plus/icons-vue'
+import { NButton, NIcon } from 'naive-ui'
+import { 
+  CheckmarkCircle, 
+  HourglassOutline, 
+  EllipseOutline,
+  Settings,
+  Download,
+  Trash
+} from '@vicons/ionicons5'
 import { useWorkflowStore } from '../stores/workflow'
 
 const workflowStore = useWorkflowStore()
 const emit = defineEmits(['jump-to-node', 'export', 'clear'])
 
-const nodes = computed(() => [
-  { id: 'input_validation', name: '参数验证', status: getNodeStatus('input_validation') },
-  { id: 'topphi_simulation', name: 'TopPhi模拟', status: getNodeStatus('topphi_simulation') },
-  { id: 'ml_prediction', name: 'ML预测', status: getNodeStatus('ml_prediction') },
-  { id: 'historical_comparison', name: '历史对比', status: getNodeStatus('historical_comparison') },
-  { id: 'integrated_analysis', name: '综合分析', status: getNodeStatus('integrated_analysis') },
-  { id: 'optimization', name: '优化方案', status: getOptimizationStatus() },
-  { id: 'experiment_workorder', name: '实验工单', status: getNodeStatus('experiment_workorder') }
-])
+const nodes = computed(() => {
+  const nodeList = [
+    { id: 'input_validation', name: '参数验证', status: getNodeStatus('input_validation') },
+    { id: 'topphi_simulation', name: 'TopPhi模拟', status: getNodeStatus('topphi_simulation') },
+    { id: 'ml_prediction', name: 'ML预测', status: getNodeStatus('ml_prediction') },
+    { id: 'historical_comparison', name: '历史对比', status: getNodeStatus('historical_comparison') },
+    { id: 'integrated_analysis', name: '根因分析', status: getNodeStatus('integrated_analysis') },
+    { id: 'optimization', name: '优化方案', status: getOptimizationStatus() },
+    { id: 'experiment_workorder', name: '实验工单', status: getNodeStatus('experiment_workorder') }
+  ]
+  
+  // 调试日志：显示当前状态
+  console.log('[📊 StatusBar状态]', {
+    currentNode: workflowStore.currentNode,
+    completedNodes: workflowStore.completedNodes,
+    statuses: nodeList.map(n => `${n.name}:${n.status}`)
+  })
+  
+  return nodeList
+})
 
 // 能否导出
 const canExport = computed(() => {
@@ -67,8 +100,9 @@ const canClear = computed(() => {
 })
 
 function getNodeStatus(nodeId) {
-  if (workflowStore.currentNode === nodeId) return 'processing'
+  // ⚠️ 关键修复：优先检查completed状态，避免已完成节点仍显示processing
   if (workflowStore.completedNodes.includes(nodeId)) return 'completed'
+  if (workflowStore.currentNode === nodeId) return 'processing'
   return 'pending'
 }
 
@@ -79,13 +113,14 @@ function getOptimizationStatus() {
   return 'pending'
 }
 
+// 获取状态图标组件
 function getStatusIcon(status) {
   const iconMap = {
-    'pending': '⌛️',
-    'processing': '⚙️',
-    'completed': '✅'
+    'pending': EllipseOutline,
+    'processing': Settings,
+    'completed': CheckmarkCircle
   }
-  return iconMap[status] || '○'
+  return iconMap[status] || EllipseOutline
 }
 
 function handleNodeClick(node) {
@@ -210,7 +245,22 @@ function handleClear() {
 }
 
 .step-icon {
-  font-size: 14px;
+  font-size: 16px;
+  transition: all 0.3s ease;
+}
+
+/* processing状态图标旋转动画 */
+.node-step.processing .step-icon {
+  animation: rotate 2s linear infinite;
+}
+
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .step-name {
@@ -230,6 +280,12 @@ function handleClear() {
 
 .actions {
   display: flex;
-  gap: 8px;
+  gap: 12px;
+  align-items: center;
+}
+
+/* Naive UI按钮自定义样式 */
+.actions :deep(.n-button) {
+  border-radius: 6px;
 }
 </style>

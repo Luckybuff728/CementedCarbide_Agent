@@ -2,7 +2,7 @@
   <div :class="['process-card', step.status, { collapsed, current: isCurrent }]">
     <div class="card-header" @click="$emit('toggle')">
       <div class="header-left">
-        <span class="status-icon">{{ getStatusIcon(step.status) }}</span>
+        <n-icon :class="['status-icon', step.status]" :component="getStatusIcon(step.status)" />
         <h4>{{ getNodeTitle(step.nodeId) }}</h4>
         <el-tag :type="getStatusType(step.status)" size="small">
           {{ getStatusText(step.status) }}
@@ -35,6 +35,13 @@
 import { ref, computed, watch, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import { ArrowDown, ArrowUp, DocumentCopy } from '@element-plus/icons-vue'
+import { NIcon } from 'naive-ui'
+import {
+  HourglassOutline,
+  Settings,
+  CheckmarkCircle,
+  CloseCircle
+} from '@vicons/ionicons5'
 import { getStatusType, getStatusText, formatTime } from '../utils/markdown'
 import MarkdownRenderer from './MarkdownRenderer.vue'
 
@@ -75,15 +82,15 @@ const nodeNameMap = {
 // 获取节点标题
 const getNodeTitle = (nodeId) => nodeNameMap[nodeId] || nodeId
 
-// 获取状态图标
+// 获取状态图标组件
 const getStatusIcon = (status) => {
   const iconMap = {
-    'pending': '⏳',
-    'processing': '⚙️',
-    'completed': '✅',
-    'error': '❌'
+    'pending': HourglassOutline,
+    'processing': Settings,
+    'completed': CheckmarkCircle,
+    'error': CloseCircle
   }
-  return iconMap[status] || ''
+  return iconMap[status] || HourglassOutline
 }
 
 // 复制内容
@@ -162,21 +169,24 @@ watch(
 <style scoped>
 .process-card {
   background: white;
-  border-radius: var(--radius-md);
+  border-radius: 8px;
   margin-bottom: 16px;
-  border: 2px solid var(--border-color);
+  border: 1px solid var(--border-color);
   border-left: 4px solid var(--border-color);
   transition: all 0.3s ease;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
 .process-card:hover {
-  box-shadow: var(--shadow-md);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transform: translateY(-1px);
 }
 
 .process-card.current {
   border-left-color: var(--primary);
-  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.2);
+  border-color: rgba(59, 130, 246, 0.3);
+  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.15);
+  background: linear-gradient(90deg, #eff6ff 0%, white 10%);
 }
 
 .process-card.processing {
@@ -196,17 +206,17 @@ watch(
 }
 
 .card-header {
-  padding: 16px 20px;
+  padding: 14px 18px;
   cursor: pointer;
   display: flex;
   justify-content: space-between;
   align-items: center;
   border-bottom: 1px solid var(--border-light);
-  transition: background 0.2s;
+  transition: all 0.2s;
 }
 
 .card-header:hover {
-  background: var(--bg-secondary);
+  background: #f9fafb;
 }
 
 .header-left {
@@ -223,7 +233,34 @@ watch(
 }
 
 .status-icon {
-  font-size: 18px;
+  font-size: 20px;
+  transition: all 0.3s ease;
+}
+
+.status-icon.pending {
+  color: var(--text-tertiary);
+}
+
+.status-icon.processing {
+  color: var(--warning);
+  animation: rotate 2s linear infinite;
+}
+
+.status-icon.completed {
+  color: var(--success);
+}
+
+.status-icon.error {
+  color: var(--danger);
+}
+
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .header-right {

@@ -3,31 +3,53 @@
     <!-- 参数验证摘要 -->
     <SummaryCard 
       v-if="hasValidationResult" 
-      icon="✅" 
+      icon=""
+      :icon-component="getValidationIcon()"
       title="参数验证"
       :clickable="true"
       @click="jumpToNode('input_validation')"
     >
       <div class="validation-summary">
-        <div class="validation-item">
-          <el-icon color="#10b981"><CircleCheck /></el-icon>
-          <span>成分配比验证通过</span>
-        </div>
-        <div class="validation-item">
-          <el-icon color="#10b981"><CircleCheck /></el-icon>
-          <span>工艺参数合理</span>
-        </div>
-        <div class="validation-item">
-          <el-icon color="#10b981"><CircleCheck /></el-icon>
-          <span>结构设计可行</span>
-        </div>
+        <template v-if="isValidationSuccess()">
+          <div class="validation-item success">
+            <n-icon :component="CheckmarkCircleOutline" color="#10b981" />
+            <span>成分配比验证通过</span>
+          </div>
+          <div class="validation-item success">
+            <n-icon :component="CheckmarkCircleOutline" color="#10b981" />
+            <span>工艺参数合理</span>
+          </div>
+          <div class="validation-item success">
+            <n-icon :component="CheckmarkCircleOutline" color="#10b981" />
+            <span>结构设计可行</span>
+          </div>
+        </template>
+        <template v-else>
+          <div class="validation-item error">
+            <n-icon :component="CloseCircleOutline" color="#ef4444" />
+            <span>参数验证失败</span>
+          </div>
+          <div class="validation-errors">
+            <div 
+              v-for="(error, index) in getValidationErrors()" 
+              :key="index"
+              class="error-message"
+            >
+              {{ error }}
+            </div>
+          </div>
+          <div class="validation-hint error-hint">
+            点击查看详细分析
+          </div>
+        </template>
       </div>
     </SummaryCard>
 
     <!-- TopPhi模拟摘要 -->
     <SummaryCard 
       v-if="hasTopPhiResult" 
-      icon="🔬" 
+      icon=""
+      :icon-component="FlaskOutline"
       title="TopPhi第一性原理"
       :clickable="true"
       @click="jumpToNode('topphi_simulation')"
@@ -51,7 +73,8 @@
     <!-- 性能预测摘要 -->
     <SummaryCard 
       v-if="hasMlPrediction" 
-      icon="🎯" 
+      icon=""
+      :icon-component="RadioButtonOnOutline"
       title="性能预测"
       :badge="getMlConfidenceBadge()"
       :clickable="true"
@@ -88,7 +111,8 @@
     <!-- 历史对比摘要 -->
     <SummaryCard 
       v-if="workflowStore.historicalComparison" 
-      icon="📊" 
+      icon=""
+      :icon-component="BarChartOutline"
       title="历史对比"
       :clickable="true"
       @click="jumpToNode('historical_comparison')"
@@ -118,7 +142,8 @@
     <!-- 根因分析摘要 -->
     <SummaryCard 
       v-if="workflowStore.integratedAnalysis" 
-      icon="🧠" 
+      icon=""
+      :icon-component="BulbOutline"
       title="根因分析"
       :clickable="true"
       @click="jumpToNode('integrated_analysis')"
@@ -142,7 +167,8 @@
     <!-- 优化建议摘要 -->
     <SummaryCard 
       v-if="hasOptimizationSuggestions" 
-      icon="💡" 
+      icon=""
+      :icon-component="BulbOutline"
       title="优化建议"
       :badge="getOptimizationBadge()"
       :clickable="true"
@@ -168,7 +194,10 @@
 
     <!-- 优化方案选择 -->
     <div v-if="workflowStore.showOptimizationSelection" class="optimization-section">
-      <h4>💡 选择优化方案</h4>
+      <div class="section-header">
+        <n-icon :component="BulbOutline" />
+        <h4>选择优化方案</h4>
+      </div>
       
       <div class="opt-cards">
         <div 
@@ -178,7 +207,7 @@
           @click="selectedOpt = opt.id"
         >
           <div class="opt-header">
-            <span class="opt-icon">{{ opt.icon }}</span>
+            <n-icon class="opt-icon" :component="opt.iconComponent" />
             <h5>{{ opt.title }}</h5>
           </div>
           <p class="opt-desc">{{ opt.description }}</p>
@@ -208,7 +237,8 @@
     <!-- 实验工单摘要 -->
     <SummaryCard 
       v-if="workflowStore.experimentWorkorder" 
-      icon="📝" 
+      icon=""
+      :icon-component="DocumentTextOutline"
       title="实验工单"
       :clickable="true"
       @click="jumpToNode('experiment_workorder')"
@@ -227,10 +257,12 @@
           <span class="value">{{ getSelectedPlan() }}</span>
         </div>
         <div class="workorder-actions">
-          <el-button type="primary" size="small" @click.stop="downloadWorkorder">
-            <el-icon><Download /></el-icon>
+          <n-button type="primary" size="small" @click.stop="downloadWorkorder">
+            <template #icon>
+              <n-icon><DownloadIcon /></n-icon>
+            </template>
             下载完整工单
-          </el-button>
+          </n-button>
         </div>
       </div>
     </SummaryCard>
@@ -241,6 +273,19 @@
 import { ref, computed, watch, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Download, CircleCheck } from '@element-plus/icons-vue'
+import { NButton, NIcon } from 'naive-ui'
+import {
+  CheckmarkCircleOutline,
+  CloseCircleOutline,
+  FlaskOutline,
+  RadioButtonOnOutline,
+  BarChartOutline,
+  BulbOutline,
+  DocumentTextOutline,
+  Download as DownloadIcon,
+  BuildOutline,
+  SettingsOutline
+} from '@vicons/ionicons5'
 import { useWorkflowStore } from '../stores/workflow'
 import { getConfidenceColor, getConfidenceBadge } from '../utils/markdown'
 import SummaryCard from './SummaryCard.vue'
@@ -254,8 +299,44 @@ const rightPanelRef = ref(null)
 
 // 是否有验证结果
 const hasValidationResult = computed(() => {
-  return workflowStore.completedNodes.includes('input_validation')
+  const step = workflowStore.processSteps.find(s => s.nodeId === 'input_validation')
+  return step && (step.status === 'completed' || step.status === 'error')
 })
+
+// 判断验证是否成功
+const isValidationSuccess = () => {
+  // ⚠️ 关键修复：检查validationResult中的实际验证状态，而不是节点执行状态
+  // 节点执行完成（completed）不代表验证通过，可能验证失败但执行完成
+  if (workflowStore.validationResult) {
+    const isSuccess = workflowStore.validationResult.input_validated === true
+    console.log('[🔍 验证状态判断] input_validated=', workflowStore.validationResult.input_validated, '→', isSuccess)
+    return isSuccess
+  }
+  
+  // 降级方案：如果没有validationResult，假设通过
+  console.log('[⚠️ 验证状态判断] 没有validationResult，假设通过')
+  return true
+}
+
+// 获取验证图标
+const getValidationIcon = () => {
+  return isValidationSuccess() ? CheckmarkCircleOutline : CloseCircleOutline
+}
+
+// 获取验证错误信息
+const getValidationErrors = () => {
+  if (!workflowStore.validationResult) return []
+  const errors = workflowStore.validationResult.validation_errors || []
+  
+  // 提取错误文本，去除Markdown标记
+  return errors.map(err => {
+    // 移除 **❌ 发现问题**： 前缀
+    let text = err.replace(/\*\*❌\s*发现问题\*\*[：:]\s*/g, '')
+    // 移除其他Markdown标记
+    text = text.replace(/[*_`#]/g, '')
+    return text.trim()
+  }).filter(Boolean)
+}
 
 // 是否有TopPhi结果
 const hasTopPhiResult = computed(() => {
@@ -308,21 +389,21 @@ const optimizationOptions = computed(() => [
   {
     id: 'P1',
     title: 'P1 成分优化',
-    icon: '🧪',
+    iconComponent: FlaskOutline,
     description: '调整Al/Ti/N比例及合金元素',
     summary: getSummaryFromContent(workflowStore.p1Content)
   },
   {
     id: 'P2',
     title: 'P2 结构优化',
-    icon: '🏗️',
+    iconComponent: BuildOutline,
     description: '多层/梯度结构设计',
     summary: getSummaryFromContent(workflowStore.p2Content)
   },
   {
     id: 'P3',
     title: 'P3 工艺优化',
-    icon: '⚙️',
+    iconComponent: SettingsOutline,
     description: '沉积参数与气体流量调整',
     summary: getSummaryFromContent(workflowStore.p3Content)
   }
@@ -487,8 +568,8 @@ watch(
 .right-panel {
   min-width: 200px;
   max-width: 600px;
-  background: var(--bg-secondary);
-  padding: 20px 16px;
+  background: #f9fafb;
+  padding: 16px;
   overflow-y: auto;
 }
 
@@ -639,9 +720,22 @@ watch(
   margin-bottom: 16px;
 }
 
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.section-header .n-icon {
+  font-size: 20px;
+  color: var(--warning);
+}
+
 .optimization-section h4 {
-  margin: 0 0 16px 0;
+  margin: 0;
   font-size: 15px;
+  font-weight: 600;
 }
 
 .opt-cards {
@@ -652,21 +746,25 @@ watch(
 }
 
 .opt-card {
-  padding: 14px;
+  padding: 16px;
   border: 2px solid var(--border-color);
-  border-radius: var(--radius-sm);
+  border-radius: 8px;
   cursor: pointer;
   transition: all 0.3s;
+  background: white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .opt-card:hover {
   border-color: var(--primary);
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+  transform: translateY(-2px);
 }
 
 .opt-card.selected {
   border-color: var(--primary);
-  background: #eff6ff;
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.25);
 }
 
 .opt-header {
@@ -677,7 +775,8 @@ watch(
 }
 
 .opt-icon {
-  font-size: 18px;
+  font-size: 22px;
+  color: var(--primary);
 }
 
 .opt-header h5 {
@@ -734,11 +833,12 @@ watch(
 
 /* 综合建议 */
 .recommendation-box {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
   color: white;
   padding: 16px;
-  border-radius: var(--radius-sm);
+  border-radius: 8px;
   margin-bottom: 16px;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
 }
 
 .recommendation-box h5 {
@@ -773,6 +873,48 @@ watch(
   align-items: center;
   gap: 8px;
   font-size: 13px;
+}
+
+.validation-item.success {
+  color: var(--success);
+}
+
+.validation-item.error {
+  color: #ef4444;
+  font-weight: 500;
+}
+
+.validation-hint {
+  font-size: 12px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  margin-top: 4px;
+}
+
+.validation-errors {
+  margin-top: 8px;
+  padding: 0;
+}
+
+.error-message {
+  font-size: 12px;
+  color: #ef4444;
+  padding: 6px 10px;
+  background: #fef2f2;
+  border-left: 3px solid #ef4444;
+  margin-bottom: 6px;
+  border-radius: 4px;
+  line-height: 1.5;
+}
+
+.error-message:last-child {
+  margin-bottom: 0;
+}
+
+.error-hint {
+  background: #fee2e2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
 }
 
 /* TopPhi模拟 */

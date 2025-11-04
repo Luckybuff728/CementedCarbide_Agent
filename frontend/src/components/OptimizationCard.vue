@@ -2,7 +2,8 @@
   <div :class="['optimization-card', { collapsed }]">
     <div class="card-header" @click="$emit('toggle')">
       <div class="header-left">
-        <span class="icon">{{ icon }}</span>
+        <n-icon v-if="iconComponent" class="icon" :component="iconComponent" />
+        <span v-else-if="icon" class="icon">{{ icon }}</span>
         <h4>{{ title }}</h4>
         <el-tag v-if="isStreaming" type="warning" size="small">
           <el-icon class="is-loading"><Loading /></el-icon>
@@ -25,6 +26,7 @@
 <script setup>
 import { computed } from 'vue'
 import { Loading, ArrowDown, ArrowUp } from '@element-plus/icons-vue'
+import { NIcon } from 'naive-ui'
 import MarkdownRenderer from './MarkdownRenderer.vue'
 
 const props = defineProps({
@@ -33,8 +35,12 @@ const props = defineProps({
     required: true
   },
   icon: {
-    type: String,
-    default: '💡'
+    type: [String, Object],
+    default: ''
+  },
+  iconComponent: {
+    type: Object,
+    default: null
   },
   content: {
     type: String,
@@ -95,6 +101,7 @@ const isStreaming = computed(() => {
 
 .icon {
   font-size: 20px;
+  color: var(--primary);
 }
 
 .header-left h4 {

@@ -4,20 +4,27 @@
     <div class="panel-header">
       <h3>参数输入</h3>
       <div class="header-actions">
-        <el-button 
+        <n-button 
           size="small" 
           type="primary" 
           @click="loadExampleData"
-          plain
+          secondary
         >
+          <template #icon>
+            <n-icon><PlayCircle /></n-icon>
+          </template>
           加载示例
-        </el-button>
-        <el-button 
+        </n-button>
+        <n-button 
           size="small" 
           @click="resetForm"
+          secondary
         >
+          <template #icon>
+            <n-icon><Refresh /></n-icon>
+          </template>
           清空
-        </el-button>
+        </n-button>
       </div>
     </div>
 
@@ -35,7 +42,7 @@
           <el-collapse-item name="composition">
             <template #title>
               <div class="collapse-title">
-                <span class="title-icon">🧪</span>
+                <n-icon class="title-icon" :component="BeakerOutline" />
                 <span class="title-text">涂层成分</span>
                 <el-tag v-if="compositionSum > 0" size="small" type="info">
                   {{ compositionSum.toFixed(1) }}%
@@ -117,15 +124,17 @@
                   @click="removeElement(index)"
                 />
               </div>
-              <el-button 
+              <n-button 
                 type="primary" 
                 size="small" 
-                icon="Plus" 
                 @click="addElement"
-                plain
+                dashed
               >
+                <template #icon>
+                  <n-icon><AddCircle /></n-icon>
+                </template>
                 添加元素
-              </el-button>
+              </n-button>
             </div>
           </el-collapse-item>
 
@@ -133,7 +142,7 @@
           <el-collapse-item name="process">
             <template #title>
               <div class="collapse-title">
-                <span class="title-icon">⚙️</span>
+                <n-icon class="title-icon" :component="SettingsOutline" />
                 <span class="title-text">工艺参数</span>
               </div>
             </template>
@@ -223,15 +232,17 @@
                   @click="removeGas(index)"
                 />
               </div>
-              <el-button 
+              <n-button 
                 type="primary" 
                 size="small" 
-                icon="Plus" 
                 @click="addGas"
-                plain
+                dashed
               >
+                <template #icon>
+                  <n-icon><AddCircle /></n-icon>
+                </template>
                 添加气体
-              </el-button>
+              </n-button>
             </div>
           </el-collapse-item>
 
@@ -239,7 +250,7 @@
           <el-collapse-item name="structure">
             <template #title>
               <div class="collapse-title">
-                <span class="title-icon">🏗️</span>
+                <n-icon class="title-icon" :component="ConstructOutline" />
                 <span class="title-text">结构设计</span>
                 <el-tag v-if="formData.structure_type" size="small" type="info">
                   {{ formData.structure_type === 'multi' ? '多层' : '单层' }}
@@ -282,15 +293,17 @@
                   @click="removeLayer(index)"
                 />
               </div>
-              <el-button 
+              <n-button 
                 type="primary" 
                 size="small" 
-                icon="Plus" 
                 @click="addLayer"
-                plain
+                dashed
               >
+                <template #icon>
+                  <n-icon><AddCircle /></n-icon>
+                </template>
                 添加层
-              </el-button>
+              </n-button>
             </div>
 
             <!-- 单层厚度 -->
@@ -312,7 +325,7 @@
           <el-collapse-item name="performance">
             <template #title>
               <div class="collapse-title">
-                <span class="title-icon">🎯</span>
+                <n-icon class="title-icon" :component="RadioButtonOnOutline" />
                 <span class="title-text">性能需求</span>
               </div>
             </template>
@@ -421,7 +434,18 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { NButton, NIcon } from 'naive-ui'
+import { 
+  BeakerOutline,
+  SettingsOutline,
+  ConstructOutline,
+  RadioButtonOnOutline,
+  AddCircle,
+  Trash,
+  Refresh,
+  PlayCircle
+} from '@vicons/ionicons5'
 import { useWorkflowStore } from '../stores/workflow'
 
 const workflowStore = useWorkflowStore()
@@ -445,6 +469,116 @@ const scenarioHints = [
   '粗加工',
   '高速加工'
 ]
+
+// 示例场景数据库
+const exampleScenarios = {
+  highSpeedSteel: {
+    name: '高速钢材切削',
+    description: '适用于钢材高速干式切削，要求高硬度和优异抗氧化性',
+    data: {
+      // 涂层成分 - 高Al含量提升抗氧化性
+      al_content: 35.0,
+      ti_content: 20.0,
+      n_content: 45.0,
+      other_elements: [],
+      
+      // 工艺参数 - 磁控溅射，中等温度
+      process_type: 'magnetron_sputtering',
+      deposition_pressure: 0.6,
+      deposition_temperature: 450,
+      bias_voltage: 100,
+      n2_flow: 220,
+      other_gases: [{ type: 'Ar', flow: 280 }],
+      
+      // 结构设计 - 多层结构增强韧性
+      structure_type: 'multi',
+      total_thickness: 3.5,
+      layers: [
+        { type: 'AlTiN', thickness: 2.2 },
+        { type: 'TiN', thickness: 1.3 }
+      ],
+      
+      // 性能需求 - 高速高温工况
+      substrate_material: '硬质合金(WC-Co)',
+      adhesion_strength: 55.0,
+      elastic_modulus: 420,
+      working_temperature: 900,
+      cutting_speed: 280,
+      application_scenario: '高速切削，钢材加工，干式加工环境，要求高硬度和优异抗氧化性能'
+    }
+  },
+  precisionAluminum: {
+    name: '铝合金精密加工',
+    description: '适用于铝合金精密加工，要求低摩擦、高光洁度',
+    data: {
+      // 涂层成分 - 适中Al/Ti比，避免粘铝
+      al_content: 28.0,
+      ti_content: 27.0,
+      n_content: 45.0,
+      other_elements: [],
+      
+      // 工艺参数 - 低温低偏压，精细控制
+      process_type: 'magnetron_sputtering',
+      deposition_pressure: 0.4,
+      deposition_temperature: 380,
+      bias_voltage: 75,
+      n2_flow: 180,
+      other_gases: [{ type: 'Ar', flow: 320 }],
+      
+      // 结构设计 - 单层薄涂层，保持锋利度
+      structure_type: 'single',
+      total_thickness: 2.0,
+      layers: [],
+      
+      // 性能需求 - 中低温精密加工
+      substrate_material: '硬质合金(WC-Co)',
+      adhesion_strength: 45.0,
+      elastic_modulus: 380,
+      working_temperature: 400,
+      cutting_speed: 150,
+      application_scenario: '铝合金加工，精密加工，湿式切削，要求低摩擦系数和优异表面光洁度'
+    }
+  },
+  highTempWear: {
+    name: '高温耐磨应用',
+    description: '适用于超高温工况，要求极高热稳定性和耐磨性',
+    data: {
+      // 涂层成分 - 超高Al含量，极佳抗氧化
+      al_content: 40.0,
+      ti_content: 15.0,
+      n_content: 45.0,
+      other_elements: [],
+      
+      // 工艺参数 - CVD工艺，高温沉积
+      process_type: 'cvd',
+      deposition_pressure: 2.5,
+      deposition_temperature: 680,
+      bias_voltage: 0,
+      n2_flow: 150,
+      other_gases: [
+        { type: 'H2', flow: 200 },
+        { type: 'AlCl3', flow: 80 }
+      ],
+      
+      // 结构设计 - 复杂多层结构
+      structure_type: 'multi',
+      total_thickness: 5.0,
+      layers: [
+        { type: 'TiN(过渡层)', thickness: 0.5 },
+        { type: 'AlTiN', thickness: 3.0 },
+        { type: 'Al2O3', thickness: 1.5 }
+      ],
+      
+      // 性能需求 - 超高温极端工况
+      substrate_material: '硬质合金(WC-Co)',
+      adhesion_strength: 60.0,
+      elastic_modulus: 450,
+      working_temperature: 1100,
+      cutting_speed: 180,
+      application_scenario: '高温切削，钢材加工，干式加工，要求超高温稳定性和抗氧化性能'
+    }
+  }
+}
 
 // 表单数据
 const formData = ref({
@@ -485,40 +619,70 @@ const compositionSum = computed(() => {
   return sum
 })
 
-// 加载示例数据
-const loadExampleData = () => {
-  formData.value = {
-    // 涂层成分
-    al_content: 32.0,
-    ti_content: 23.0,
-    n_content: 45.0,
-    other_elements: [],
+// 加载示例数据 - 显示场景选择对话框
+const loadExampleData = async () => {
+  try {
+    const { value } = await ElMessageBox({
+      title: '选择示例场景',
+      message: `
+        <div style="padding: 10px 0;">
+          <p style="margin-bottom: 15px; color: #606266;">请选择一个符合实际应用的示例场景：</p>
+          <div style="display: flex; flex-direction: column; gap: 12px;">
+            <label style="display: flex; align-items: start; padding: 12px; border: 1px solid #dcdfe6; border-radius: 6px; cursor: pointer; transition: all 0.2s;" class="scenario-option" onmouseover="this.style.borderColor='#409eff'; this.style.backgroundColor='#ecf5ff'" onmouseout="this.style.borderColor='#dcdfe6'; this.style.backgroundColor='transparent'">
+              <input type="radio" name="scenario" value="highSpeedSteel" style="margin-top: 3px; margin-right: 10px;" checked />
+              <div>
+                <div style="font-weight: 600; color: #303133; margin-bottom: 4px;">🔧 高速钢材切削</div>
+                <div style="font-size: 13px; color: #606266;">多层AlTiN涂层，磁控溅射工艺，适用于钢材高速干式切削</div>
+              </div>
+            </label>
+            <label style="display: flex; align-items: start; padding: 12px; border: 1px solid #dcdfe6; border-radius: 6px; cursor: pointer; transition: all 0.2s;" class="scenario-option" onmouseover="this.style.borderColor='#409eff'; this.style.backgroundColor='#ecf5ff'" onmouseout="this.style.borderColor='#dcdfe6'; this.style.backgroundColor='transparent'">
+              <input type="radio" name="scenario" value="precisionAluminum" style="margin-top: 3px; margin-right: 10px;" />
+              <div>
+                <div style="font-weight: 600; color: #303133; margin-bottom: 4px;">✨ 铝合金精密加工</div>
+                <div style="font-size: 13px; color: #606266;">单层薄涂层，低温工艺，适用于铝合金精密加工和高光洁度要求</div>
+              </div>
+            </label>
+            <label style="display: flex; align-items: start; padding: 12px; border: 1px solid #dcdfe6; border-radius: 6px; cursor: pointer; transition: all 0.2s;" class="scenario-option" onmouseover="this.style.borderColor='#409eff'; this.style.backgroundColor='#ecf5ff'" onmouseout="this.style.borderColor='#dcdfe6'; this.style.backgroundColor='transparent'">
+              <input type="radio" name="scenario" value="highTempWear" style="margin-top: 3px; margin-right: 10px;" />
+              <div>
+                <div style="font-weight: 600; color: #303133; margin-bottom: 4px;">🔥 高温耐磨应用</div>
+                <div style="font-size: 13px; color: #606266;">CVD多层结构，超高温工艺，适用于极端高温工况和耐磨要求</div>
+              </div>
+            </label>
+          </div>
+        </div>
+      `,
+      dangerouslyUseHTMLString: true,
+      showCancelButton: true,
+      confirmButtonText: '加载',
+      cancelButtonText: '取消',
+      beforeClose: (action, instance, done) => {
+        if (action === 'confirm') {
+          const selected = document.querySelector('input[name="scenario"]:checked')
+          if (selected) {
+            instance.confirmButtonLoading = false
+            done()
+          } else {
+            ElMessage.warning('请选择一个场景')
+            instance.confirmButtonLoading = false
+          }
+        } else {
+          done()
+        }
+      }
+    })
     
-    // 工艺参数
-    process_type: 'magnetron_sputtering',
-    deposition_pressure: 0.6,
-    deposition_temperature: 450,
-    bias_voltage: 100,
-    n2_flow: 210,
-    other_gases: [{ type: 'Ar', flow: 280 }],
-    
-    // 结构设计
-    structure_type: 'multi',
-    total_thickness: 3.5,
-    layers: [
-      { type: 'AlTiN', thickness: 2.0 },
-      { type: 'TiN', thickness: 1.5 }
-    ],
-    
-    // 性能需求
-    substrate_material: '硬质合金(WC-Co)',
-    adhesion_strength: 50.0,
-    elastic_modulus: 400,
-    working_temperature: 900,
-    cutting_speed: 250,
-    application_scenario: '高速切削，钢材加工，干式加工环境，要求高硬度和优异抗氧化性能'
+    // 获取选中的场景
+    const selectedScenario = document.querySelector('input[name="scenario"]:checked')?.value
+    if (selectedScenario && exampleScenarios[selectedScenario]) {
+      const scenario = exampleScenarios[selectedScenario]
+      formData.value = { ...scenario.data }
+      ElMessage.success(`已加载「${scenario.name}」示例数据`)
+    }
+  } catch (error) {
+    // 用户取消选择
+    console.log('用户取消了场景选择')
   }
-  ElMessage.success('已加载示例数据')
 }
 
 // 重置表单
@@ -804,7 +968,8 @@ const handleSubmit = () => {
 }
 
 .title-icon {
-  font-size: 18px;
+  font-size: 20px;
+  color: var(--primary);
 }
 
 .title-text {

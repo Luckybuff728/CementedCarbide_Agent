@@ -2,7 +2,8 @@
   <div :class="['summary-card', { clickable }]" @click="handleClick">
     <div class="card-header">
       <div class="header-left">
-        <span class="icon">{{ icon }}</span>
+        <n-icon v-if="iconComponent" class="icon" :component="iconComponent" />
+        <span v-else class="icon">{{ icon }}</span>
         <h4>{{ title }}</h4>
       </div>
       <div class="header-right">
@@ -22,11 +23,16 @@
 
 <script setup>
 import { ArrowRight } from '@element-plus/icons-vue'
+import { NIcon } from 'naive-ui'
 
 defineProps({
   icon: {
-    type: String,
+    type: [String, Object],  // 支持字符串(emoji)和组件
     required: true
+  },
+  iconComponent: {
+    type: Object,  // Naive UI图标组件
+    default: null
   },
   title: {
     type: String,
@@ -52,10 +58,11 @@ const handleClick = () => {
 <style scoped>
 .summary-card {
   background: white;
-  border-radius: var(--radius-md);
+  border-radius: 8px;
   padding: 16px;
-  margin-bottom: 16px;
-  box-shadow: var(--shadow-sm);
+  margin-bottom: 12px;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
   transition: all 0.3s ease;
 }
 
@@ -64,8 +71,9 @@ const handleClick = () => {
 }
 
 .summary-card.clickable:hover {
-  box-shadow: var(--shadow-md);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   transform: translateY(-2px);
+  border-color: rgba(59, 130, 246, 0.3);
 }
 
 .card-header {
@@ -82,7 +90,8 @@ const handleClick = () => {
 }
 
 .icon {
-  font-size: 20px;
+  font-size: 22px;
+  color: var(--primary);
 }
 
 .header-left h4 {
