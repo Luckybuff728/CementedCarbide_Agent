@@ -15,12 +15,9 @@ from .nodes import (
     p1_composition_optimization_node,
     p2_structure_optimization_node,
     p3_process_optimization_node,
-    optimization_summary_node,
-    # 用户选择和实验工单（简化版本）
-    await_user_selection_node,
-    experiment_workorder_generation_node
-    # 已删除：performance_improvement_prediction_node（重复预测）
-    # 迭代相关节点已删除（简化版本）
+    optimization_summary_node
+    # 注意：await_user_selection_node 和 experiment_workorder_generation_node 已删除
+    # 将在实施迭代优化功能时重新添加
 )
 
 __all__ = [
@@ -36,8 +33,5 @@ __all__ = [
     "p1_composition_optimization_node",
     "p2_structure_optimization_node",
     "p3_process_optimization_node",
-    "optimization_summary_node",
-    # 用户选择和实验工单节点（简化版本）
-    "await_user_selection_node",
-    "experiment_workorder_generation_node"
+    "optimization_summary_node"
 ]

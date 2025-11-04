@@ -1,3 +1,5 @@
+# 生产环境Docker忽略文件 - 最大化减小镜像体积
+
 # Python缓存和虚拟环境
 __pycache__/
 *.py[cod]
@@ -8,6 +10,8 @@ env/
 venv/
 ENV/
 .venv/
+*.egg-info/
+.eggs/
 
 # Node.js
 node_modules/
@@ -19,37 +23,65 @@ dist/
 dist-ssr/
 .cache/
 
-# IDE
+# IDE和编辑器
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
+.DS_Store
 
 # Git
 .git/
 .gitignore
+.gitattributes
 
 # Docker
-Dockerfile*
-docker-compose*
-.dockerignore
+Dockerfile.dev.backup
+Dockerfile.prod.*
+docker-compose*.yml
+!docker-compose.yml
+.dockerignore*
+*.backup
+
+# 测试文件
+.pytest_cache/
+.coverage
+htmlcov/
+tests/
+test_*.py
+*_test.py
+
+# 文档
+*.md
+README*
+CHANGELOG*
+LICENSE
+docs/
+*.pdf
 
 # 日志和临时文件
 *.log
 logs/
 temp/
 tmp/
+*.tmp
 
-# 测试
-.pytest_cache/
-.coverage
-htmlcov/
+# 配置示例和开发文件
+*.example
+!.env.example
+.env.local
+.env.development
 
-# 其他
-.DS_Store
-*.pdf
-docs/
-tests/
-*.md
-README.md
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+azure-pipelines.yml
+
+# 其他开发工具
+.editorconfig
+.eslintrc*
+.prettierrc*
+jest.config.js
+tsconfig.json

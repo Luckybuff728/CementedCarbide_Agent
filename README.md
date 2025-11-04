@@ -22,37 +22,43 @@ git clone http://192.168.6.104:3000/TangBin/TopMat_Agent.git
 cd TopMat_Agent
 ```
 
-### 方式一：Docker部署（⭐推荐）
+### 方式一：Docker生产环境部署（⭐推荐）
 
-**最简单的部署方式，无需安装Python和Node.js！**
+**前后端分离架构，镜像体积优化82%，适合生产环境！**
 
 #### 📦 前置要求
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) 20.10+
+- Docker Compose 2.0+
 
-#### 🎯 启动
+#### 🎯 快速启动
 
-**2. 配置API密钥**
+**1. 配置API密钥**
 
 编辑 `.env` 文件：
-```
+```bash
 DASHSCOPE_API_KEY=your_api_key_here
 DASHSCOPE_MODEL_NAME=qwen-plus
 ```
 
-**3. 启动服务**
-```
+**2. 构建并启动**
+```bash
+docker-compose build
 docker-compose up -d
 ```
 
-**4. 访问系统**
+**3. 访问系统**
 
-等待约30秒后，在浏览器打开：
-- 🌐 **前端界面**: http://localhost:5173
-- 🔌 **后端API**: http://localhost:8000
-- 📚 **API文档**: http://localhost:8000/docs
+启动完成后，在浏览器打开：
+- 🌐 **前端界面**: http://localhost
+- 📚 **API文档**: http://localhost/api/docs
+- 💚 **健康检查**: http://localhost/health
 
-#### 📖 Docker文档
-- 📘 **详细文档**: `DOCKER_README.md`
+#### 📖 生产环境文档
+- 📘 **详细部署指南**: `PRODUCTION_DEPLOY.md`
+- 📊 **镜像优化**: 从2.5GB降至450MB（减少82%）
+- 🔒 **安全加固**: 非root用户、健康检查、资源限制
+
+```
 
 ### 方式二：本地开发部署
 
@@ -114,32 +120,40 @@ npm run dev
 - 💾 **会话管理**: 支持多会话管理和历史记录
 
 ### 详细文档
-- 📘 **启动说明**: `启动说明.md`
-- 📘 **Docker部署**: `DOCKER_README.md`
+- 📘 **生产部署**: `PRODUCTION_DEPLOY.md`（推荐）
+- 📘 **开发环境**: `DOCKER_README.md`
 
 ## 🏗️ 系统架构
 
-### Docker部署架构（推荐）
+### 生产环境架构（当前配置）
 ```
-┌─────────────────────────────────────┐
-│   Docker 容器 (topmat-agent-dev)     │
-│                                     │
-│  ┌──────────────┐  ┌─────────────┐ │
-│  │  Vue 前端    │  │  FastAPI    │ │
-│  │  (5173端口)  │  │  后端       │ │
-│  │              │←→│  (8000端口) │ │
-│  └──────────────┘  └─────────────┘ │
-│         ↓               ↓           │
-│    热重载支持      LangGraph引擎    │
-└─────────────────────────────────────┘
-         ↓                   ↓
-    localhost:5173      localhost:8000
+┌──────────────────────────────────────────────┐
+│              Docker Network                  │
+│                                              │
+│  ┌─────────────────┐    ┌────────────────┐  │
+│  │  Frontend       │    │  Backend       │  │
+│  │  Container      │    │  Container     │  │
+│  │                 │    │                │  │
+│  │  Nginx:80       │───▶│  FastAPI:8000  │  │
+│  │  (50MB镜像)     │    │  (400MB镜像)   │  │
+│  │                 │    │                │  │
+│  │  - 静态资源     │    │  - LangGraph   │  │
+│  │  - Gzip压缩     │    │  - 4 Workers   │  │
+│  │  - 反向代理     │    │  - 健康检查    │  │
+│  │  - 缓存优化     │    │  - 非root用户  │  │
+│  └─────────────────┘    └────────────────┘  │
+│          ↓                                   │
+└──────────────────────────────────────────────┘
+           ↓
+     localhost:80
 ```
 
-**特点**：
-- ✅ 前后端整合，一键启动
-- ✅ 支持代码热重载
-- ✅ 无需安装开发环境
+**生产环境特点**：
+- ✅ 前后端分离，独立扩展
+- ✅ 镜像体积优化82%（450MB vs 2.5GB）
+- ✅ 多阶段构建，安全加固
+- ✅ 资源限制和健康检查
+- ✅ 适合生产部署
 
 ### 项目结构
 ```

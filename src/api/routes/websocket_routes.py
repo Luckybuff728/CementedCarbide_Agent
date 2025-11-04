@@ -343,6 +343,14 @@ async def execute_workflow_stream(task_id: str, thread_id: str, input_data: Dict
             # 清理数据，移除不可序列化的对象
             cleaned_data = clean_data_for_json(event_data)
             
+            # 详细日志：WebSocket发送的数据
+            logger.info(f"[WS发送] type={event_type}, data键={list(cleaned_data.keys()) if isinstance(cleaned_data, dict) else 'N/A'}")
+            if event_type == "node_output" and isinstance(cleaned_data, dict):
+                for node_name, node_data in cleaned_data.items():
+                    logger.info(f"[WS发送] 节点={node_name}, 数据类型={type(node_data)}")
+                    if isinstance(node_data, dict):
+                        logger.info(f"[WS发送] 节点={node_name}, 数据键={list(node_data.keys())[:10]}")  # 只显示前10个键
+            
             # 发送节点输出数据
             await manager.send_json({
                 "type": event_type,
