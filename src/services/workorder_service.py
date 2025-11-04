@@ -88,11 +88,11 @@ def _generate_workorder_by_llm(
     
     # 构建其他元素字符串
     other_elements = composition.get('other_elements', [])
-    other_elements_str = ', '.join([f"{e.get('element', 'Unknown')} {e.get('content', 0)}%" for e in other_elements]) if other_elements else '无'
+    other_elements_str = ', '.join([f"{e.get('name', 'Unknown')} {e.get('content', 0)} at.%" for e in other_elements]) if other_elements else '无'
     
     # 构建其他气体字符串
     other_gases = process_params.get('other_gases', [])
-    other_gases_str = ', '.join([f"{g.get('gas', 'Unknown')} {g.get('flow', 0)} sccm" for g in other_gases]) if other_gases else '无'
+    other_gases_str = ', '.join([f"{g.get('type', 'Unknown')} {g.get('flow', 0)} sccm" for g in other_gases]) if other_gases else '无'
     
     # 构建结构设计显示
     structure_str = f"{structure_design.get('structure_type', '单层')}"
@@ -108,14 +108,14 @@ def _generate_workorder_by_llm(
 
 ## 当前配方参数
 **涂层成分**：
-- Al含量: {composition.get('al_content', 0)}%
-- Ti含量: {composition.get('ti_content', 0)}%
-- N含量: {composition.get('n_content', 0)}%
+- Al含量: {composition.get('al_content', 0)} at.%
+- Ti含量: {composition.get('ti_content', 0)} at.%
+- N含量: {composition.get('n_content', 0)} at.%
 - 其他元素: {other_elements_str}
 
 **工艺参数**：
 - 工艺类型: {process_params.get('process_type', 'N/A')}
-- 沉积温度: {process_params.get('deposition_temperature', 0)}°C
+- 沉积温度: {process_params.get('deposition_temperature', 0)} ℃
 - 沉积气压: {process_params.get('deposition_pressure', 0)} Pa
 - 偏压: {process_params.get('bias_voltage', 0)} V
 - N₂流量: {process_params.get('n2_flow', 0)} sccm

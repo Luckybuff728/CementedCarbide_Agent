@@ -1,146 +1,79 @@
 /**
- * WebSocket组合式函数
- * 处理实时通信和流式数据接收
- * 
- * 注意: 控制台中的 "Unchecked runtime.lastError: can not use with devtools" 警告
- * 是浏览器扩展(如Chrome扩展)引起的,不是代码问题,可以安全忽略
+ * WebSocket通信组合式函数
  */
-import { ref, onUnmounted } from 'vue'
+import { ref } from 'vue'
 
 export function useWebSocket() {
   const ws = ref(null)
   const isConnected = ref(false)
-  const reconnectAttempts = ref(0)
-  const maxReconnectAttempts = 5
-  let messageHandler = null
-  let reconnectTimer = null
-
+  const messageHandler = ref(null)
+  
   /**
-   * 连接WebSocket
+   * 连接WebSocket服务器
+   * @param {string} url - WebSocket URL
+   * @param {function} onMessage - 消息处理回调函数
    */
   const connect = (url, onMessage) => {
-    if (ws.value && ws.value.readyState === WebSocket.OPEN) {
-      console.log('WebSocket已连接')
-      return
+    if (ws.value) {
+      ws.value.close()
     }
-
-    messageHandler = onMessage
-
-    try {
-      ws.value = new WebSocket(url)
-
-      ws.value.onopen = () => {
-        console.log('WebSocket连接成功')
-        isConnected.value = true
-        reconnectAttempts.value = 0
+    
+    messageHandler.value = onMessage
+    ws.value = new WebSocket(url)
+    
+    ws.value.onopen = () => {
+      console.log('[WebSocket] 连接成功')
+      isConnected.value = true
+    }
+    
+    ws.value.onmessage = (event) => {
+      try {
+        const message = JSON.parse(event.data)
+        console.log('[WebSocket] 收到消息:', message.type)
         
-        if (messageHandler) {
-          messageHandler({
-            type: 'connected',
-            timestamp: new Date().toISOString()
-          })
+        if (messageHandler.value) {
+          messageHandler.value(message)
         }
+      } catch (error) {
+        console.error('[WebSocket] 解析消息失败:', error)
       }
-
-      ws.value.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data)
-          console.log('收到消息:', data)
-          
-          if (messageHandler) {
-            messageHandler(data)
-          }
-        } catch (error) {
-          console.error('解析消息失败:', error)
-        }
-      }
-
-      ws.value.onerror = (error) => {
-        console.error('WebSocket连接错误，请检查后端是否启动')
-        console.error('后端地址应为: ws://localhost:8000/ws/coating')
-        console.error('错误详情:', error)
-        isConnected.value = false
-        
-        if (messageHandler) {
-          messageHandler({
-            type: 'error',
-            message: 'WebSocket连接失败，请确保后端服务器已启动（运行 start_backend.bat）'
-          })
-        }
-      }
-
-      ws.value.onclose = () => {
-        console.log('WebSocket连接关闭')
-        isConnected.value = false
-        
-        // 自动重连
-        if (reconnectAttempts.value < maxReconnectAttempts) {
-          reconnectAttempts.value++
-          const delay = Math.min(1000 * Math.pow(2, reconnectAttempts.value), 10000)
-          console.log(`${delay}ms后尝试重连 (${reconnectAttempts.value}/${maxReconnectAttempts})`)
-          
-          reconnectTimer = setTimeout(() => {
-            connect(url, messageHandler)
-          }, delay)
-        } else {
-          console.error('达到最大重连次数')
-          if (messageHandler) {
-            messageHandler({
-              type: 'error',
-              message: '无法连接到服务器，请检查后端是否运行'
-            })
-          }
-        }
-      }
-    } catch (error) {
-      console.error('创建WebSocket连接失败:', error)
+    }
+    
+    ws.value.onerror = (error) => {
+      console.error('[WebSocket] 连接错误:', error)
+      isConnected.value = false
+    }
+    
+    ws.value.onclose = () => {
+      console.log('[WebSocket] 连接关闭')
       isConnected.value = false
     }
   }
-
+  
   /**
    * 发送消息
+   * @param {object} data - 要发送的数据
    */
   const send = (data) => {
-    if (!ws.value || ws.value.readyState !== WebSocket.OPEN) {
-      console.error('WebSocket未连接')
-      return false
-    }
-
-    try {
-      const message = typeof data === 'string' ? data : JSON.stringify(data)
-      ws.value.send(message)
-      console.log('发送消息:', data)
-      return true
-    } catch (error) {
-      console.error('发送消息失败:', error)
-      return false
+    if (ws.value && ws.value.readyState === WebSocket.OPEN) {
+      ws.value.send(JSON.stringify(data))
+      console.log('[WebSocket] 发送消息:', data.type)
+    } else {
+      console.error('[WebSocket] 连接未建立，无法发送消息')
     }
   }
-
+  
   /**
    * 断开连接
    */
   const disconnect = () => {
-    if (reconnectTimer) {
-      clearTimeout(reconnectTimer)
-      reconnectTimer = null
-    }
-
     if (ws.value) {
       ws.value.close()
       ws.value = null
+      isConnected.value = false
     }
-
-    isConnected.value = false
-    reconnectAttempts.value = 0
   }
-
-  // 组件卸载时自动断开
-  onUnmounted(() => {
-    disconnect()
-  })
-
+  
   return {
     connect,
     send,

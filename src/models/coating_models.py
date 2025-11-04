@@ -16,7 +16,7 @@ class CoatingComposition(BaseModel):
     # 其他元素配置
     other_elements: List[Dict[str, float]] = Field(
         default_factory=list,
-        description="其他元素列表，格式：[{'element': 'Cr', 'content': 2.5}]"
+        description="其他元素列表，格式：[{'name': 'Cr', 'content': 2.5}]"
     )
     
     @validator('al_content', 'ti_content', 'n_content')
@@ -42,13 +42,11 @@ class ProcessParameters(BaseModel):
     
     # 气体流量配置
     n2_flow: float = Field(210, description="N2流量(sccm)")
-    ar_flow: float = Field(280, description="Ar流量(sccm)")
-    kr_flow: float = Field(200, description="Kr流量(sccm)")
     
-    # 其他气体配置
+    # 其他气体配置（包括Ar、Kr等）
     other_gases: List[Dict[str, float]] = Field(
         default_factory=list,
-        description="其他气体配置，格式：[{'gas': 'H2', 'flow': 50}]"
+        description="其他气体配置，格式：[{'type': 'Ar', 'flow': 280}]"
     )
     
     # PVD特有参数

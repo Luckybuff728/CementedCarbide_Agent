@@ -97,14 +97,14 @@ class OptimizationService:
         import json
         
         # 构建成分信息
-        composition_str = f"Al {composition.get('al_content', 0):.1f}%, Ti {composition.get('ti_content', 0):.1f}%, N {composition.get('n_content', 0):.1f}%"
+        composition_str = f"Al {composition.get('al_content', 0):.1f} at.%, Ti {composition.get('ti_content', 0):.1f} at.%, N {composition.get('n_content', 0):.1f} at.%"
         if composition.get('other_elements'):
-            other_elems = ', '.join([f"{e.get('element', '')} {e.get('content', 0):.1f}%" for e in composition.get('other_elements', [])])
+            other_elems = ', '.join([f"{e.get('name', '')} {e.get('content', 0):.1f} at.%" for e in composition.get('other_elements', [])])
             composition_str += f", 其他元素: {other_elems}"
         
         # 构建工艺参数信息
         process_str = f"""工艺类型: {params.get('process_type', 'N/A')}
-- 沉积温度: {params.get('deposition_temperature', 0)}°C
+- 沉积温度: {params.get('deposition_temperature', 0)} ℃
 - 沉积气压: {params.get('deposition_pressure', 0)} Pa
 - 偏压: {params.get('bias_voltage', 0)} V
 - N₂流量: {params.get('n2_flow', 0)} sccm"""

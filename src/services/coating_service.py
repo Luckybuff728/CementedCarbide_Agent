@@ -69,16 +69,26 @@ class CoatingService:
             "workflow_status": "validated" if len(all_errors) == 0 else "validation_failed"
         }
         
-        # 记录完整的JSON参数
+        # 记录完整的JSON参数（带单位）
         import json
+        from ..utils.data_formatter import format_full_parameters_with_units
+        
+        # 原始数据（不带单位）
         full_params_json = {
             "coating_composition": normalized_composition,
             "process_params": params,
             "structure_design": structure,
             "target_requirements": target_requirements
         }
+        
+        # 带单位的数据（供日志记录）
+        formatted_params = format_full_parameters_with_units(
+            normalized_composition, params, structure, target_requirements
+        )
+        
         logger.info(f"[参数验证完成] 验证结果: {result['input_validated']}")
-        logger.info(f"[完整参数JSON记录]\n{json.dumps(full_params_json, ensure_ascii=False, indent=2)}")
+        logger.info(f"[完整参数JSON记录-不带单位]\n{json.dumps(full_params_json, ensure_ascii=False, indent=2)}")
+        logger.info(f"[完整参数JSON记录-带单位]\n{json.dumps(formatted_params, ensure_ascii=False, indent=2)}")
         
         if all_errors:
             logger.error(f"验证错误: {all_errors}")
@@ -320,7 +330,7 @@ class CoatingService:
         # 构建其他元素显示
         other_elements_str = '无'
         if composition.get('other_elements'):
-            other_elements_str = ', '.join([f"{e.get('element', '')} {e.get('content', 0)}%" for e in composition.get('other_elements')])
+            other_elements_str = ', '.join([f"{e.get('name', '')} {e.get('content', 0)} at.%" for e in composition.get('other_elements')])
         
         # 构建其他气体显示
         other_gases_str = '无'

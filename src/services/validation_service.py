@@ -46,9 +46,9 @@ class ValidationService:
         logger.info(f"[参数验证] 完整输入参数JSON:\n{json.dumps(full_params, ensure_ascii=False, indent=2)}")
         
         # 构建友好的参数描述（带单位）
-        comp_text = f"Al {composition.get('al_content', 0):.1f}%, Ti {composition.get('ti_content', 0):.1f}%, N {composition.get('n_content', 0):.1f}%"
+        comp_text = f"Al {composition.get('al_content', 0):.1f} at.%, Ti {composition.get('ti_content', 0):.1f} at.%, N {composition.get('n_content', 0):.1f} at.%"
         if composition.get('other_elements'):
-            other_elems = ', '.join([f"{e.get('element', '')} {e.get('content', 0):.1f}%" for e in composition.get('other_elements', [])])
+            other_elems = ', '.join([f"{e.get('name', '')} {e.get('content', 0):.1f} at.%" for e in composition.get('other_elements', [])])
             comp_text += f", {other_elems}"
         
         process_text = f"""工艺类型: {process_params.get('process_type', 'N/A')}

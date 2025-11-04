@@ -1,552 +1,235 @@
 <template>
   <div class="status-bar">
-    <!-- 左侧logo和标题 -->
-    <div class="status-left">
-      <div class="logo-section">
-        <el-icon :size="24" color="#67C23A">
-          <!-- <ChatDotRound /> -->
-        </el-icon>
-        <span class="title">TopMat Agent</span>
-        <span class="subtitle">硬质合金涂层智能优化系统</span>
-      </div>
-    </div>
-
-    <!-- 中间状态流程 -->
-    <div class="status-center">
-      <el-steps :active="currentStepIndex" align-center simple>
-        <el-step 
-          v-for="(step, index) in workflowSteps"
-          :key="step.name"
-          :title="step.title"
-          :description="step.description"
-          :status="getStepStatus(step, index)"
-          :icon="getStepIcon(step, index)"
-        />
-      </el-steps>
-    </div>
-
-    <!-- 右侧连接状态和工具 -->
-    <div class="status-right">
-      <div 
-        class="connection-status"
-        :class="{
-          'connected': connectionStatus,
-          'disconnected': !connectionStatus
-        }"
-      >
-        <el-icon class="status-icon">
-          <component :is="connectionStatus ? 'Connection' : 'Refresh'" />
-        </el-icon>
-        <span class="status-text">{{ connectionStatus ? '系统已连接' : '系统离线' }}</span>
-        <div class="status-indicator"></div>
+    <div class="status-content">
+      <div class="left-section">
+        <div class="title-section">
+          <h2 class="app-title">TopMat Agent</h2>
+          <p class="app-subtitle">涂层材料智能分析系统</p>
+        </div>
+        <el-divider direction="vertical" />
+        <div class="progress-nodes">
+          <div 
+            v-for="(node, index) in nodes" 
+            :key="node.id" 
+            :class="['node-step', node.status]" 
+            @click="handleNodeClick(node)"
+          >
+            <div class="step-content">
+              <span class="step-icon">{{ getStatusIcon(node.status) }}</span>
+              <span class="step-name">{{ node.name }}</span>
+            </div>
+            <div v-if="index < nodes.length - 1" class="step-connector"></div>
+          </div>
+        </div>
       </div>
       
-      <el-dropdown @command="handleCommand">
-        <el-button circle>
-          <el-icon><MoreFilled /></el-icon>
+      <div class="actions">
+        <el-button size="small" @click="handleExport" :disabled="!canExport">
+          <el-icon><Download /></el-icon>
+          导出
         </el-button>
-        <template #dropdown>
-          <el-dropdown-menu>
-            <el-dropdown-item command="export">导出结果</el-dropdown-item>
-            <el-dropdown-item command="clear">清空对话</el-dropdown-item>
-            <el-dropdown-item command="settings">设置</el-dropdown-item>
-          </el-dropdown-menu>
-        </template>
-      </el-dropdown>
+        <el-button size="small" @click="handleClear" :disabled="!canClear">
+          <el-icon><Delete /></el-icon>
+          清空
+        </el-button>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
 import { computed } from 'vue'
-import { 
-  ChatDotRound, 
-  Connection, 
-  Refresh, 
-  MoreFilled,
-  CircleCheck,
-  Loading
-} from '@element-plus/icons-vue'
+import { ElMessageBox, ElMessage } from 'element-plus'
+import { Download, Delete } from '@element-plus/icons-vue'
+import { useWorkflowStore } from '../stores/workflow'
 
-const props = defineProps({
-  connectionStatus: Boolean,
-  currentNode: String,
-  completedNodes: Array
+const workflowStore = useWorkflowStore()
+const emit = defineEmits(['jump-to-node', 'export', 'clear'])
+
+const nodes = computed(() => [
+  { id: 'input_validation', name: '参数验证', status: getNodeStatus('input_validation') },
+  { id: 'topphi_simulation', name: 'TopPhi模拟', status: getNodeStatus('topphi_simulation') },
+  { id: 'ml_prediction', name: 'ML预测', status: getNodeStatus('ml_prediction') },
+  { id: 'historical_comparison', name: '历史对比', status: getNodeStatus('historical_comparison') },
+  { id: 'integrated_analysis', name: '综合分析', status: getNodeStatus('integrated_analysis') },
+  { id: 'optimization', name: '优化方案', status: getOptimizationStatus() },
+  { id: 'experiment_workorder', name: '实验工单', status: getNodeStatus('experiment_workorder') }
+])
+
+// 能否导出
+const canExport = computed(() => {
+  return workflowStore.processSteps.length > 0 || workflowStore.experimentWorkorder
 })
 
-const emit = defineEmits(['command'])
+// 能否清空
+const canClear = computed(() => {
+  return workflowStore.processSteps.length > 0
+})
 
-// 工作流步骤配置
-const workflowSteps = [
-  {
-    name: 'input_validation',
-    title: '参数验证',
-    description: '输入参数检查'
-  },
-  {
-    name: 'topphi_simulation',
-    title: '理论计算',
-    description: 'TopPhi模拟'
-  },
-  {
-    name: 'ml_prediction',
-    title: '性能预测',
-    description: 'ML模型分析'
-  },
-  {
-    name: 'historical_comparison',
-    title: '历史对比',
-    description: '数据比对分析'
-  },
-  {
-    name: 'integrated_analysis',
-    title: '综合分析',
-    description: '根因分析'
-  },
-  {
-    name: 'optimization',
-    title: '方案优化',
-    description: '生成建议'
-  },
-  {
-    name: 'experiment',
-    title: '实验验证',
-    description: '工单生成'
+function getNodeStatus(nodeId) {
+  if (workflowStore.currentNode === nodeId) return 'processing'
+  if (workflowStore.completedNodes.includes(nodeId)) return 'completed'
+  return 'pending'
+}
+
+function getOptimizationStatus() {
+  if (workflowStore.p1Content || workflowStore.p2Content || workflowStore.p3Content) {
+    return 'completed'
   }
-]
+  return 'pending'
+}
 
-// 当前步骤索引（已完成的最后一个节点的索引）
-const currentStepIndex = computed(() => {
-  const currentIndex = workflowSteps.findIndex(step => 
-    step.name === props.currentNode || 
-    (step.name === 'optimization' && ['p1_composition_optimization', 'p2_structure_optimization', 'p3_process_optimization', 'optimization_summary'].includes(props.currentNode)) ||
-    (step.name === 'experiment' && ['experiment_workorder', 'await_experiment_results', 'experiment_result_analysis'].includes(props.currentNode))
-  )
-  return currentIndex >= 0 ? currentIndex : 0
-})
+function getStatusIcon(status) {
+  const iconMap = {
+    'pending': '⌛️',
+    'processing': '⚙️',
+    'completed': '✅'
+  }
+  return iconMap[status] || '○'
+}
 
-// 获取步骤状态
-const getStepStatus = (step, index) => {
-  // 检查该步骤是否在已完成列表中
-  const isCompleted = props.completedNodes && props.completedNodes.includes(step.name)
-  
-  if (isCompleted) {
-    // 已完成的步骤
-    return 'finish'
-  } else if (index === currentStepIndex.value && props.currentNode) {
-    // 当前正在执行的步骤
-    return 'process'
-  } else if (index < currentStepIndex.value) {
-    // 索引小于当前索引，但不在完成列表中，也标记为完成
-    return 'finish'
-  } else {
-    // 等待执行的步骤
-    return 'wait'
+function handleNodeClick(node) {
+  if (node.status === 'completed' || node.status === 'processing') {
+    emit('jump-to-node', node.id)
   }
 }
 
-// 获取步骤图标 - 简化设计，只在完成时显示勾
-const getStepIcon = (step, index) => {
-  const status = getStepStatus(step, index)
-  if (status === 'finish') {
-    return CircleCheck  // 已完成：显示勾
-  }
-  return undefined      // 其他状态不显示图标
+function handleExport() {
+  emit('export')
 }
 
-// 处理命令
-const handleCommand = (command) => {
-  emit('command', command)
+function handleClear() {
+  ElMessageBox.confirm(
+    '确定要清空当前所有数据吗？',
+    '提示',
+    {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+    }
+  ).then(() => {
+    workflowStore.reset()
+    ElMessage.success('已清空')
+    emit('clear')
+  }).catch(() => {})
 }
 </script>
 
 <style scoped>
-/* 状态栏主容器样式 */
 .status-bar {
-  height: 70px; /* 状态栏高度 */
-  background: #2c3e50; /* 深蓝灰色背景 */
-  color: white; /* 白色文字 */
-  display: flex; /* 弹性布局 */
-  align-items: center; /* 垂直居中 */
-  justify-content: space-between; /* 左右两端对齐 */
-  padding: 0 20px; /* 左右内边距20px */
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1); /* 底部阴影 */
-  position: relative; /* 相对定位 */
-  z-index: 100; /* 层级高度 */
-  transition: all 0.3s ease; /* 过渡动画 */
-}
-
-/* 状态栏左侧区域 - Logo和标题 */
-.status-left {
-  display: flex; /* 弹性布局 */
-  align-items: center; /* 垂直居中 */
-  min-width: 320px; /* 最小宽度 */
-  position: relative; /* 相对定位 */
-  z-index: 1; /* 层级 */
-}
-
-/* Logo区域样式 */
-.logo-section {
-  display: flex; /* 弹性布局 */
-  align-items: center; /* 垂直居中 */
-  gap: 12px; /* 元素间距 */
-}
-
-/* 主标题样式 */
-.title {
-  font-size: 22px; /* 字体大小 */
-  font-weight: 600; /* 字重加粗 */
-  color: white; /* 白色文字 */
-}
-
-/* 副标题样式 */
-.subtitle {
-  font-size: 14px; /* 小字体 */
-  color: rgba(255, 255, 255, 0.8); /* 半透明白色 */
-  margin-left: 8px; /* 左边距 */
-}
-
-/* 状态栏中间区域 - 工作流步骤 */
-.status-center {
-  flex: 1; /* 占用剩余空间 */
-  padding: 0 20px; /* 左右内边距 */
-  position: relative; /* 相对定位 */
-  z-index: 1; /* 层级 */
-}
-
-/* 状态栏右侧区域 - 连接状态和操作 */
-.status-right {
-  display: flex; /* 弹性布局 */
-  align-items: center; /* 垂直居中 */
-  gap: 16px; /* 元素间距 */
-  min-width: 200px; /* 最小宽度 */
-  justify-content: flex-end; /* 右对齐 */
-  position: relative; /* 相对定位 */
-  z-index: 1; /* 层级 */
-}
-
-/* 连接状态组件基础样式 */
-.connection-status {
-  display: flex; /* 弹性布局 */
-  align-items: center; /* 垂直居中 */
-  gap: 8px; /* 元素间距 */
-  padding: 8px 16px; /* 内边距：上下8px 左右16px */
-  border-radius: 20px; /* 圆角效果 */
-  transition: all 0.3s ease; /* 过渡动画 */
-  position: relative; /* 相对定位 */
-  backdrop-filter: blur(10px); /* 背景模糊效果 */
-}
-
-/* 已连接状态样式 */
-.connection-status.connected {
-  background: rgba(39, 174, 96, 0.2); /* 绿色半透明背景 */
-  border: 1px solid #27ae60; /* 绿色边框 */
-  color: #27ae60; /* 绿色文字 */
-  box-shadow: 0 0 10px rgba(39, 174, 96, 0.2); /* 绿色发光效果 */
-}
-
-/* 未连接状态样式 */
-.connection-status.disconnected {
-  background: rgba(231, 76, 60, 0.2); /* 红色半透明背景 */
-  border: 1px solid #e74c3c; /* 红色边框 */
-  color: #e74c3c; /* 红色文字 */
-  box-shadow: 0 0 10px rgba(231, 76, 60, 0.2); /* 红色发光效果 */
-}
-
-/* 状态图标样式 */
-.status-icon {
-  font-size: 16px; /* 图标大小 */
-}
-
-/* 状态文字样式 */
-.status-text {
-  font-size: 14px; /* 字体大小：增大到14px */
-  font-weight: 500; /* 中等字重 */
-  white-space: nowrap; /* 强制不换行 */
-}
-
-/* 状态指示器样式 */
-.status-indicator {
-  width: 8px; /* 指示器宽度 */
-  height: 8px; /* 指示器高度 */
-  border-radius: 50%; /* 圆形指示器 */
-  position: relative; /* 相对定位 */
-}
-
-/* 已连接状态指示器 */
-.connected .status-indicator {
-  background: #27ae60; /* 绿色指示器 */
-  animation: pulse-green 2s infinite; /* 绿色脉冲动画，每2秒循环 */
-}
-
-/* 未连接状态指示器 */
-.disconnected .status-indicator {
-  background: #e74c3c; /* 红色指示器 */
-  animation: pulse-red 2s infinite; /* 红色脉冲动画，每2秒循环 */
-}
-
-/* 绿色脉冲动画 - 已连接状态 */
-@keyframes pulse-green {
-  0% {
-    box-shadow: 0 0 0 0 rgba(39, 174, 96, 0.7); /* 动画开始：无扩散 */
-  }
-  70% {
-    box-shadow: 0 0 0 10px rgba(39, 174, 96, 0); /* 动画中期：扩散到10px并消失 */
-  }
-  100% {
-    box-shadow: 0 0 0 0 rgba(39, 174, 96, 0); /* 动画结束：回到无扩散 */
-  }
-}
-
-/* 红色脉冲动画 - 未连接状态 */
-@keyframes pulse-red {
-  0% {
-    box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.7); /* 动画开始：无扩散 */
-  }
-  70% {
-    box-shadow: 0 0 0 10px rgba(231, 76, 60, 0); /* 动画中期：扩散到10px并消失 */
-  }
-  100% {
-    box-shadow: 0 0 0 0 rgba(231, 76, 60, 0); /* 动画结束：回到无扩散 */
-  }
-}
-
-:deep(.el-steps) {
-  background: transparent;
-}
-
-/* 步骤框架基础样式 - 极简设计 */
-:deep(.el-step) {
-  background: transparent; /* 透明背景 */
-  padding: 16px 12px; /* 增大内边距 */
-  margin: 0 6px; /* 步骤间距 */
-  border: 1px solid transparent; /* 透明边框，为动画做准备 */
-  border-radius: 8px; /* 基础圆角 */
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); /* 优雅过渡 */
-  min-width: 90px; /* 最小宽度 */
-  text-align: center; /* 文字居中 */
-  position: relative; /* 相对定位 */
-}
-
-/* 进行中状态的步骤样式 - 醒目高亮 */
-:deep(.el-step.is-process) {
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(29, 78, 216, 0.1)); /* 蓝色渐变背景 */
-  border: 10px solid rgba(233, 234, 235, 0.4); /* 蓝色边框 */
-  border-radius: 12px; /* 圆角 */
-  box-shadow: 
-    0 0 20px rgb(233, 234, 236),
-    0 4px 15px rgba(0, 0, 0, 0.1); /* 蓝色发光和阴影 */
-  transform: translateY(-2px) scale(1.02); /* 上移和轻微放大 */
-  animation: glow-pulse 2s ease-in-out infinite; /* 发光脉冲动画 */
-}
-
-/* 进行中状态添加闪烁指示器 */
-:deep(.el-step.is-process::before) {
-  content: '●'; /* 圆点 */
-  position: absolute;
-  top: 4px;
-  right: 4px;
-  color: #3b82f6;
-  font-size: 8px;
-  animation: blink 1s ease-in-out infinite; /* 闪烁动画 */
-}
-
-/* 进行中状态添加下划线 */
-:deep(.el-step.is-process::after) {
-  content: '';
-  position: absolute;
-  bottom: -2px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 80%;
-  height: 4px;
-  background: linear-gradient(90deg, #3b82f6, #1d4ed8, #abbad3); /* 蓝色渐变 */
-  border-radius: 2px;
-  animation: slide-line 2s ease-in-out infinite; /* 滑动动画 */
-}
-
-/* 已完成状态的步骤样式 - 优雅完成 */
-:deep(.el-step.is-finish) {
-  background: transparent; /* 透明背景 */
-  opacity: 0.75; /* 降低透明度 */
-}
-
-/* 错误状态的步骤样式 */
-:deep(.el-step.is-error) {
-  background: rgba(231, 76, 60, 0.15); /* 红色半透明背景 */
-  border: 1px solid rgba(231, 76, 60, 0.3); /* 红色边框 */
-  box-shadow: 0 0 10px rgba(231, 76, 60, 0.1); /* 红色轻微阴影 */
-}
-
-/* 步骤标题基础样式 - 等待状态 */
-:deep(.el-step__title) {
-  color: rgba(255, 255, 255, 0.7); /* 提高可见性 */
-  font-size: 13px; /* 字体大小 */
-  font-weight: 400; /* 正常字重 */
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); /* 优雅过渡 */
-  white-space: nowrap; /* 强制文字不换行 */
-  letter-spacing: 0.5px; /* 字间距 */
-}
-
-/* 进行中状态的标题样式 - 醒目蓝色 */
-:deep(.el-step__title.is-process) {
-  color: #ffffff; /* 白色文字，更醒目 */
-  font-weight: 700; /* 加粗 */
-  font-size: 20px; /* 更大字体 */
-  text-shadow: 
-    0 0 10px rgba(59, 130, 246, 0.8),
-    0 0 20px rgba(39, 162, 162, 0.4); /* 强蓝色发光 */
-  animation: text-glow 2s ease-in-out infinite; /* 文字发光动画 */
-}
-
-/* 已完成状态的标题样式 - 优雅绿色 */
-:deep(.el-step__title.is-finish) {
-  color: rgba(34, 197, 94, 0.8); /* 现代绿色 */
-  font-weight: 400; /* 正常字重 */
-}
-
-/* 错误状态的标题样式 */
-:deep(.el-step__title.is-error) {
-  color: #e74c3c; /* 红色文字 */
-  font-weight: 500; /* 中等字重 */
-}
-
-/* 步骤描述文字样式 - 隐藏以简化界面 */
-:deep(.el-step__description) {
-  display: none; /* 隐藏描述，保持界面简洁 */
-}
-
-/* 步骤图标基础样式 - 隐藏所有默认图标 */
-:deep(.el-step__icon) {
-  display: none; /* 默认隐藏图标 */
-}
-
-/* 进行中状态的图标样式 - 隐藏 */
-:deep(.el-step__icon.is-process) {
-  display: none; /* 隐藏图标，用下划线代替 */
-}
-
-/* 已完成状态的图标样式 - 小巧绿勾 */
-:deep(.el-step__icon.is-finish) {
-  display: inline-flex; /* 显示勾图标 */
+  height: 60px;
+  background: white;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
   align-items: center;
-  justify-content: center;
-  width: 18px; /* 图标宽度 */
-  height: 18px; /* 图标高度 */
-  color: #22c55e; /* 现代绿色 */
-  font-size: 12px; /* 小尺寸 */
-  background: rgba(34, 197, 94, 0.1); /* 淡绿背景 */
-  border-radius: 50%; /* 圆形背景 */
-  margin-bottom: 4px; /* 与标题间距 */
+  padding: 0 24px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+  position: relative;
+  z-index: 10;
 }
 
-/* 错误状态的图标样式 */
-:deep(.el-step__icon.is-error) {
-  color: #ffffff; /* 白色图标 */
-  border-color: #e74c3c; /* 红色边框 */
-  background: #e74c3c; /* 红色背景 */
-  animation: error-shake 0.5s ease-in-out; /* 错误震动动画 */
+.status-content {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
-/* 发光脉冲动画 - 整个步骤 */
-@keyframes glow-pulse {
-  0%, 100% {
-    box-shadow: 
-      0 0 15px rgba(59, 130, 246, 0.2),
-      0 4px 15px rgba(0, 0, 0, 0.1);
-  }
-  50% {
-    box-shadow: 
-      0 0 25px rgba(59, 130, 246, 0.5),
-      0 8px 25px rgba(0, 0, 0, 0.2);
-  }
+.left-section {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: 1;
+  overflow-x: auto;
 }
 
-/* 滑动线动画 */
-@keyframes slide-line {
-  0% {
-    background-position: -100% 0;
-  }
-  100% {
-    background-position: 100% 0;
-  }
+.title-section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  white-space: nowrap;
 }
 
-/* 闪烁动画 */
-@keyframes blink {
-  0%, 50% { opacity: 1; }
-  51%, 100% { opacity: 0.3; }
+.app-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--primary);
+  line-height: 1.5;
 }
 
-/* 文字发光动画 */
-@keyframes text-glow {
-  0%, 100% {
-    text-shadow: 
-      0 0 8px rgba(59, 130, 246, 0.6),
-      0 0 16px rgba(59, 130, 246, 0.3);
-  }
-  50% {
-    text-shadow: 
-      0 0 15px rgba(59, 130, 246, 1),
-      0 0 30px rgba(59, 130, 246, 0.6);
-  }
+.app-subtitle {
+  margin: 0;
+  font-size: 15px;
+  color: var(--text-secondary);
+  line-height: 1.5;
 }
 
-/* 呼吸灯效果 - 进行中状态动画 */
-@keyframes breathing-light {
-  0%, 100% {
-    box-shadow: 0 0 8px rgba(243, 156, 18, 0.4); /* 小范围橙色光晕 */
-    opacity: 0.9; /* 稍微透明 */
-  }
-  50% {
-    box-shadow: 0 0 25px rgba(243, 156, 18, 0.8), 0 0 35px rgba(243, 156, 18, 0.6); /* 大范围橙色光晕 */
-    opacity: 1; /* 完全不透明 */
-  }
+.progress-nodes {
+  display: flex;
+  align-items: center;
+  gap: 0;
 }
 
-/* 成功脉冲效果 - 完成状态动画 */
-@keyframes success-pulse {
-  0% {
-    transform: scale(1); /* 正常大小 */
-    box-shadow: 0 0 0 0 rgba(39, 174, 96, 0.7); /* 无扩散效果 */
-  }
-  50% {
-    transform: scale(1.15); /* 放大到1.15倍 */
-    box-shadow: 0 0 0 10px rgba(39, 174, 96, 0); /* 绿色光圈扩散 */
-  }
-  100% {
-    transform: scale(1); /* 恢复正常大小 */
-    box-shadow: 0 0 0 0 rgba(39, 174, 96, 0); /* 扩散消失 */
-  }
+.node-step {
+  display: flex;
+  align-items: center;
+  position: relative;
 }
 
-/* 错误震动效果 - 错误状态动画 */
-@keyframes error-shake {
-  0%, 100% { transform: translateX(0); } /* 居中位置 */
-  10%, 30%, 50%, 70%, 90% { transform: translateX(-2px); } /* 向左偏移 */
-  20%, 40%, 60%, 80% { transform: translateX(2px); } /* 向右偏移 */
+.step-content {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
 }
 
-/* 强制隐藏箭头 */
-:deep(.el-step__arrow),
-:deep(.el-step .el-step__arrow) {
-  display: none !important; /* 强制不显示箭头 */
-  visibility: hidden !important; /* 隐藏可见性 */
-  width: 0 !important; /* 宽度为0 */
-  height: 0 !important; /* 高度为0 */
-  opacity: 0 !important; /* 完全透明 */
+.node-step.pending .step-content {
+  background: var(--bg-tertiary);
+  color: var(--text-tertiary);
 }
 
-/* 步骤连接线基础样式 - 极细线 */
-:deep(.el-step__line) {
-  background: rgba(255, 255, 255, 0.08); /* 极淡的连接线 */
-  transition: all 0.4s ease; /* 过渡动画 */
-  height: 1px; /* 细线 */
+.node-step.processing .step-content {
+  background: #fef3c7;
+  color: var(--warning);
+  font-weight: 500;
 }
 
-/* 已完成步骤的连接线样式 - 优雅绿色 */
-:deep(.el-step__line.is-finish) {
-  background: rgba(34, 197, 94, 0.4); /* 现代绿色 */
-  height: 2px; /* 稍粗连接线 */
+.node-step.completed .step-content {
+  background: #d1fae5;
+  color: var(--success);
+}
+
+.node-step.completed .step-content:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+}
+
+.step-icon {
+  font-size: 14px;
+}
+
+.step-name {
+  font-size: 13px;
+}
+
+.step-connector {
+  width: 20px;
+  height: 2px;
+  background: var(--border-color);
+  margin: 0 4px;
+}
+
+.node-step.completed .step-connector {
+  background: var(--success);
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
 }
 </style>
