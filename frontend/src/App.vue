@@ -1,1703 +1,748 @@
 <template>
   <div class="app-container">
-    <!-- 会话侧边栏 -->
-    <SessionSidebar
-      :sessions="sessions"
-      :currentSessionId="currentSessionId"
-      @create="handleCreateSession"
-      @select="handleSelectSession"
-      @rename="handleRenameSession"
-      @delete="handleDeleteSession"
+    <!-- 顶部状态栏 -->
+    <StatusBar 
+      :connection-status="connectionStatus"
+      :current-node="currentNode"
+      :completed-nodes="completedNodes"
+      @command="handleCommand"
     />
 
-    <!-- 主工作区 -->
+    <!-- 主工作区 - 三段式布局 -->
     <div class="main-workspace">
-      <!-- 顶部导航栏 -->
-      <header class="header">
-        <div class="header-content">
-          <div class="logo">
-            <el-icon :size="28" color="#67C23A"><ChatDotRound /></el-icon>
-            <h1>TopMat Agent</h1>
-          </div>
-          <div class="header-info">
-            <span class="header-desc">硬质合金涂层智能优化系统</span>
-            <el-tag :type="connectionStatus ? 'success' : 'danger'" size="small">
-              {{ connectionStatus ? '已连接' : '未连接' }}
-            </el-tag>
-          </div>
-        </div>
-      </header>
+      <!-- 左侧参数输入面板 -->
+      <LeftPanel 
+        :loading="isProcessing"
+        :connection-status="connectionStatus"
+        @submit="handleFormSubmit"
+      />
 
-      <!-- 主内容区 - 表单布局 -->
-      <main class="main-content">
-        <!-- 参数输入表单 -->
-        <div class="form-section">
-          <CoatingInputForm
-            :loading="isProcessing"
-            @submit="handleFormSubmit"
-          />
-        </div>
+      <!-- 中间流式对话内容区域 -->
+      <CenterStream 
+        :process-steps="processSteps"
+        :current-node="currentNode"
+        :current-node-title="currentNodeTitle"
+        :is-processing="isProcessing"
+        :streaming-content="streamingContent"
+        :p1-content="p1StreamingContent"
+        :p2-content="p2StreamingContent"
+        :p3-content="p3StreamingContent"
+        :comprehensive-recommendation="analysisResults.comprehensiveRecommendation"
+        @clear="clearMessages"
+      />
 
-        <!-- 结果展示区 - 按节点分步骤展示 -->
-        <div v-if="messages.length > 0 || isProcessing" class="result-section">
-
-          <!-- 滚动到底部按钮 -->
-          <transition name="fade">
-            <el-button 
-              v-if="showScrollToBottom" 
-              class="scroll-to-bottom-btn"
-              type="primary" 
-              circle 
-              size="large"
-              @click="resumeAutoScroll"
-              title="返回底部"
-            >
-              <el-icon><ArrowDown /></el-icon>
-            </el-button>
-          </transition>
-
-          <!-- 各节点结果展示 -->
-          <div ref="resultsContainer" class="workflow-results">
-            <!-- 1. 输入验证节点 -->
-            <el-card v-if="getNodeMessage('input_validation')" class="node-card" shadow="hover">
-              <template #header>
-                <div class="node-header">
-                  <div class="node-title">
-                    <el-icon class="node-icon"><CircleCheck /></el-icon>
-                    <span>输入验证</span>
-                  </div>
-                  <el-tag type="success" size="small">已完成</el-tag>
-                </div>
-              </template>
-              <div class="node-content" v-html="formatContent(getNodeMessage('input_validation').content)"></div>
-            </el-card>
-
-            <!-- 2. TopPhi模拟节点 -->
-            <el-card 
-              v-if="getNodeMessage('topphi_simulation') || (currentNode === 'topphi_simulation' && (isThinking || isStreaming))"
-              class="node-card" 
-              shadow="hover"
-              :class="{ 'processing': currentNode === 'topphi_simulation' && (isThinking || isStreaming) }"
-            >
-              <template #header>
-                <div class="node-header">
-                  <div class="node-title">
-                    <el-icon class="node-icon" :class="{ 'is-loading': currentNode === 'topphi_simulation' && (isThinking || isStreaming) }">
-                      <Cpu />
-                    </el-icon>
-                    <span>TopPhi第一性原理模拟</span>
-                  </div>
-                  <el-tag 
-                    :type="currentNode === 'topphi_simulation' && (isThinking || isStreaming) ? 'warning' : 'success'" 
-                    size="default"
-                    effect="dark"
-                  >
-                    <el-icon v-if="currentNode === 'topphi_simulation' && (isThinking || isStreaming)" class="is-loading" style="margin-right: 4px;"><Loading /></el-icon>
-                    {{ currentNode === 'topphi_simulation' && (isThinking || isStreaming) ? '正在计算...' : '已完成' }}
-                  </el-tag>
-                </div>
-              </template>
-              <div v-if="currentNode === 'topphi_simulation' && isThinking && !isStreaming" class="processing-indicator">
-                <el-icon class="is-loading"><Loading /></el-icon>
-                <span>{{ thinkingText }}</span>
-              </div>
-              <div v-else class="node-content" :class="{ 'streaming': currentNode === 'topphi_simulation' && isStreaming }" v-html="formatContent(getNodeMessage('topphi_simulation')?.content)"></div>
-            </el-card>
-
-            <!-- 3. ML模型预测节点 -->
-            <el-card 
-              v-if="getNodeMessage('ml_prediction') || (currentNode === 'ml_prediction' && (isThinking || isStreaming))"
-              class="node-card" 
-              shadow="hover"
-              :class="{ 'processing': currentNode === 'ml_prediction' && (isThinking || isStreaming) }"
-            >
-              <template #header>
-                <div class="node-header">
-                  <div class="node-title">
-                    <el-icon class="node-icon" :class="{ 'is-loading': currentNode === 'ml_prediction' && (isThinking || isStreaming) }">
-                      <Histogram />
-                    </el-icon>
-                    <span>ML模型性能预测</span>
-                  </div>
-                  <el-tag 
-                    :type="currentNode === 'ml_prediction' && (isThinking || isStreaming) ? 'warning' : 'success'" 
-                    size="default"
-                    effect="dark"
-                  >
-                    <el-icon v-if="currentNode === 'ml_prediction' && (isThinking || isStreaming)" class="is-loading" style="margin-right: 4px;"><Loading /></el-icon>
-                    {{ currentNode === 'ml_prediction' && (isThinking || isStreaming) ? '正在预测...' : '已完成' }}
-                  </el-tag>
-                </div>
-              </template>
-              <div v-if="currentNode === 'ml_prediction' && isThinking && !isStreaming" class="processing-indicator">
-                <el-icon class="is-loading"><Loading /></el-icon>
-                <span>{{ thinkingText }}</span>
-              </div>
-              <div v-else>
-                <!-- 流式输出内容 -->
-                <div v-if="getNodeMessage('ml_prediction')?.content" 
-                     class="node-content" 
-                     :class="{ 'streaming': currentNode === 'ml_prediction' && isStreaming }" 
-                     v-html="formatContent(getNodeMessage('ml_prediction')?.content)">
-                </div>
-                <!-- 预测结果卡片 -->
-                <PredictionResults
-                  v-if="getNodeMessage('ml_prediction')?.data?.ml_prediction"
-                  :prediction="getNodeMessage('ml_prediction').data.ml_prediction"
-                  :analysis="getNodeMessage('ml_prediction').data.root_cause_analysis"
-                />
-              </div>
-            </el-card>
-
-            <!-- 4. 历史数据比对节点 -->
-            <el-card 
-              v-if="getNodeMessage('historical_comparison') || (currentNode === 'historical_comparison' && isThinking)"
-              class="node-card" 
-              shadow="hover"
-              :class="{ 'processing': currentNode === 'historical_comparison' && isThinking }"
-            >
-              <template #header>
-                <div class="node-header">
-                  <div class="node-title">
-                    <el-icon class="node-icon" :class="{ 'is-loading': currentNode === 'historical_comparison' && isThinking }">
-                      <Document />
-                    </el-icon>
-                    <span>历史数据比对</span>
-                  </div>
-                  <el-tag 
-                    :type="currentNode === 'historical_comparison' && isThinking ? 'warning' : 'success'" 
-                    size="default"
-                    effect="dark"
-                  >
-                    <el-icon v-if="currentNode === 'historical_comparison' && isThinking" class="is-loading" style="margin-right: 4px;"><Loading /></el-icon>
-                    {{ currentNode === 'historical_comparison' && isThinking ? '正在检索...' : '已完成' }}
-                  </el-tag>
-                </div>
-              </template>
-              <div v-if="currentNode === 'historical_comparison' && isThinking" class="processing-indicator">
-                <el-icon class="is-loading"><Loading /></el-icon>
-                <span>{{ thinkingText }}</span>
-              </div>
-              <div v-else class="node-content" v-html="formatContent(getNodeMessage('historical_comparison')?.content)"></div>
-            </el-card>
-
-            <!-- 5. 综合分析节点 -->
-            <el-card 
-              v-if="getNodeMessage('integrated_analysis') || (currentNode === 'integrated_analysis' && isStreaming)"
-              class="node-card" 
-              shadow="hover"
-              :class="{ 'processing': currentNode === 'integrated_analysis' && isStreaming }"
-            >
-              <template #header>
-                <div class="node-header">
-                  <div class="node-title">
-                    <el-icon class="node-icon" :class="{ 'is-loading': currentNode === 'integrated_analysis' && isStreaming }">
-                      <DataAnalysis />
-                    </el-icon>
-                    <span>综合分析与根因</span>
-                  </div>
-                  <el-tag 
-                    :type="currentNode === 'integrated_analysis' && isStreaming ? 'warning' : 'success'" 
-                    size="small"
-                  >
-                    {{ currentNode === 'integrated_analysis' && isStreaming ? 'AI分析中...' : '已完成' }}
-                  </el-tag>
-                </div>
-              </template>
-              <div class="node-content streaming" v-html="formatContent(getNodeMessage('integrated_analysis')?.content)"></div>
-            </el-card>
-
-            <!-- 6. 优化方案生成（合并P1/P2/P3） -->
-            <el-card 
-              v-if="getNodeMessage('p1_composition_optimization') || getNodeMessage('p2_structure_optimization') || getNodeMessage('p3_process_optimization') || ['p1_composition_optimization', 'p2_structure_optimization', 'p3_process_optimization'].includes(currentNode)"
-              class="node-card optimization-card" 
-              shadow="hover"
-              :class="{ 'processing': ['p1_composition_optimization', 'p2_structure_optimization', 'p3_process_optimization'].includes(currentNode) }"
-            >
-              <template #header>
-                <div class="node-header">
-                  <div class="node-title">
-                    <el-icon class="node-icon" :class="{ 'is-loading': ['p1_composition_optimization', 'p2_structure_optimization', 'p3_process_optimization'].includes(currentNode) }">
-                      <MagicStick />
-                    </el-icon>
-                    <span>优化方案生成</span>
-                  </div>
-                  <el-tag 
-                    :type="['p1_composition_optimization', 'p2_structure_optimization', 'p3_process_optimization'].includes(currentNode) ? 'warning' : 'success'" 
-                    size="small"
-                  >
-                    {{ getOptimizationStatus() }}
-                  </el-tag>
-                </div>
-              </template>
-              
-              <el-tabs v-model="activeOptimizationTab" class="optimization-tabs">
-                <!-- P1 成分优化 -->
-                <el-tab-pane name="p1">
-                  <template #label>
-                    <span class="tab-label">
-                      <el-icon><Orange /></el-icon>
-                      <span>P1 成分优化</span>
-                      <el-tag v-if="getNodeMessage('p1_composition_optimization')" type="success" size="small" class="tab-tag">✓</el-tag>
-                      <el-icon v-else-if="currentNode === 'p1_composition_optimization' && isStreaming" class="is-loading" size="small"><Loading /></el-icon>
-                    </span>
-                  </template>
-                  <div v-if="currentNode === 'p1_composition_optimization' && isThinking && !isStreaming" class="processing-indicator">
-                    <el-icon class="is-loading"><Loading /></el-icon>
-                    <span>{{ thinkingText }}</span>
-                  </div>
-                  <div v-else-if="getNodeMessage('p1_composition_optimization')?.content" 
-                       class="node-content" 
-                       :class="{ 'streaming': currentNode === 'p1_composition_optimization' && isStreaming }" 
-                       v-html="formatContent(getNodeMessage('p1_composition_optimization')?.content)">
-                  </div>
-                  <el-empty v-else description="等待生成..." :image-size="80" />
-                </el-tab-pane>
-                
-                <!-- P2 结构优化 -->
-                <el-tab-pane name="p2">
-                  <template #label>
-                    <span class="tab-label">
-                      <el-icon><Grid /></el-icon>
-                      <span>P2 结构优化</span>
-                      <el-tag v-if="getNodeMessage('p2_structure_optimization')" type="success" size="small" class="tab-tag">✓</el-tag>
-                      <el-icon v-else-if="currentNode === 'p2_structure_optimization' && isStreaming" class="is-loading" size="small"><Loading /></el-icon>
-                    </span>
-                  </template>
-                  <div v-if="currentNode === 'p2_structure_optimization' && isThinking && !isStreaming" class="processing-indicator">
-                    <el-icon class="is-loading"><Loading /></el-icon>
-                    <span>{{ thinkingText }}</span>
-                  </div>
-                  <div v-else-if="getNodeMessage('p2_structure_optimization')?.content" 
-                       class="node-content" 
-                       :class="{ 'streaming': currentNode === 'p2_structure_optimization' && isStreaming }" 
-                       v-html="formatContent(getNodeMessage('p2_structure_optimization')?.content)">
-                  </div>
-                  <el-empty v-else description="等待生成..." :image-size="80" />
-                </el-tab-pane>
-                
-                <!-- P3 工艺优化 -->
-                <el-tab-pane name="p3">
-                  <template #label>
-                    <span class="tab-label">
-                      <el-icon><Setting /></el-icon>
-                      <span>P3 工艺优化</span>
-                      <el-tag v-if="getNodeMessage('p3_process_optimization')" type="success" size="small" class="tab-tag">✓</el-tag>
-                      <el-icon v-else-if="currentNode === 'p3_process_optimization' && isStreaming" class="is-loading" size="small"><Loading /></el-icon>
-                    </span>
-                  </template>
-                  <div v-if="currentNode === 'p3_process_optimization' && isThinking && !isStreaming" class="processing-indicator">
-                    <el-icon class="is-loading"><Loading /></el-icon>
-                    <span>{{ thinkingText }}</span>
-                  </div>
-                  <div v-else-if="getNodeMessage('p3_process_optimization')?.content" 
-                       class="node-content" 
-                       :class="{ 'streaming': currentNode === 'p3_process_optimization' && isStreaming }" 
-                       v-html="formatContent(getNodeMessage('p3_process_optimization')?.content)">
-                  </div>
-                  <el-empty v-else description="等待生成..." :image-size="80" />
-                </el-tab-pane>
-              </el-tabs>
-            </el-card>
-
-            <!-- 7. 优化建议汇总节点 -->
-            <el-card 
-              v-if="getNodeMessage('optimization_summary') || (currentNode === 'optimization_summary' && isStreaming)"
-              class="node-card" 
-              shadow="hover"
-              :class="{ 'processing': currentNode === 'optimization_summary' && isStreaming }"
-            >
-              <template #header>
-                <div class="node-header">
-                  <div class="node-title">
-                    <el-icon class="node-icon" :class="{ 'is-loading': currentNode === 'optimization_summary' && isStreaming }">
-                      <MagicStick />
-                    </el-icon>
-                    <span>优化方案选择</span>
-                  </div>
-                  <el-tag 
-                    :type="currentNode === 'optimization_summary' && isStreaming ? 'warning' : 'success'" 
-                    size="small"
-                  >
-                    {{ currentNode === 'optimization_summary' && isStreaming ? '生成综合建议中...' : '请选择' }}
-                  </el-tag>
-                </div>
-              </template>
-              
-              <!-- 综合建议内容（始终保留显示） -->
-              <div 
-                v-if="getNodeMessage('optimization_summary')?.content"
-                class="node-content"
-                :class="{ 'streaming': currentNode === 'optimization_summary' && isStreaming }"
-                style="margin-bottom: 20px; padding: 16px; background: #F5F9FF; border-radius: 8px; border-left: 4px solid #409EFF;"
-              >
-                <h3 style="margin: 0 0 12px 0; color: #409EFF; font-size: 16px;">💡 综合建议</h3>
-                <div v-html="formatContent(getNodeMessage('optimization_summary')?.content)"></div>
-              </div>
-              
-              <!-- 优化建议选择组件 -->
-              <OptimizationSuggestions
-                v-if="getNodeMessage('optimization_summary')?.data?.optimization_suggestions"
-                :suggestions="getNodeMessage('optimization_summary').data.optimization_suggestions"
-                :recommendation="getNodeMessage('optimization_summary').data.comprehensive_recommendation"
-                @select="handleOptimizationSelect"
-              />
-            </el-card>
-
-            <!-- 7. 实验工单节点 -->
-            <el-card 
-              v-if="getNodeMessage('experiment_workorder_generation') || (currentNode === 'experiment_workorder_generation' && (isThinking || isStreaming))"
-              class="node-card" 
-              shadow="hover"
-              :class="{ 'processing': currentNode === 'experiment_workorder_generation' && (isThinking || isStreaming) }"
-            >
-              <template #header>
-                <div class="node-header">
-                  <div class="node-title">
-                    <el-icon class="node-icon" :class="{ 'is-loading': currentNode === 'experiment_workorder_generation' && (isThinking || isStreaming) }">
-                      <Tickets />
-                    </el-icon>
-                    <span>实验工单生成</span>
-                  </div>
-                  <el-tag 
-                    :type="currentNode === 'experiment_workorder_generation' && (isThinking || isStreaming) ? 'warning' : 'success'" 
-                    size="small"
-                  >
-                    {{ currentNode === 'experiment_workorder_generation' && (isThinking || isStreaming) ? '生成中...' : '已完成' }}
-                  </el-tag>
-                </div>
-              </template>
-              
-              <!-- 生成中提示 -->
-              <div v-if="currentNode === 'experiment_workorder_generation' && isThinking && !isStreaming" class="processing-indicator">
-                <el-icon class="is-loading"><Loading /></el-icon>
-                <span>{{ thinkingText }}</span>
-              </div>
-              
-              <!-- 流式输出内容 -->
-              <div 
-                v-else
-                class="node-content" 
-                :class="{ 'streaming': currentNode === 'experiment_workorder_generation' && isStreaming }"
-                v-html="formatContent(getNodeMessage('experiment_workorder_generation')?.content)"
-              ></div>
-            </el-card>
-
-            <!-- 8. 实验结果接收节点 -->
-            <el-card 
-              v-if="getNodeMessage('await_experiment_results')"
-              class="node-card" 
-              shadow="hover"
-            >
-              <template #header>
-                <div class="node-header">
-                  <div class="node-title">
-                    <el-icon class="node-icon">
-                      <DataLine />
-                    </el-icon>
-                    <span>等待实验结果</span>
-                  </div>
-                  <el-tag type="warning" size="small">等待输入</el-tag>
-                </div>
-              </template>
-              <div class="node-content">
-                <p style="margin-bottom: 16px; color: #606266;">实验工单已生成，请输入实验测试结果：</p>
-                
-                <!-- 实验结果输入表单 -->
-                <el-form :model="experimentResultsForm" label-width="140px" size="default">
-                  <el-form-item label="涂层硬度 (GPa)">
-                    <el-input-number 
-                      v-model="experimentResultsForm.hardness" 
-                      :precision="2" 
-                      :step="0.1" 
-                      :min="0" 
-                      :max="100"
-                      placeholder="如: 29.2"
-                    />
-                  </el-form-item>
-                  
-                  <el-form-item label="硬度标准差 (GPa)">
-                    <el-input-number 
-                      v-model="experimentResultsForm.hardness_std" 
-                      :precision="2" 
-                      :step="0.1" 
-                      :min="0" 
-                      :max="10"
-                      placeholder="如: 0.8"
-                    />
-                  </el-form-item>
-                  
-                  <el-form-item label="结合力等级">
-                    <el-select v-model="experimentResultsForm.adhesion_level" placeholder="请选择结合力等级">
-                      <el-option label="HF1 (最优)" value="HF1" />
-                      <el-option label="HF2" value="HF2" />
-                      <el-option label="HF3" value="HF3" />
-                      <el-option label="HF4" value="HF4" />
-                      <el-option label="HF5" value="HF5" />
-                      <el-option label="HF6 (最差)" value="HF6" />
-                    </el-select>
-                  </el-form-item>
-                  
-                  <el-form-item label="磨损率 (mm³/Nm)">
-                    <el-input 
-                      v-model="experimentResultsForm.wear_rate" 
-                      placeholder="如: 2.1e-6"
-                    />
-                  </el-form-item>
-                  
-                  <el-form-item label="涂层厚度 (μm)">
-                    <el-input-number 
-                      v-model="experimentResultsForm.coating_thickness" 
-                      :precision="2" 
-                      :step="0.1" 
-                      :min="0" 
-                      :max="50"
-                      placeholder="如: 3.2"
-                    />
-                  </el-form-item>
-                  
-                  <el-form-item label="氧化温度 (℃)">
-                    <el-input-number 
-                      v-model="experimentResultsForm.oxidation_temperature" 
-                      :precision="0" 
-                      :step="10" 
-                      :min="0" 
-                      :max="1500"
-                      placeholder="如: 850"
-                    />
-                  </el-form-item>
-                  
-                  <el-form-item label="测试日期">
-                    <el-date-picker
-                      v-model="experimentResultsForm.test_date"
-                      type="date"
-                      placeholder="选择测试日期"
-                      format="YYYY-MM-DD"
-                      value-format="YYYY-MM-DD"
-                    />
-                  </el-form-item>
-                  
-                  <el-form-item label="操作员">
-                    <el-input 
-                      v-model="experimentResultsForm.operator" 
-                      placeholder="如: 实验员A"
-                    />
-                  </el-form-item>
-                  
-                  <el-form-item>
-                    <el-button 
-                      type="primary" 
-                      @click="submitExperimentResults"
-                      :loading="isSubmittingResults"
-                    >
-                      提交实验结果
-                    </el-button>
-                    <el-button @click="fillExampleResults">填充示例数据</el-button>
-                  </el-form-item>
-                </el-form>
-              </div>
-            </el-card>
-
-            <!-- 9. 实验结果分析节点 -->
-            <el-card 
-              v-if="getNodeMessage('experiment_result_analysis') || (currentNode === 'experiment_result_analysis' && isStreaming)"
-              class="node-card" 
-              shadow="hover"
-              :class="{ 'processing': currentNode === 'experiment_result_analysis' && isStreaming }"
-            >
-              <template #header>
-                <div class="node-header">
-                  <div class="node-title">
-                    <el-icon class="node-icon" :class="{ 'is-loading': currentNode === 'experiment_result_analysis' && isStreaming }">
-                      <TrendCharts />
-                    </el-icon>
-                    <span>实验结果分析</span>
-                  </div>
-                  <el-tag 
-                    :type="currentNode === 'experiment_result_analysis' && isStreaming ? 'warning' : 'success'" 
-                    size="small"
-                  >
-                    {{ currentNode === 'experiment_result_analysis' && isStreaming ? '分析中...' : '已完成' }}
-                  </el-tag>
-                </div>
-              </template>
-              <div 
-                class="node-content" 
-                :class="{ 'streaming': currentNode === 'experiment_result_analysis' && isStreaming }"
-                v-html="formatContent(getNodeMessage('experiment_result_analysis')?.content)"
-              ></div>
-            </el-card>
-
-            <!-- 10. 迭代决策节点 -->
-            <el-card 
-              v-if="getNodeMessage('decide_next_iteration')"
-              class="node-card" 
-              shadow="hover"
-            >
-              <template #header>
-                <div class="node-header">
-                  <div class="node-title">
-                    <el-icon class="node-icon">
-                      <Refresh />
-                    </el-icon>
-                    <span>迭代决策</span>
-                  </div>
-                  <el-tag type="success" size="small">已决策</el-tag>
-                </div>
-              </template>
-              <div class="node-content">
-                <div style="padding: 16px;">
-                  <h3 style="margin: 0 0 12px 0;">📋 决策结果</h3>
-                  <p><strong>决策：</strong>{{ getNodeMessage('decide_next_iteration')?.data?.next_action }}</p>
-                  <p><strong>原因：</strong>{{ getNodeMessage('decide_next_iteration')?.data?.decision_reason }}</p>
-                  <p><strong>下一步：</strong>{{ getNodeMessage('decide_next_iteration')?.data?.next_step }}</p>
-                </div>
-              </div>
-            </el-card>
-          </div>
-        </div>
-      </main>
+      <!-- 右侧结果展示面板 -->
+      <RightPanel 
+        :analysis-results="analysisResults"
+        :is-processing="isProcessing"
+        :current-node="currentNode"
+        :process-steps="processSteps"
+        :current-node-title="currentNodeTitle"
+        :p1-content="p1StreamingContent"
+        :p2-content="p2StreamingContent"
+        :p3-content="p3StreamingContent"
+        :show-optimization-selection="showOptimizationSelection"
+        @optimization-select="handleOptimizationSelect"
+      />
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, watch } from 'vue'
+// Vue 3组合式API核心导入
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+// Element Plus消息提示组件
 import { ElMessage } from 'element-plus'
-import { 
-  ChatDotRound, Loading, CircleCheck, Cpu, Histogram, 
-  Document, DataAnalysis, MagicStick, Tickets, Orange, Grid, Setting, ArrowDown,
-  DataLine, TrendCharts, Refresh
-} from '@element-plus/icons-vue'
-import SessionSidebar from './components/SessionSidebar.vue'
-import CoatingInputForm from './components/CoatingInputForm.vue'
-import PredictionResults from './components/PredictionResults.vue'
-import OptimizationSuggestions from './components/OptimizationSuggestions.vue'
+// 导入各功能组件
+import StatusBar from './components/StatusBar.vue'         // 顶部状态栏组件
+import LeftPanel from './components/LeftPanel.vue'         // 左侧参数输入面板组件
+import CenterStream from './components/CenterStream.vue'   // 中间流式对话展示组件
+import RightPanel from './components/RightPanel.vue'       // 右侧结果分析组件
+// WebSocket通信组合式函数
 import { useWebSocket } from './composables/useWebSocket'
-import { marked } from 'marked'
 
-// ============ 会话管理 ============
-// 会话列表
-const sessions = ref([])
-// 当前会话ID
-const currentSessionId = ref(null)
+// ============ 连接状态管理 ============
+const connectionStatus = ref(false)  // WebSocket连接状态标识
 
-// LocalStorage键
-const SESSIONS_KEY = 'topmat_sessions'
-const CURRENT_SESSION_KEY = 'topmat_current_session'
-const TASK_ID_KEY = 'topmat_current_task_id'
-const MESSAGES_KEY = 'topmat_messages'
+// ============ 工作流过程状态管理（中间面板使用） ============
+const processSteps = ref([])             // 存储工作流执行过程的步骤数组
+const currentNode = ref('')              // 当前执行的节点ID
+const currentNodeTitle = ref('')         // 当前节点的中文标题
+const isProcessing = ref(false)          // 标识是否正在处理工作流
+const streamingContent = ref('')         // 当前节点的流式输出内容
 
-// ============ 消息和状态 ============
-// 连接状态
-const connectionStatus = ref(false)
-// 当前任务ID
-const currentTaskId = ref(null)
-// 消息列表
-const messages = ref([])
-// 处理状态
-const isProcessing = ref(false)
-const isStreaming = ref(false)
-const isThinking = ref(false)
-const thinkingText = ref('正在分析中...')
-// 当前处理的节点
-const currentNode = ref('')
-// 流式输出缓存
-const streamBuffer = ref({})
+// ============ P1/P2/P3优化建议的独立流式内容存储 ============
+// 使用独立的ref避免processSteps数组嵌套对象的响应式问题
+const p1StreamingContent = ref('')       // P1成分优化的流式内容
+const p2StreamingContent = ref('')       // P2结构优化的流式内容
+const p3StreamingContent = ref('')       // P3工艺优化的流式内容
 
-// ============ UI状态 ============
-// 结果容器ref
-const resultsContainer = ref(null)
-// 当前激活的优化tab
-const activeOptimizationTab = ref('p1')
-// 自动滚动控制
-const autoScrollEnabled = ref(true)
-const showScrollToBottom = ref(false)
-
-// ============ 实验结果表单 ============
-const experimentResultsForm = ref({
-  hardness: null,
-  hardness_std: null,
-  adhesion_level: '',
-  wear_rate: '',
-  coating_thickness: null,
-  oxidation_temperature: null,
-  test_date: '',
-  operator: ''
+// ============ 分析结果数据管理（右侧面板使用） ============
+const analysisResults = ref({        // 存储各个节点的分析结果
+  performancePrediction: null,       // ML性能预测
+  historicalComparison: null,        // 历史数据比对
+  integratedAnalysis: null,          // 综合分析
+  optimizationSuggestions: null,     // 优化建议（P1/P2/P3）
+  comprehensiveRecommendation: '',   // 综合推荐
+  experimentWorkorder: null          // 实验工单
 })
-const isSubmittingResults = ref(false)
 
-// WebSocket连接
+// 是否显示优化方案选择界面
+const showOptimizationSelection = ref(false)
+
+// WebSocket连接实例和方法
 const { connect, send, disconnect, isConnected } = useWebSocket()
 
-// 处理表单提交
+// ============ 计算属性 ============
+// 计算已完成的工作流节点列表，用于状态栏显示进度
+const completedNodes = computed(() => {
+  return processSteps.value
+    .filter(step => step.status === 'completed')
+    .map(step => step.nodeId)
+})
+
+// ============ 事件处理函数 ============
+// 处理左侧面板表单提交事件
 const handleFormSubmit = (formData) => {
-  // 清空之前的消息（开始新任务）
-  messages.value = []
-  streamBuffer.value = {}
+  // 清空之前的数据（开始新任务）
+  processSteps.value = []
+  streamingContent.value = ''
+  p1StreamingContent.value = ''
+  p2StreamingContent.value = ''
+  p3StreamingContent.value = ''
+  analysisResults.value = {
+    performancePrediction: null,
+    historicalComparison: null,
+    integratedAnalysis: null,
+    optimizationSuggestions: null,
+    comprehensiveRecommendation: ''
+  }
   
   // 设置处理状态
   isProcessing.value = true
-  isThinking.value = true
-  thinkingText.value = '正在验证参数...'
+  currentNode.value = 'starting'
+  currentNodeTitle.value = '正在启动分析...'
   
-  // 发送到后端
+  // 转换数据格式以匹配后端期望的结构
+  const structuredData = transformFormDataToBackendFormat(formData)
+  
+  // 通过WebSocket发送工作流启动请求到后端
   send({
     type: 'start_workflow',
-    data: formData
+    data: structuredData
   })
   
   ElMessage.success('已提交，开始分析...')
 }
 
-// 提交实验结果
-const submitExperimentResults = () => {
-  // 验证必填项
-  if (!experimentResultsForm.value.hardness) {
-    ElMessage.warning('请输入涂层硬度')
-    return
-  }
-  if (!experimentResultsForm.value.adhesion_level) {
-    ElMessage.warning('请选择结合力等级')
-    return
-  }
+// 数据格式转换函数 - 将前端扁平化数据转换为后端期望的分组结构
+const transformFormDataToBackendFormat = (formData) => {
+  // 转换其他元素格式：name -> element
+  const transformedOtherElements = (formData.other_elements || [])
+    .filter(e => e.name && e.content) // 过滤空元素
+    .map(e => ({
+      element: e.name,  // 前端使用name，后端期望element
+      content: e.content
+    }))
   
-  isSubmittingResults.value = true
+  // 转换其他气体格式：保持type和flow
+  const transformedOtherGases = (formData.other_gases || [])
+    .filter(g => g.type && g.flow) // 过滤空气体
+    .map(g => ({
+      type: g.type,
+      flow: g.flow
+    }))
   
-  // 转换磨损率为科学计数法格式的数字
-  const resultsData = {
-    ...experimentResultsForm.value,
-    wear_rate: experimentResultsForm.value.wear_rate ? 
-      parseFloat(experimentResultsForm.value.wear_rate) : null
-  }
+  // 转换层结构格式：保持type和thickness
+  const transformedLayers = (formData.layers || [])
+    .filter(l => l.type && l.thickness) // 过滤空层
+    .map(l => ({
+      type: l.type,
+      thickness: l.thickness
+    }))
   
-  // 发送到后端
-  send({
-    type: 'submit_experiment_results',
-    data: resultsData
-  })
-  
-  // 移除等待实验结果的消息卡片
-  const msgIndex = messages.value.findIndex(msg => msg.nodeId === 'await_experiment_results')
-  if (msgIndex !== -1) {
-    messages.value.splice(msgIndex, 1)
-  }
-  
-  // 添加已提交的消息
-  messages.value.push(createAIMessage(
-    '实验结果已提交，正在分析实验数据...',
-    resultsData,
-    'experiment_results_submitted'
-  ))
-  
-  // 重置状态
-  isSubmittingResults.value = false
-  isProcessing.value = true
-  isStreaming.value = true
-  
-  ElMessage.success('实验结果已提交，继续执行工作流...')
-  
-  // 保存消息
-  saveCurrentSession()
-  saveSessions()
-}
-
-// 填充示例数据
-const fillExampleResults = () => {
-  experimentResultsForm.value = {
-    hardness: 29.2,
-    hardness_std: 0.8,
-    adhesion_level: 'HF1',
-    wear_rate: '2.1e-6',
-    coating_thickness: 3.2,
-    oxidation_temperature: 850,
-    test_date: new Date().toISOString().split('T')[0],
-    operator: '实验员A'
-  }
-  ElMessage.info('已填充示例数据')
-}
-
-// 渲染Markdown内容（使用marked库统一渲染）
-const renderMarkdown = (content) => {
-  if (!content) return ''
-  try {
-    return marked(content, {
-      breaks: true,  // 支持换行符转换为<br>
-      gfm: true      // 支持GitHub Flavored Markdown
-    })
-  } catch (error) {
-    console.error('Markdown渲染错误:', error)
-    return content
-  }
-}
-
-// 兼容旧的formatContent函数
-const formatContent = renderMarkdown
-
-// 根据节点ID获取消息
-const getNodeMessage = (nodeId) => {
-  return messages.value.find(msg => msg.nodeId === nodeId && msg.role === 'assistant')
-}
-
-
-// 获取优化进度
-const getOptimizationProgress = () => {
-  if (currentNode.value === 'p1_composition_optimization') return 33
-  if (currentNode.value === 'p2_structure_optimization') return 66
-  if (currentNode.value === 'p3_process_optimization') return 100
-  return 0
-}
-
-// 获取优化状态文本
-const getOptimizationStatusText = () => {
-  if (currentNode.value === 'p1_composition_optimization') return '正在生成成分优化方案...'
-  if (currentNode.value === 'p2_structure_optimization') return '正在生成结构优化方案...'
-  if (currentNode.value === 'p3_process_optimization') return '正在生成工艺优化方案...'
-  return '准备生成优化建议...'
-}
-
-// 获取优化整体状态
-const getOptimizationStatus = () => {
-  const p1Done = !!getNodeMessage('p1_composition_optimization')
-  const p2Done = !!getNodeMessage('p2_structure_optimization')
-  const p3Done = !!getNodeMessage('p3_process_optimization')
-  
-  if (p1Done && p2Done && p3Done) return '已完成'
-  if (['p1_composition_optimization', 'p2_structure_optimization', 'p3_process_optimization'].includes(currentNode.value)) {
-    return '生成中...'
-  }
-  return '生成中...'
-}
-
-// 自动滚动到底部
-const scrollToBottom = (force = false) => {
-  if (!resultsContainer.value) return
-  
-  // 只在启用自动滚动或强制滚动时执行
-  if (!autoScrollEnabled.value && !force) return
-  
-  setTimeout(() => {
-    resultsContainer.value.scrollIntoView({ 
-      behavior: 'smooth', 
-      block: 'end' 
-    })
-    showScrollToBottom.value = false
-  }, 100)
-}
-
-// 检测用户是否在底部
-const checkIfAtBottom = () => {
-  const container = document.querySelector('.main-content')
-  if (!container) return true
-  
-  const scrollTop = container.scrollTop
-  const scrollHeight = container.scrollHeight
-  const clientHeight = container.clientHeight
-  
-  // 如果距离底部小于100px，认为在底部
-  return (scrollHeight - scrollTop - clientHeight) < 100
-}
-
-// 监听用户滚动
-let scrollTimeout = null
-const handleUserScroll = () => {
-  // 清除之前的延迟
-  if (scrollTimeout) {
-    clearTimeout(scrollTimeout)
-  }
-  
-  // 检测用户是否在底部
-  const isAtBottom = checkIfAtBottom()
-  
-  if (!isAtBottom) {
-    // 用户向上滚动，立即暂停自动滚动
-    autoScrollEnabled.value = false
-    showScrollToBottom.value = true
-  }
-  
-  // 延迟检测恢复，避免频繁触发
-  scrollTimeout = setTimeout(() => {
-    const isAtBottom = checkIfAtBottom()
+  return {
+    // 涂层成分参数
+    composition: {
+      al_content: formData.al_content || 0,
+      ti_content: formData.ti_content || 0, 
+      n_content: formData.n_content || 0,
+      other_elements: transformedOtherElements
+    },
     
-    // 滚动检测状态更新
+    // 工艺参数
+    process_params: {
+      process_type: formData.process_type || 'magnetron_sputtering',
+      deposition_pressure: formData.deposition_pressure || 0,
+      deposition_temperature: formData.deposition_temperature || 0,
+      bias_voltage: formData.bias_voltage || 0,
+      n2_flow: formData.n2_flow || 0,
+      ar_flow: formData.other_gases?.find(g => g.type === 'Ar')?.flow || 0,
+      other_gases: transformedOtherGases
+    },
     
-    if (isAtBottom) {
-      // 用户滚动到底部，恢复自动滚动
-      autoScrollEnabled.value = true
-      showScrollToBottom.value = false
+    // 结构设计参数
+    structure_design: {
+      structure_type: formData.structure_type || 'single',
+      total_thickness: formData.total_thickness || 0,
+      layers: transformedLayers
+    },
+    
+    // 性能需求参数
+    target_requirements: {
+      substrate_material: formData.substrate_material || '',
+      adhesion_strength: formData.adhesion_strength || 0,
+      elastic_modulus: formData.elastic_modulus || 0,
+      working_temperature: formData.working_temperature || 0,
+      cutting_speed: formData.cutting_speed || 0,
+      application_scenario: formData.application_scenario || ''
     }
-  }, 50)  // 50ms 防抖，提高响应速度
+  }
 }
 
-// 监听消息变化，自动滚动（仅在启用自动滚动时）
-watch(messages, () => {
-  // 只有在自动滚动启用时才滚动，避免打断用户浏览
-  if (autoScrollEnabled.value) {
-    scrollToBottom()
-  }
-}, { deep: true })
-
-// 监听流式输出，自动滚动（仅在启用自动滚动时）
-watch(isStreaming, (newVal) => {
-  if (newVal && autoScrollEnabled.value) {
-    scrollToBottom()
-  }
-})
-
-// 手动恢复自动滚动
-const resumeAutoScroll = () => {
-  autoScrollEnabled.value = true
-  showScrollToBottom.value = false
-  scrollToBottom(true)  // 强制滚动到底部
-}
-
-// 监听按钮显示状态变化
-
-// 监听当前节点变化，自动切换tab
-watch(currentNode, (newNode) => {
-  if (newNode === 'p1_composition_optimization') {
-    activeOptimizationTab.value = 'p1'
-    scrollToBottom()
-  } else if (newNode === 'p2_structure_optimization') {
-    activeOptimizationTab.value = 'p2'
-    scrollToBottom()
-  } else if (newNode === 'p3_process_optimization') {
-    activeOptimizationTab.value = 'p3'
-    scrollToBottom()
-  }
-})
-
-// 处理优化方案选择
-const handleOptimizationSelect = (selection) => {
-  // 添加用户选择消息
-  messages.value.push({
-    role: 'user',
-    content: `已选择 ${selection.type} 优化方案`,
+// 处理右侧面板优化方案选择事件
+const handleOptimizationSelect = (option) => {
+  console.log('用户选择优化方案:', option)
+  
+  // 隐藏选择界面
+  showOptimizationSelection.value = false
+  
+  // 添加选择步骤
+  processSteps.value.push({
+    id: Date.now(),
+    nodeId: 'user_selection',
+    title: '用户选择方案',
+    status: 'completed',
+    content: `已选择 ${option} 优化方案`,
     timestamp: new Date().toISOString()
   })
-
+  
+  // 发送工单生成请求（新的独立请求）
+  send({
+    type: 'generate_workorder',
+    selected_option: option  // P1/P2/P3
+  })
+  
   // 设置处理状态
   isProcessing.value = true
-  isThinking.value = true
-  thinkingText.value = '正在处理您的选择...'
-
-  // 发送选择到后端
-  send({
-    type: 'select_optimization',
-    data: selection
-  })
-
-  ElMessage.success(`已确认选择 ${selection.type}，继续执行工作流...`)
-}
-
-// 创建AI消息
-const createAIMessage = (content = '', data = null, nodeId = null) => {
-  return {
-    role: 'assistant',
-    content: content,
-    data: data,
-    nodeId: nodeId,
-    timestamp: new Date().toISOString()
-  }
-}
-
-// 为节点创建新消息
-const createNodeMessage = (node) => {
-  const nodeTitle = getNodeTitle(node)
-  messages.value.push(createAIMessage(`**${nodeTitle}**\n\n`, null, node))
-}
-
-// 更新指定节点的消息
-const updateNodeMessage = (node, content, data = null) => {
-  // 查找该节点的消息
-  const nodeMessage = messages.value.find(msg => msg.nodeId === node && msg.role === 'assistant')
-  if (nodeMessage) {
-    const nodeTitle = getNodeTitle(node)
-    nodeMessage.content = `**${nodeTitle}**\n\n${content}`
-    if (data) {
-      nodeMessage.data = { ...nodeMessage.data, ...data }
-    }
-  }
-}
-
-// 获取节点标题
-const getNodeTitle = (node) => {
-  const titles = {
-    'requirement_extraction': '📋 需求分析',
-    'input_validation': '✅ 输入验证',
-    // 性能预测拆分为4个子节点
-    'topphi_simulation': '🔬 TopPhi第一性原理模拟',
-    'ml_prediction': '🤖 ML模型性能预测',
-    'historical_comparison': '📚 历史数据比对',
-    'integrated_analysis': '📊 综合分析与根因',
-    'performance_prediction': '📊 性能预测与根因分析',  // 保留兼容
-    // 优化建议拆分为P1/P2/P3
-    'p1_composition_optimization': '💡 P1: 成分优化',
-    'p2_structure_optimization': '🔧 P2: 结构优化',
-    'p3_process_optimization': '⚙️ P3: 工艺优化',
-    'optimization_summary': 'Ὂ1 优化建议汇总',
-    'optimization_suggestion': 'Ὂ1 优化建议',  // 兼容
-    'experiment_workorder_generation': '🎫 实验工单生成',
-    'await_experiment_results': '📊 等待实验结果',
-    'experiment_result_analysis': '📈 实验结果分析',
-    'decide_next_iteration': '🔄 迭代决策'
-  }
-  return titles[node] || node
-}
-
-// ============ 会话管理函数 ============
-// 生成会话ID
-const generateSessionId = () => {
-  return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-}
-
-// 生成会话标题（从第一条用户消息提取）
-const generateSessionTitle = (msgs) => {
-  if (!msgs || msgs.length === 0) return '新对话'
-  const firstUserMsg = msgs.find(m => m.role === 'user')
-  if (firstUserMsg && firstUserMsg.content) {
-    // 截取前30个字符作为标题
-    return firstUserMsg.content.substring(0, 30) + (firstUserMsg.content.length > 30 ? '...' : '')
-  }
-  return '新对话'
-}
-
-// 创建新会话
-const handleCreateSession = () => {
-  // 保存当前会话
-  if (currentSessionId.value) {
-    saveCurrentSession()
-  }
-
-  // 创建新会话
-  const newSession = {
-    id: generateSessionId(),
-    title: '新对话',
-    messages: [],
-    taskId: null,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    messageCount: 0
-  }
-
-  sessions.value.push(newSession)
-  currentSessionId.value = newSession.id
-
-  // 清空当前消息和状态
-  messages.value = []
-  currentTaskId.value = null
-  streamBuffer.value = {}
-  isProcessing.value = false
-  isStreaming.value = false
-  isThinking.value = false
-
-  // 保存到localStorage
-  saveSessions()
+  currentNode.value = 'experiment_workorder'
+  currentNodeTitle.value = '实验工单生成'
   
-  ElMessage.success('已创建新对话')
+  ElMessage.success(`已选择 ${option}，正在生成实验工单...`)
 }
 
-// 选择会话
-const handleSelectSession = (sessionId) => {
-  // 保存当前会话
-  if (currentSessionId.value) {
-    saveCurrentSession()
-  }
-
-  // 加载选中的会话
-  const session = sessions.value.find(s => s.id === sessionId)
-  if (session) {
-    currentSessionId.value = session.id
-    messages.value = session.messages || []
-    currentTaskId.value = session.taskId || null
-    streamBuffer.value = {}
-    
-    // 如果有任务ID，尝试重连
-    if (session.taskId) {
-      tryRestoreTask(session.taskId)
-    }
-    
-    // 会话切换完成
+// 处理顶部状态栏命令按钮点击事件
+const handleCommand = (command) => {
+  switch (command) {
+    case 'export':    // 导出结果功能
+      exportResults()
+      break
+    case 'clear':     // 清空对话功能
+      clearMessages()
+      break
+    case 'settings':  // 打开设置功能
+      openSettings()
+      break
   }
 }
 
-// 重命名会话
-const handleRenameSession = ({ sessionId, newTitle }) => {
-  const session = sessions.value.find(s => s.id === sessionId)
-  if (session) {
-    session.title = newTitle
-    session.updatedAt = new Date().toISOString()
-    saveSessions()
+// ============ 工具函数 ============
+// 清空所有数据和重置状态
+const clearMessages = () => {
+  processSteps.value = []      // 清空过程步骤
+  streamingContent.value = ''  // 清空流式内容
+  p1StreamingContent.value = ''
+  p2StreamingContent.value = ''
+  p3StreamingContent.value = ''
+  isProcessing.value = false   // 重置处理状态
+  currentNode.value = ''       // 清空当前节点
+  currentNodeTitle.value = ''  // 清空节点标题
+  showOptimizationSelection.value = false  // 隐藏选择界面
+  analysisResults.value = {    // 重置结果数据
+    performancePrediction: null,
+    historicalComparison: null,
+    integratedAnalysis: null,
+    optimizationSuggestions: null,
+    comprehensiveRecommendation: '',
+    experimentWorkorder: null
   }
+  ElMessage.success('已清空所有数据')
 }
 
-// 删除会话
-const handleDeleteSession = (sessionId) => {
-  const index = sessions.value.findIndex(s => s.id === sessionId)
-  if (index !== -1) {
-    sessions.value.splice(index, 1)
-    
-    // 如果删除的是当前会话，切换到第一个会话或创建新会话
-    if (sessionId === currentSessionId.value) {
-      if (sessions.value.length > 0) {
-        handleSelectSession(sessions.value[0].id)
-      } else {
-        handleCreateSession()
-      }
-    }
-    
-    saveSessions()
+// 导出分析结果为JSON文件
+const exportResults = () => {
+  // 检查是否有结果可导出
+  const hasResults = Object.values(analysisResults.value).some(v => v !== null && v !== '')
+  if (!hasResults) {
+    ElMessage.warning('暂无结果可导出')
+    return
   }
-}
-
-// 保存当前会话
-const saveCurrentSession = () => {
-  if (!currentSessionId.value) return
   
-  const session = sessions.value.find(s => s.id === currentSessionId.value)
-  if (session) {
-    session.messages = [...messages.value]
-    session.taskId = currentTaskId.value
-    session.updatedAt = new Date().toISOString()
-    session.messageCount = messages.value.length
-    
-    // 自动更新标题（如果还是默认标题）
-    if (session.title === '新对话' && messages.value.length > 0) {
-      session.title = generateSessionTitle(messages.value)
-    }
+  // 构建导出数据结构
+  const exportData = {
+    timestamp: new Date().toISOString(),
+    processSteps: processSteps.value,
+    analysisResults: analysisResults.value
   }
+  
+  // 创建JSON文件并下载
+  const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `topmat_results_${new Date().toISOString().slice(0, 19)}.json`
+  a.click()
+  URL.revokeObjectURL(url)
+  
+  ElMessage.success('结果已导出')
 }
 
-// 保存所有会话到localStorage
-const saveSessions = () => {
-  try {
-    localStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions.value))
-    localStorage.setItem(CURRENT_SESSION_KEY, currentSessionId.value || '')
-  } catch (error) {
-    console.error('保存会话失败:', error)
-  }
+// 打开系统设置面板（功能开发中）
+const openSettings = () => {
+  ElMessage.info('设置功能开发中...')
 }
 
-// 从localStorage加载会话
-const loadSessions = () => {
-  try {
-    const savedSessions = localStorage.getItem(SESSIONS_KEY)
-    const savedCurrentId = localStorage.getItem(CURRENT_SESSION_KEY)
-    
-    if (savedSessions) {
-      sessions.value = JSON.parse(savedSessions)
-      // 会话加载完成
-    }
-    
-    // 恢复当前会话
-    if (savedCurrentId && sessions.value.find(s => s.id === savedCurrentId)) {
-      currentSessionId.value = savedCurrentId
-      const currentSession = sessions.value.find(s => s.id === savedCurrentId)
-      if (currentSession) {
-        messages.value = currentSession.messages || []
-        currentTaskId.value = currentSession.taskId || null
+// ============ WebSocket消息处理核心函数 ============
+// 节点标题映射
+const nodeNameMap = {
+  'input_validation': '参数验证',
+  'topphi_simulation': 'TopPhi第一性原理模拟',
+  'ml_prediction': 'ML模型性能预测',
+  'historical_comparison': '历史数据比对',
+  'integrated_analysis': '根因分析',
+  'optimization_suggestions': '优化建议生成',
+  'p1_composition_optimization': 'P1成分优化分析',
+  'p2_structure_optimization': 'P2结构优化分析',
+  'p3_process_optimization': 'P3工艺优化分析',
+  'optimization_summary': '优化方案汇总',
+  'await_user_selection': '等待方案选择',
+  'experiment_workorder': '实验工单生成'
+}
+
+// 处理来自后端的WebSocket消息
+const handleWebSocketMessage = (message) => {
+  console.log('收到WebSocket消息:', message)
+  
+  switch (message.type) {
+    case 'connected':  // 前端WebSocket初始连接成功消息
+      console.log('WebSocket初始化完成')
+      break
+      
+    case 'node_output':  // 工作流节点输出（后端实际发送的事件）
+      handleNodeOutput(message.data)
+      break
+      
+    case 'llm_stream':  // LLM流式输出（后端实际发送的事件）
+      handleLLMStream(message)
+      break
+      
+    case 'connection':  // 连接状态（后端确认消息）
+      console.log('WebSocket连接状态:', message.status)
+      break
+      
+    case 'status':  // 状态更新
+      if (message.node) {
+        currentNode.value = message.node
+        currentNodeTitle.value = nodeNameMap[message.node] || message.node
       }
-    } else if (sessions.value.length > 0) {
-      // 如果没有保存的当前会话ID，使用第一个
-      currentSessionId.value = sessions.value[0].id
-      messages.value = sessions.value[0].messages || []
-      currentTaskId.value = sessions.value[0].taskId || null
-    } else {
-      // 如果没有任何会话，创建一个新的
-      handleCreateSession()
-    }
-  } catch (error) {
-    console.error('加载会话失败:', error)
-    // 创建默认会话
-    handleCreateSession()
+      break
+      
+    case 'workflow_completed':  // 工作流完成（优化建议生成完成）
+      isProcessing.value = false
+      streamingContent.value = ''
+      currentNode.value = 'optimization_completed'
+      currentNodeTitle.value = '优化方案生成完成'
+      showOptimizationSelection.value = true  // 显示选择界面
+      ElMessage.success('优化建议生成完成，请选择一个方案')
+      break
+      
+    case 'workorder_generation_started':  // 工单生成开始
+      currentNode.value = 'experiment_workorder'
+      currentNodeTitle.value = '实验工单生成'
+      streamingContent.value = ''
+      break
+      
+    case 'workorder_generated':  // 工单生成完成
+      isProcessing.value = false
+      // 保存工单数据
+      if (message.data) {
+        analysisResults.value.experimentWorkorder = message.data.experiment_workorder
+        
+        // 查找是否已有experiment_workorder步骤（流式输出过程中可能创建）
+        const workorderStepIndex = processSteps.value.findIndex(s => s.nodeId === 'experiment_workorder')
+        const workorderContent = message.data.experiment_workorder || '实验工单生成完成'
+        
+        if (workorderStepIndex !== -1) {
+          // 已存在，更新为completed状态并保存完整内容
+          processSteps.value[workorderStepIndex] = {
+            ...processSteps.value[workorderStepIndex],
+            status: 'completed',
+            content: workorderContent,
+            title: `实验工单 - ${message.data.selected_optimization_name}`
+          }
+          console.log(`[workorder_generated] 更新工单步骤，内容长度: ${workorderContent.length}`)
+        } else {
+          // 不存在，创建新步骤（保存完整工单内容）
+          processSteps.value.push({
+            id: Date.now(),
+            nodeId: 'experiment_workorder',
+            title: `实验工单 - ${message.data.selected_optimization_name}`,
+            status: 'completed',
+            content: workorderContent,
+            timestamp: new Date().toISOString()
+          })
+          console.log(`[workorder_generated] 创建工单步骤，内容长度: ${workorderContent.length}`)
+        }
+      }
+      // 清空当前节点状态，让已完成的工单步骤在中间panel显示出来
+      currentNode.value = ''
+      currentNodeTitle.value = ''
+      // 清空流式内容
+      streamingContent.value = ''
+      ElMessage.success('实验工单生成完成！')
+      break
+      
+    case 'error':  // 错误处理
+      isProcessing.value = false
+      streamingContent.value = ''
+      ElMessage.error(message.message || '处理过程中出现错误')
+      // 添加错误步骤
+      processSteps.value.push({
+        id: Date.now(),
+        nodeId: 'error',
+        title: '发生错误',
+        status: 'error',
+        content: message.message,
+        timestamp: new Date().toISOString()
+      })
+      break
+      
+    default:
+      console.warn('未处理的消息类型:', message.type)
   }
 }
 
-// ============ 消息管理函数 ============
-
-// 清除localStorage中的任务数据
-const clearTaskStorage = () => {
-  // 只清除当前任务ID，保留会话数据
-  if (currentSessionId.value) {
-    const session = sessions.value.find(s => s.id === currentSessionId.value)
-    if (session) {
-      session.taskId = null
-      currentTaskId.value = null
-      saveSessions()
+// 处理节点输出数据
+const handleNodeOutput = (nodeData) => {
+  if (!nodeData) return
+  
+  // 提取节点信息
+  const firstKey = Object.keys(nodeData)[0]
+  const stateData = nodeData[firstKey]
+  
+  if (!stateData) return
+  
+  const nodeId = firstKey
+  const nodeTitle = nodeNameMap[nodeId] || nodeId
+  
+  // 更新当前节点（重要：让前端知道工作流进度）
+  currentNode.value = nodeId
+  currentNodeTitle.value = nodeTitle
+  
+  // 生成节点完成的具体内容
+  const nodeContent = generateNodeCompletionContent(nodeId, stateData)
+  
+  // 添加或更新处理步骤
+  const stepIndex = processSteps.value.findIndex(s => s.nodeId === nodeId)
+  if (stepIndex !== -1) {
+    // 节点已存在（之前通过llm_stream创建），更新为completed
+    const existingStep = processSteps.value[stepIndex]
+    // 创建新对象替换旧对象（触发响应式更新）
+    processSteps.value[stepIndex] = {
+      ...existingStep,
+      status: 'completed',
+      // 如果有流式输出，保留流式内容；否则使用生成的节点内容
+      content: (existingStep.content && existingStep.content.trim()) 
+        ? existingStep.content 
+        : (nodeContent || '节点执行完成')
     }
-  }
-}
-
-// 尝试恢复任务
-const tryRestoreTask = (taskId) => {
-  const taskIdToRestore = taskId || currentTaskId.value
-  if (taskIdToRestore) {
-    console.log(`尝试恢复任务: ${taskIdToRestore}`)
-    ElMessage.info('正在恢复之前的任务...')
-    
-    send({
-      type: 'reconnect',
-      task_id: taskIdToRestore
+    console.log(`[handleNodeOutput] 更新节点 ${nodeId}，内容长度: ${processSteps.value[stepIndex].content?.length}`)
+  } else {
+    // 节点不存在（没有llm_stream的节点），直接创建completed状态
+    processSteps.value.push({
+      id: Date.now(),
+      nodeId: nodeId,
+      title: nodeTitle,
+      status: 'completed',
+      content: nodeContent || '节点执行完成',
+      timestamp: new Date().toISOString()
     })
-    
-    // 设置超时，如果5秒内没有恢复成功，清除任务ID
-    setTimeout(() => {
-      if (currentTaskId.value === null || currentTaskId.value !== taskIdToRestore) {
-        console.log('任务恢复超时，清除本地存储')
-        clearTaskStorage()
-        ElMessage.warning('无法恢复之前的任务，请重新开始')
-      }
-    }, 5000)
+    console.log(`[handleNodeOutput] 创建节点 ${nodeId}，内容长度: ${nodeContent?.length}`)
   }
-}
-
-// WebSocket消息处理
-const handleWebSocketMessage = (data) => {
-  switch (data.type) {
-    case 'connected':
-      connectionStatus.value = true
-      // 连接成功后尝试恢复任务
-      setTimeout(() => {
-        tryRestoreTask()
-      }, 100)
-      break
-    
-    case 'task_restored':
-      // 任务状态恢复成功
-      currentTaskId.value = data.task_id
-      console.log(`任务 ${data.task_id} 已恢复`, data.state)
-      
-      // 消息历史已在会话加载时恢复
-      
-      // 根据状态恢复界面
-      if (data.state.workflow_status === 'awaiting_optimization_selection') {
-        // 正在等待用户选择 - 重新显示优化建议
-        if (data.state.optimization_suggestions) {
-          // 查找或创建优化建议消息
-          const existingMsg = messages.value.find(msg => 
-            msg.nodeId === 'optimization_summary' && msg.role === 'assistant'
-          )
-          
-          if (existingMsg) {
-            // 更新现有消息的数据
-            existingMsg.data = {
-              ...existingMsg.data,
-              optimization_suggestions: data.state.optimization_suggestions
-            }
-          } else {
-            // 创建新的优化建议消息（如果消息历史中没有）
-            messages.value.push(createAIMessage(
-              '已生成优化建议',
-              { optimization_suggestions: data.state.optimization_suggestions },
-              'optimization_summary'
-            ))
-          }
-        }
-        
-        isProcessing.value = false
-        isThinking.value = false
-        ElMessage.success('任务已恢复，请选择优化方案')
-      } else if (data.state.workflow_status === 'completed') {
-        isProcessing.value = false
-        isThinking.value = false
-        ElMessage.info('任务已完成')
-      }
-      break
-
-    case 'status':
-      // 保存任务ID（如果有）
-      if (data.task_id && !currentTaskId.value) {
-        currentTaskId.value = data.task_id
-        localStorage.setItem(TASK_ID_KEY, data.task_id)
-      }
-      
-      // 更新思考文本
-      currentNode.value = data.node
-      thinkingText.value = `${getNodeName(data.node)}: ${data.message}`
-      
-      // 只为LLM节点创建消息占位，非LLM节点由node_result创建
-      const llmNodes = [
-        'topphi_simulation',
-        'ml_prediction',
-        'integrated_analysis',
-        'p1_composition_optimization',
-        'p2_structure_optimization',
-        'p3_process_optimization',
-        'optimization_summary',  // 综合建议生成
-        'experiment_workorder_generation',  // 实验工单生成
-        'experiment_result_analysis',  // 实验结果分析
-        'decide_next_iteration'  // 迭代决策
-      ]
-      
-      // TopPhi和ML节点需要显示计算/预测中状态
-      const computingNodes = ['topphi_simulation', 'ml_prediction']
-      
-      if (llmNodes.includes(data.node) && !streamBuffer.value[data.node]) {
-        // 为LLM节点创建消息占位，准备接收流式输出
-        createNodeMessage(data.node)
-        streamBuffer.value[data.node] = 'processing' // 标记为处理中
-        
-        // TopPhi和ML节点需要显示thinking状态（正在计算/预测）
-        if (computingNodes.includes(data.node)) {
-          isThinking.value = true
-          thinkingText.value = data.node === 'topphi_simulation' ? '正在进行第一性原理模拟计算...' : '正在进行ML模型性能预测...'
-        } else {
-          isThinking.value = false
-        }
-        isStreaming.value = false
-        console.log(`[Status] 为LLM节点 ${data.node} 创建占位, thinking: ${isThinking.value}`)
-      } else if (!isStreaming.value) {
-        // 非LLM节点显示思考指示器
-        isThinking.value = true
-      }
-      break
-
-    case 'llm_stream':
-      // 处理LLM流式输出
-      handleLLMStream(data.node, data.content)
-      break
-
-    case 'node_result':
-      // 处理节点完整结果
-      handleNodeResult(data.node, data.result)
-      // 收到节点结果后，清除thinking状态
-      isThinking.value = false
-      // 保存消息
-      saveCurrentSession()
-      saveSessions()
-      break
-
-    case 'await_user_selection':
-      // 等待用户选择优化方案
-      if (data.task_id && !currentTaskId.value) {
-        currentTaskId.value = data.task_id
-        localStorage.setItem(TASK_ID_KEY, data.task_id)
-      }
-      
-      // 确保优化建议数据正确显示
-      if (data.suggestions) {
-        console.log('[前端] 收到优化建议:', data.suggestions)
-        // 查找或创建优化建议消息
-        const existingMsg = messages.value.find(msg => 
-          msg.nodeId === 'optimization_summary' && msg.role === 'assistant'
-        )
-        
-        if (existingMsg) {
-          // 更新现有消息的数据
-          console.log('[前端] 更新现有优化建议消息')
-          existingMsg.data = {
-            ...existingMsg.data,
-            optimization_suggestions: data.suggestions,
-            comprehensive_recommendation: data.comprehensive_recommendation || ''
-          }
-        } else {
-          // 创建新的优化建议消息（如果消息历史中没有）
-          console.log('[前端] 创建新的优化建议消息')
-          messages.value.push(createAIMessage(
-            '已生成优化建议，请选择方案',
-            { 
-              optimization_suggestions: data.suggestions,
-              comprehensive_recommendation: data.comprehensive_recommendation || ''
-            },
-            'optimization_summary'
-          ))
-        }
-      }
-      
-      isProcessing.value = false
-      isStreaming.value = false
-      isThinking.value = false
-      thinkingText.value = data.message || '请选择优化方案'
-      // 保存消息历史，以便重连恢复
-      saveCurrentSession()
-      saveSessions()
-      break
-
-    case 'await_experiment_results':
-      // 等待用户输入实验结果
-      console.log('[前端] 等待实验结果输入')
-      
-      // 创建等待实验结果的消息节点
-      if (!getNodeMessage('await_experiment_results')) {
-        messages.value.push(createAIMessage(
-          '实验工单已生成，请输入实验测试结果',
-          data.required_data || {},
-          'await_experiment_results'
-        ))
-      }
-      
-      isProcessing.value = false
-      isStreaming.value = false
-      isThinking.value = false
-      saveCurrentSession()
-      saveSessions()
-      break
-
-    case 'complete':
-      // 工作流完成
-      isProcessing.value = false
-      isStreaming.value = false
-      isThinking.value = false
-      streamBuffer.value = {}
-      // 清除任务状态
-      clearTaskStorage()
-      currentTaskId.value = null
-      ElMessage.success('优化分析完成')
-      break
-
-    case 'error':
-      isProcessing.value = false
-      isStreaming.value = false
-      isThinking.value = false
-      
-      // 如果是任务不存在的错误，清除本地存储
-      if (data.message && (data.message.includes('不存在') || data.message.includes('已过期'))) {
-        console.log('任务已失效，清除本地存储')
-        clearTaskStorage()
-        currentTaskId.value = null
-        ElMessage.error('任务已失效，请重新提交')
-      } else {
-        ElMessage.error(data.message)
-      }
-      
-      messages.value.push(createAIMessage(`抱歉，处理过程中出现错误：${data.message}`))
-      break
+  
+  // 清空流式内容，准备下一个节点
+  streamingContent.value = ''
+  
+  // 提取并存储结果数据
+  if (stateData.performance_prediction) {
+    analysisResults.value.performancePrediction = stateData.performance_prediction
   }
-}
-
-// 获取节点名称 - 增强版，类似ChatGPT的思考描述
-const getNodeName = (node) => {
-  const names = {
-    input_validation: '验证输入参数，检查数据合理性',
-    topphi_simulation: '运行第一性原理计算，预测微观结构',
-    ml_prediction: '启动机器学习模型，预测性能指标',
-    historical_comparison: '检索历史数据库，查找相似案例',
-    integrated_analysis: '深度分析多源数据，生成根因报告',
-    performance_prediction: '整合所有预测结果，评估性能表现',
-    p1_composition_optimization: '生成成分优化方案，调整元素配比',
-    p2_structure_optimization: '设计结构优化方案，改进层结构',
-    p3_process_optimization: '规划工艺优化方案，调优工艺参数',
-    optimization_summary: '汇总优化建议，准备方案选择',
-    optimization_suggestion: '整理优化建议，待用户确认',
-    experiment_workorder_generation: '生成实验工单，规划具体实验步骤',
-    iteration_optimization: '生成实验工单，规划具体定验步骤',  // 兼容
-    await_experiment_results: '等待用户输入实验测试结果',
-    experiment_result_analysis: '分析实验结果，生成根因报告',
-    decide_next_iteration: '决策下一步迭代方向',
-    iteration_planning: '制定迭代计划，准备下一轮优化',
-    result_summary: '生成最终报告，总结优化结果'
+  if (stateData.historical_comparison) {
+    analysisResults.value.historicalComparison = stateData.historical_comparison
   }
-  return names[node] || node
+  if (stateData.integrated_analysis) {
+    analysisResults.value.integratedAnalysis = stateData.integrated_analysis
+  }
+  if (stateData.optimization_suggestions) {
+    analysisResults.value.optimizationSuggestions = stateData.optimization_suggestions
+  }
+  if (stateData.comprehensive_recommendation) {
+    analysisResults.value.comprehensiveRecommendation = stateData.comprehensive_recommendation
+  }
+  
+  // 处理 await_user_selection 节点的 interrupt 数据
+  if (nodeId === 'await_user_selection' && stateData.type === 'user_selection_required') {
+    // 从 interrupt value 中提取数据
+    if (stateData.suggestions) {
+      analysisResults.value.optimizationSuggestions = stateData.suggestions
+    }
+    if (stateData.comprehensive_recommendation) {
+      analysisResults.value.comprehensiveRecommendation = stateData.comprehensive_recommendation
+    }
+  }
+  
+  // 检查工作流是否完成
+  if (stateData.workflow_status === 'completed' || nodeId === 'result_summary' || nodeId === 'experiment_workorder') {
+    isProcessing.value = false
+    ElMessage.success('分析完成！')
+  }
+  
+  // 检查是否需要用户输入
+  if (nodeId === 'await_user_selection') {
+    // 等待用户选择优化方案
+    ElMessage.info('请在右侧面板选择优化方案')
+  }
 }
 
 // 处理LLM流式输出
-const handleLLMStream = (node, content) => {
-  isThinking.value = false
-  isStreaming.value = true
-
-  // 初始化缓冲区
-  if (!streamBuffer.value[node]) {
-    streamBuffer.value[node] = ''
-    // 为新节点创建新消息
-    createNodeMessage(node)
-    console.log(`[LLM流式] 为节点 ${node} 创建新消息`)
-  } else if (streamBuffer.value[node] === 'processing') {
-    // 如果是processing状态，重置为空字符串开始累积
-    streamBuffer.value[node] = ''
+const handleLLMStream = (data) => {
+  const { node, content } = data
+  
+  // P1/P2/P3优化节点：使用专用的响应式变量（并行执行）
+  if (node === 'p1_composition_optimization') {
+    p1StreamingContent.value += content
+    // 切换到优化方案生成状态（移除条件检查，避免时序混乱）
+    if (currentNode.value !== 'optimization_suggestions' && 
+        currentNode.value !== 'p1_composition_optimization' &&
+        currentNode.value !== 'p2_structure_optimization' &&
+        currentNode.value !== 'p3_process_optimization') {
+      currentNode.value = 'optimization_suggestions'
+      currentNodeTitle.value = '优化建议生成'
+    }
+    return
   }
-
-  // 累积内容
-  if (typeof streamBuffer.value[node] === 'string') {
-    streamBuffer.value[node] += content
+  if (node === 'p2_structure_optimization') {
+    p2StreamingContent.value += content
+    // 切换到优化方案生成状态
+    if (currentNode.value !== 'optimization_suggestions' && 
+        currentNode.value !== 'p1_composition_optimization' &&
+        currentNode.value !== 'p2_structure_optimization' &&
+        currentNode.value !== 'p3_process_optimization') {
+      currentNode.value = 'optimization_suggestions'
+      currentNodeTitle.value = '优化建议生成'
+    }
+    return
+  }
+  if (node === 'p3_process_optimization') {
+    p3StreamingContent.value += content
+    // 切换到优化方案生成状态
+    if (currentNode.value !== 'optimization_suggestions' && 
+        currentNode.value !== 'p1_composition_optimization' &&
+        currentNode.value !== 'p2_structure_optimization' &&
+        currentNode.value !== 'p3_process_optimization') {
+      currentNode.value = 'optimization_suggestions'
+      currentNodeTitle.value = '优化建议生成'
+    }
+    return
+  }
+  
+  // 工单生成节点：使用processSteps存储（与根因分析等节点保持一致）
+  if (node === 'experiment_workorder') {
+    // 确保currentNode已设置
+    if (currentNode.value !== 'experiment_workorder') {
+      currentNode.value = 'experiment_workorder'
+      currentNodeTitle.value = '实验工单生成'
+    }
+    // 继续使用通用逻辑处理（不return，让它走下面的processSteps逻辑）
+  }
+  
+  // 其他节点（包括experiment_workorder）：使用processSteps数组存储
+  const stepIndex = processSteps.value.findIndex(s => s.nodeId === node)
+  
+  if (stepIndex === -1) {
+    // 第一次收到这个节点的流式输出，创建步骤
+    const newStep = {
+      id: Date.now(),
+      nodeId: node,
+      title: nodeNameMap[node] || node,
+      status: 'processing',
+      content: content,
+      timestamp: new Date().toISOString()
+    }
+    processSteps.value.push(newStep)
+    
+    // 更新当前节点指示
+    currentNode.value = node
+    currentNodeTitle.value = nodeNameMap[node] || node
   } else {
-    streamBuffer.value[node] = content
+    // 节点已存在，创建新对象替换旧对象（触发响应式更新）
+    const oldStep = processSteps.value[stepIndex]
+    processSteps.value[stepIndex] = {
+      ...oldStep,
+      content: (oldStep.content || '') + (content || '')
+    }
   }
-
-  // 更新当前节点的消息（不影响之前的消息）
-  updateNodeMessage(node, streamBuffer.value[node])
   
-  // 调试日志
-  if (streamBuffer.value[node].length % 100 === 0) {
-    console.log(`[LLM流式] 节点 ${node} 累积内容长度: ${streamBuffer.value[node].length}`)
+  // 更新全局streamingContent用于实时显示
+  if (node === currentNode.value) {
+    const currentStep = processSteps.value.find(s => s.nodeId === node)
+    streamingContent.value = currentStep?.content || ''
   }
 }
 
-// 处理节点结果
-const handleNodeResult = (nodeName, result) => {
-  isStreaming.value = false
-
-  // TopPhi模拟结果
-  if (nodeName === 'topphi_simulation') {
-    // 防止重复处理
-    if (streamBuffer.value[nodeName] === 'completed') {
-      console.log('[TopPhi结果] 已处理，跳过')
-      return
-    }
-    console.log('[TopPhi结果]', result)
-    
-    const content = `**模拟完成**
-
-🔬 **微观结构预测**
-- 晶粒尺寸: **${result.grain_size_nm || 'N/A'} nm**
-- 择优取向: **${result.preferred_orientation || 'N/A'}**
-- 残余应力: **${result.residual_stress_gpa || 'N/A'} GPa**
-- 晶格常数: ${result.lattice_constant || 'N/A'} Å
-- 形成能: ${result.formation_energy || 'N/A'} eV
-- 置信度: **${result.confidence ? (result.confidence * 100).toFixed(0) : 'N/A'}%**
-
-✅ 模拟耗时: ${result.simulation_time || 'N/A'}秒`
-    
-    if (!streamBuffer.value[nodeName] || streamBuffer.value[nodeName] === 'processing') {
-      createNodeMessage(nodeName)
-    }
-    updateNodeMessage(nodeName, content, { topphi: result })
-    streamBuffer.value[nodeName] = 'completed'
-  }
-
-  // ML模型预测结果
-  if (nodeName === 'ml_prediction') {
-    // 防止重复处理
-    if (streamBuffer.value[nodeName] === 'completed') {
-      console.log('[ML预测结果] 已处理，跳过')
-      return
-    }
-    console.log('[ML预测结果]', result)
-    
-    const content = `**预测完成**
-
-🤖 **性能指标预测**
-- 硬度: **${result.hardness_gpa || 'N/A'} ± ${result.hardness_std || 0} GPa**
-- 结合力等级: **${result.adhesion_level || 'N/A'}**
-- 耐磨性: ${result.wear_rate ? result.wear_rate.toExponential(2) : 'N/A'} mm³/Nm
-- 抗氧化温度: **${result.oxidation_temp_c || 'N/A'}℃**
-- 摩擦系数: ${result.friction_coefficient || 'N/A'}
-
-🎯 **关键影响因素**
-${Object.entries(result.feature_importance || {}).map(([key, value]) => 
-  `- ${key}: ${(value * 100).toFixed(0)}%`
-).join('\n') || '未提供'}
-
-✅ 模型置信度: **${result.model_confidence ? (result.model_confidence * 100).toFixed(0) : 'N/A'}%**`
-    
-    if (!streamBuffer.value[nodeName] || streamBuffer.value[nodeName] === 'processing') {
-      createNodeMessage(nodeName)
-    }
-    updateNodeMessage(nodeName, content, { ml_pred: result })
-    streamBuffer.value[nodeName] = 'completed'
-  }
-
-  // 历史数据比对结果
-  if (nodeName === 'historical_comparison') {
-    // 防止重复处理
-    if (streamBuffer.value[nodeName] === 'completed') {
-      console.log('[历史比对结果] 已处理，跳过')
-      return
-    }
-    console.log('[历史比对结果]', result)
-    
-    // 确保 result 是数组
-    if (!Array.isArray(result)) {
-      console.error('[历史比对结果] 错误的数据类型:', typeof result)
-      return
-    }
-    
-    const cases = result
-    const content = `**找到 ${cases.length} 个相似案例**
-
-📚 **历史案例分析**
-
-${cases.map((c, i) => 
-  `**${i + 1}. ${c.case_id}**
-- 相似度: **${(c.similarity_score * 100).toFixed(0)}%**
-- 成分: Al ${c.composition?.al_content || 'N/A'}%, Ti ${c.composition?.ti_content || 'N/A'}%, N ${c.composition?.n_content || 'N/A'}%
-- 实际硬度: **${c.actual_hardness} GPa**
-- 结合力: ${c.actual_adhesion}
-- 与预测偏差: ${c.deviation_from_prediction}
-- 应用场景: ${c.application}`
-).join('\n\n')}
-
-💡 历史数据可为本次预测提供重要参考`
-    
-    if (!streamBuffer.value[nodeName] || streamBuffer.value[nodeName] === 'processing') {
-      createNodeMessage(nodeName)
-    }
-    updateNodeMessage(nodeName, content, { historical: cases })
-    streamBuffer.value[nodeName] = 'completed'
-  }
-
-  // 综合分析（性能预测）结果
-  if (nodeName === 'performance_prediction' || nodeName === 'integrated_analysis') {
-    const nodeId = 'integrated_analysis'
-    
-    // 防止重复处理
-    if (streamBuffer.value[nodeId] === 'completed') {
-      console.log(`[综合分析结果] ${nodeName} 已处理，跳过`)
-      return
-    }
-    
-    console.log(`[综合分析结果] ${nodeName}`, result)
-    
-    // 优先使用流式缓冲区的内容（如果有流式输出）
-    let content = ''
-    if (streamBuffer.value[nodeId] && typeof streamBuffer.value[nodeId] === 'string' && streamBuffer.value[nodeId].length > 0 && streamBuffer.value[nodeId] !== 'processing') {
-      content = streamBuffer.value[nodeId]
-      console.log(`[节点结果] ${nodeName} - 使用流式缓冲区内容，长度: ${content.length}`)
-    } else if (result.root_cause_analysis) {
-      content = result.root_cause_analysis
-      console.log(`[节点结果] ${nodeName} - 使用结果数据，长度: ${content.length}`)
-    }
-    
-    // 只在有内容时才更新，避免重复显示
-    if (content && content !== 'processing') {
-      if (!streamBuffer.value[nodeId] || streamBuffer.value[nodeId] === 'processing') {
-        createNodeMessage(nodeId)
-      }
-      // 不再传递performance_prediction，综合分析只显示文本内容
-      updateNodeMessage(nodeId, content, {})
-      streamBuffer.value[nodeId] = 'completed'
-    }
-  }
-
-  // P1成分优化结果
-  if (nodeName === 'p1_composition_optimization') {
-    const content = streamBuffer.value[nodeName] || result.content || '成分优化建议已生成'
-    
-    if (!streamBuffer.value[nodeName] || streamBuffer.value[nodeName] === 'processing') {
-      createNodeMessage(nodeName)
-    }
-    updateNodeMessage(nodeName, content, { p1_suggestions: result.suggestions })
-    streamBuffer.value[nodeName] = 'completed'
-  }
-
-  // P2结构优化结果
-  if (nodeName === 'p2_structure_optimization') {
-    const content = streamBuffer.value[nodeName] || result.content || '结构优化建议已生成'
-    
-    if (!streamBuffer.value[nodeName] || streamBuffer.value[nodeName] === 'processing') {
-      createNodeMessage(nodeName)
-    }
-    updateNodeMessage(nodeName, content, { p2_suggestions: result.suggestions })
-    streamBuffer.value[nodeName] = 'completed'
-  }
-
-  // P3工艺优化结果
-  if (nodeName === 'p3_process_optimization') {
-    const content = streamBuffer.value[nodeName] || result.content || '工艺优化建议已生成'
-    
-    if (!streamBuffer.value[nodeName] || streamBuffer.value[nodeName] === 'processing') {
-      createNodeMessage(nodeName)
-    }
-    updateNodeMessage(nodeName, content, { p3_suggestions: result.suggestions })
-    streamBuffer.value[nodeName] = 'completed'
-  }
-
-  // 实验结果接收（演示模式）
-  if (nodeName === 'await_experiment_results') {
-    console.log('[实验结果] 收到数据', result)
-    
-    const experimentData = result.experiment_results || {}
-    const content = `**📊 实验结果已接收（演示数据）**
-
-🔬 **测试数据**
-- 硬度: **${experimentData.hardness || 'N/A'} GPa** ${experimentData.hardness_std ? `(标准差: ±${experimentData.hardness_std} GPa)` : ''}
-- 结合力等级: **${experimentData.adhesion_level || 'N/A'}**
-- 涂层厚度: **${experimentData.coating_thickness || 'N/A'} μm**
-- 耐磨性: ${experimentData.wear_rate ? experimentData.wear_rate.toExponential(2) : 'N/A'} mm³/Nm
-- 抗氧化温度: **${experimentData.oxidation_temperature || 'N/A'}℃**
-
-📅 测试信息
-- 测试日期: ${experimentData.test_date || 'N/A'}
-- 操作人员: ${experimentData.operator || 'N/A'}
-
-✅ 数据已提交，开始分析实验结果与预测结果的差异...`
-    
-    if (!streamBuffer.value[nodeName] || streamBuffer.value[nodeName] === 'processing') {
-      createNodeMessage(nodeName)
-    }
-    updateNodeMessage(nodeName, content, { experiment_results: experimentData })
-    streamBuffer.value[nodeName] = 'completed'
-  }
-
-  // 优化建议汇总结果
-  if (nodeName === 'optimization_suggestion' || nodeName === 'optimization_summary') {
-    // 使用optimization_summary作为节点ID
-    const nodeId = 'optimization_summary'
-    let content = ''
-    
-    if (streamBuffer.value[nodeId] && typeof streamBuffer.value[nodeId] === 'string' && streamBuffer.value[nodeId].length > 0 && streamBuffer.value[nodeId] !== 'processing') {
-      content = streamBuffer.value[nodeId]
-    } else {
-      content = '已生成优化建议'
-    }
-    
-    if (!streamBuffer.value[nodeId] || streamBuffer.value[nodeId] === 'processing') {
-      createNodeMessage(nodeId)
-    }
-    
-    updateNodeMessage(nodeId, content, { 
-      optimization_suggestions: result.optimization_suggestions,
-      comprehensive_recommendation: result.comprehensive_recommendation || ''
-    })
-    streamBuffer.value[nodeId] = 'completed'
-  }
-
-  // 迭代结果
-  if (nodeName === 'iteration_result') {
-    const content = `**第 ${result.iteration} 次迭代完成**\n\n${result.analysis || ''}`
-    messages.value.push(createAIMessage(content, { iteration_result: result }))
-  }
-}
-
-// 监听会话变化，自动保存
-watch(() => messages.value.length, () => {
-  if (currentSessionId.value) {
-    saveCurrentSession()
-    saveSessions()
-  }
+// ============ 生命周期和监听器 ============
+// 监听WebSocket连接状态变化，同步更新界面连接状态
+watch(isConnected, (connected) => {
+  connectionStatus.value = connected  // 同步连接状态到界面显示
 })
 
-// 生命周期钩子
+// 组件挂载生命周期：建立WebSocket连接
 onMounted(() => {
-  // 加载会话历史
-  loadSessions()
-  
-  // 连接WebSocket
-  connect('ws://localhost:8000/ws', handleWebSocketMessage)
-  connectionStatus.value = isConnected.value
-  
-  // 如果有当前任务，尝试恢复
-  if (currentTaskId.value) {
-    setTimeout(() => {
-      tryRestoreTask(currentTaskId.value)
-    }, 500)
-  }
-  
-  // 添加滚动监听
-  setTimeout(() => {
-    const mainContent = document.querySelector('.main-content')
-    if (mainContent) {
-      console.log('[滚动监听] 已添加到 .main-content')
-      mainContent.addEventListener('scroll', handleUserScroll)
-    } else {
-      console.error('[滚动监听] 找不到 .main-content 元素')
-    }
-  }, 500)
+  // 连接到后端WebSocket服务器，传入消息处理函数
+  connect('ws://localhost:8000/ws/coating', handleWebSocketMessage)
 })
+
+// 组件卸载生命周期：清理WebSocket连接
+// 生成节点完成内容
+const generateNodeCompletionContent = (nodeId, stateData) => {
+  switch (nodeId) {
+    case 'input_validation':
+      if (stateData.input_validated) {
+        const composition = stateData.preprocessed_data?.coating_composition || {}
+        const params = stateData.preprocessed_data?.process_params || {}
+        const structure = stateData.preprocessed_data?.structure_design || {}
+        const target = stateData.preprocessed_data?.target_requirements || {}
+        
+        // 构建成分配比显示
+        let compositionText = `- Al含量: ${composition.al_content || 0}%
+- Ti含量: ${composition.ti_content || 0}%  
+- N含量: ${composition.n_content || 0}%`
+        
+        if (composition.other_elements?.length > 0) {
+          compositionText += `\n- 其他元素: ${composition.other_elements.map(e => `${e.element} ${e.content}%`).join(', ')}`
+        }
+        
+        // 构建工艺参数显示
+        let processText = `- 工艺类型: ${params.process_type || 'N/A'}
+- 沉积压力: ${params.deposition_pressure || 0} Pa
+- 沉积温度: ${params.deposition_temperature || 0} °C
+- 偏压: ${params.bias_voltage || 0} V
+- N₂流量: ${params.n2_flow || 0} sccm`
+        
+        if (params.other_gases?.length > 0) {
+          processText += `\n- 其他气体: ${params.other_gases.map(g => `${g.type} ${g.flow} sccm`).join(', ')}`
+        }
+        
+        // 构建结构设计显示
+        let structureText = `- 结构类型: ${structure.structure_type || '单层'}`
+        
+        if (structure.structure_type === 'multi' && structure.layers?.length > 0) {
+          structureText += `\n- 层结构: ${structure.layers.map((l, i) => `第${i+1}层(${l.type}, ${l.thickness}μm)`).join('; ')}`
+        } else {
+          structureText += `\n- 总厚度: ${structure.total_thickness || 0} μm`
+        }
+        
+        // 构建性能需求显示
+        let targetText = `- 基材材料: ${target.substrate_material || 'N/A'}
+- 结合力: ${target.adhesion_strength || 0} N
+- 弹性模量: ${target.elastic_modulus || 0} GPa
+- 工作温度: ${target.working_temperature || 0} °C
+- 切削速度: ${target.cutting_speed || 0} m/min`
+        
+        if (target.application_scenario) {
+          targetText += `\n- 应用场景: ${target.application_scenario}`
+        }
+        
+        return `### 参数验证通过 ✅
+
+**成分配比**
+${compositionText}
+
+**工艺参数**
+${processText}
+
+**结构设计**
+${structureText}
+
+**性能需求**
+${targetText}
+
+✅ 所有输入参数已验证通过，可以继续后续分析。`
+      } else {
+        return `### 参数验证失败 ❌\n\n${(stateData.validation_errors || []).join('\n')}`
+      }
+      
+    case 'topphi_simulation':
+      const topphi = stateData.topphi_simulation || {}
+      return `### TopPhi理论计算完成 🔬
+
+**结构预测结果**
+- 晶粒尺寸: **${topphi.grain_size_nm || 'N/A'} nm**
+- 优选取向: ${topphi.preferred_orientation || 'N/A'}
+- 残余应力: ${topphi.residual_stress_gpa || 'N/A'} GPa
+- 晶格常数: ${topphi.lattice_constant || 'N/A'} Å
+
+**计算置信度**: ${((topphi.confidence || 0) * 100).toFixed(1)}%`
+
+    case 'ml_prediction':
+      const ml = stateData.ml_prediction || {}
+      return `### ML性能预测完成 🎯
+
+**预测结果**
+- **硬度预测: ${ml.hardness_gpa || 'N/A'} GPa**
+- 杨氏模量: ${ml.elastic_modulus_gpa || 'N/A'} GPa
+- 泊松比: ${ml.poisson_ratio || 'N/A'}
+
+**预测置信度**: ${((ml.confidence || 0) * 100).toFixed(1)}%
+**模型版本**: ${ml.model_version || 'N/A'}`
+
+    case 'historical_comparison':
+      const historical = stateData.historical_comparison || {}
+      const cases = historical.similar_cases || []
+      return `### 历史对比分析完成 📊
+
+**找到 ${cases.length} 个相似案例**
+
+${cases.map((c, i) => `
+**案例 ${i + 1}** (相似度: ${(c.similarity * 100).toFixed(1)}%)
+- 成分: Al${c.composition?.al_content}% Ti${c.composition?.ti_content}% N${c.composition?.n_content}%
+- 硬度: ${c.hardness} GPa
+- 备注: ${c.notes}
+`).join('')}
+
+这些案例为当前配方提供了重要的参考数据。`
+
+    case 'integrated_analysis':
+      const analysis = stateData.integrated_analysis || {}
+      const summary = analysis.performance_summary || {}
+      return `### 根因分析完成 📈
+
+**最终预测结果**
+- **预测硬度: ${summary.predicted_hardness || 'N/A'} GPa**
+- **置信度: ${((summary.confidence || 0) * 100).toFixed(1)}%**
+
+**关键发现**
+${(summary.key_findings || []).map(f => `- ${f}`).join('\n')}
+
+**优化建议**: ${analysis.recommendation || '无特殊建议'}`
+
+    default:
+      return `### ${nodeId} 完成\n\n节点执行成功，详细结果请查看右侧面板。`
+  }
+}
 
 onUnmounted(() => {
-  // 保存当前会话
-  if (currentSessionId.value) {
-    saveCurrentSession()
-    saveSessions()
-  }
-  
-  // 移除滚动监听
-  const mainContent = document.querySelector('.main-content')
-  if (mainContent) {
-    mainContent.removeEventListener('scroll', handleUserScroll)
-  }
-  
-  disconnect()
+  disconnect()  // 断开WebSocket连接，释放资源
 })
 </script>
 
@@ -1705,427 +750,110 @@ onUnmounted(() => {
 .app-container {
   height: 100vh;
   display: flex;
-  background: #F5F5F5;
-}
-
-/* 主工作区 */
-.main-workspace {
-  flex: 1;
-  display: flex;
   flex-direction: column;
+  background: #f5f7fa;
   overflow: hidden;
 }
 
-/* 顶部导航栏 */
-.header {
-  background: white;
-  border-bottom: 1px solid #E4E7ED;
-  padding: 0 24px;
+.main-workspace {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  position: relative;
+}
+
+/* 确保三段式布局协调 */
+.main-workspace > *:first-child {
+  /* 左侧面板 */
   flex-shrink: 0;
 }
 
-.header-content {
-  max-width: 1200px;
-  margin: 0 auto;
-  height: 60px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.logo {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.logo h1 {
-  margin: 0;
-  font-size: 20px;
-  font-weight: 600;
-  color: #303133;
-}
-
-.header-info {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.header-desc {
-  color: #909399;
-  font-size: 14px;
-}
-
-/* 主内容区 */
-.main-content {
+.main-workspace > *:nth-child(2) {
+  /* 中间内容区 */
   flex: 1;
-  overflow-y: auto;
-  padding: 20px;
-  background: #F5F5F5;
+  min-width: 0; /* 允许内容收缩 */
 }
 
-/* 表单区域 */
-.form-section {
-  max-width: 1200px;
-  margin: 0 auto 20px;
+.main-workspace > *:last-child {
+  /* 右侧面板 */  
+  flex-shrink: 0;
 }
 
-/* 结果展示区 */
-.result-section {
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
-
-/* 工作流结果容器 */
-.workflow-results {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-/* 节点卡片 */
-.node-card {
-  background: white;
-  border-radius: 12px;
-  transition: all 0.3s ease;
-  border: 2px solid transparent;
-  animation: slideIn 0.4s ease-out;
-}
-
-@keyframes slideIn {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.node-card:hover {
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-}
-
-.node-card.processing {
-  border-color: #E6A23C;
-  background: linear-gradient(to right, #FFF7E6 0%, white 100%);
-}
-
-/* 节点头部 */
-.node-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.node-title {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 16px;
-  font-weight: 600;
-  color: #303133;
-}
-
-.node-icon {
-  font-size: 22px;
-  color: #409EFF;
-}
-
-.node-icon.is-loading {
-  color: #E6A23C;
-}
-
-/* 节点内容 */
-.node-content {
+.experiment-form {
   padding: 16px 0;
-  color: #606266;
-  line-height: 1.8;
-  font-size: 14px;
 }
 
-.node-content strong {
-  color: #409EFF;
-  font-weight: 600;
-}
-
-.node-content.streaming {
-  position: relative;
-}
-
-.node-content.streaming::after {
-  content: '▊';
-  color: #409EFF;
-  animation: blink 1s infinite;
-  margin-left: 4px;
-}
-
-@keyframes blink {
-  0%, 50% { opacity: 1; }
-  51%, 100% { opacity: 0; }
-}
-
-/* 处理中指示器 - 增强样式 */
-.processing-indicator {
+.dialog-footer {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
-  padding: 40px 24px;
-  background: linear-gradient(135deg, #FFF7E6 0%, #FFF3E0 100%);
-  border-radius: 12px;
-  border: 2px solid #E6A23C;
-  color: #606266;
-  font-size: 15px;
-  box-shadow: 0 4px 12px rgba(230, 162, 60, 0.15);
-}
-
-.processing-indicator .el-icon {
-  font-size: 48px;
-  color: #E6A23C;
-  animation: pulse 1.5s ease-in-out infinite;
-}
-
-@keyframes pulse {
-  0%, 100% {
-    transform: scale(1);
-    opacity: 1;
-  }
-  50% {
-    transform: scale(1.1);
-    opacity: 0.8;
-  }
-}
-
-.processing-indicator span {
-  font-size: 16px;
-  font-weight: 600;
-  color: #E6A23C;
-  text-align: center;
-}
-
-.processing-indicator .el-progress {
-  width: 100%;
-  max-width: 500px;
-}
-
-.processing-indicator p {
-  margin: 8px 0 0 0;
-  color: #909399;
-}
-
-/* Markdown渲染样式 - 统一使用marked库渲染 */
-/* 标题样式 */
-.node-content :deep(h1),
-.node-content :deep(.markdown-h1) {
-  font-size: 24px;
-  font-weight: 700;
-  color: #303133;
-  margin: 20px 0 16px 0;
-  padding-bottom: 8px;
-  border-bottom: 2px solid #DCDFE6;
-}
-
-.node-content :deep(h2),
-.node-content :deep(.markdown-h2) {
-  font-size: 20px;
-  font-weight: 600;
-  color: #409EFF;
-  margin: 18px 0 12px 0;
-  padding-left: 12px;
-  border-left: 4px solid #409EFF;
-}
-
-.node-content :deep(h3),
-.node-content :deep(.markdown-h3) {
-  font-size: 16px;
-  font-weight: 600;
-  color: #606266;
-  margin: 16px 0 10px 0;
-}
-
-/* 加粗和强调 */
-.node-content :deep(strong),
-.node-content :deep(b),
-.node-content :deep(.markdown-bold) {
-  color: #409EFF;
-  font-weight: 600;
-}
-
-/* 行内代码 */
-.node-content :deep(code),
-.node-content :deep(.markdown-code) {
-  background: #F5F7FA;
-  color: #E6A23C;
-  padding: 2px 6px;
-  border-radius: 3px;
-  font-family: 'Consolas', 'Monaco', monospace;
-  font-size: 13px;
-}
-
-/* 代码块 */
-.node-content :deep(pre) {
-  background: #F5F7FA;
-  padding: 12px;
-  border-radius: 6px;
-  overflow-x: auto;
-  margin: 12px 0;
-}
-
-.node-content :deep(pre code) {
-  background: transparent;
-  padding: 0;
-  color: #303133;
-}
-
-/* 列表样式 */
-.node-content :deep(ul),
-.node-content :deep(.markdown-ul) {
-  margin: 12px 0;
-  padding-left: 24px;
-  list-style: none;
-}
-
-.node-content :deep(ol),
-.node-content :deep(.markdown-ol) {
-  margin: 12px 0;
-  padding-left: 24px;
-}
-
-.node-content :deep(li),
-.node-content :deep(.markdown-li),
-.node-content :deep(.markdown-li-ordered) {
-  padding: 6px 0;
-  line-height: 1.8;
-  position: relative;
-}
-
-.node-content :deep(ul > li):before {
-  content: '•';
-  position: absolute;
-  left: -16px;
-  color: #409EFF;
-  font-weight: bold;
-}
-
-.node-content :deep(ol > li) {
-  list-style-type: decimal;
-  list-style-position: outside;
-}
-
-/* 段落 */
-.node-content :deep(p) {
-  margin: 12px 0;
-  line-height: 1.8;
-}
-
-/* 引用 */
-.node-content :deep(blockquote) {
-  margin: 12px 0;
-  padding: 8px 16px;
-  border-left: 4px solid #409EFF;
-  background: #F5F9FF;
-  color: #606266;
-}
-
-/* 链接 */
-.node-content :deep(a) {
-  color: #409EFF;
-  text-decoration: none;
-}
-
-.node-content :deep(a:hover) {
-  text-decoration: underline;
-}
-
-/* 优化方案卡片样式 */
-.optimization-card {
-  min-height: 400px;
-}
-
-.optimization-tabs {
-  margin-top: -10px;
-}
-
-.optimization-tabs :deep(.el-tabs__header) {
-  margin-bottom: 20px;
-}
-
-.optimization-tabs :deep(.el-tabs__nav-wrap) {
-  padding: 0 10px;
-}
-
-.tab-label {
-  display: flex;
-  align-items: center;
+  justify-content: flex-end;
   gap: 8px;
-  font-size: 14px;
 }
 
-.tab-label .el-icon {
-  font-size: 16px;
+/* 全局样式重置 */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
-.tab-tag {
-  margin-left: 4px;
+body {
+  font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', '微软雅黑', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-.optimization-tabs :deep(.el-tabs__item) {
+/* 滚动条美化 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a1a1a1;
+}
+
+/* Element Plus样式调整 */
+:deep(.el-card) {
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+}
+
+:deep(.el-button) {
+  border-radius: 8px;
   font-weight: 500;
 }
 
-.optimization-tabs :deep(.el-tabs__item.is-active) {
-  color: #409EFF;
-  font-weight: 600;
+:deep(.el-input__wrapper) {
+  border-radius: 8px;
 }
 
-.optimization-tabs :deep(.el-tab-pane) {
-  min-height: 300px;
+:deep(.el-select .el-input .el-input__wrapper) {
+  border-radius: 8px;
 }
 
-.optimization-tabs .el-empty {
-  padding: 60px 0;
+:deep(.el-dialog) {
+  border-radius: 16px;
 }
 
-/* 平滑滚动 */
-.workflow-results {
-  scroll-behavior: smooth;
+:deep(.el-dialog__header) {
+  padding: 24px 24px 16px;
 }
 
-/* 滚动到底部按钮 */
-.scroll-to-bottom-btn {
-  position: fixed;
-  bottom: 40px;
-  right: 40px;
-  z-index: 9999 !important;
-  width: 50px;
-  height: 50px;
-  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.4);
-  transition: all 0.3s ease;
-  background: #409EFF !important;
-  border: none;
+:deep(.el-dialog__body) {
+  padding: 16px 24px;
 }
 
-.scroll-to-bottom-btn:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 6px 20px rgba(64, 158, 255, 0.6);
-  background: #66b1ff !important;
-}
-
-.scroll-to-bottom-btn :deep(.el-icon) {
-  font-size: 20px;
-  color: white;
-}
-
-/* fade过渡动画 */
-.fade-enter-active, .fade-leave-active {
-  transition: opacity 0.3s ease;
-}
-
-.fade-enter-from, .fade-leave-to {
-  opacity: 0;
+:deep(.el-dialog__footer) {
+  padding: 16px 24px 24px;
 }
 </style>

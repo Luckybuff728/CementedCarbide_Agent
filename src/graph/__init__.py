@@ -16,17 +16,11 @@ from .nodes import (
     p2_structure_optimization_node,
     p3_process_optimization_node,
     optimization_summary_node,
-    # 迭代与总结
-    iteration_planning_node,
-    result_summary_node,
-    # 实验闭环节点（已从experiment_nodes.py整合）
+    # 用户选择和实验工单（简化版本）
     await_user_selection_node,
-    performance_improvement_prediction_node,
-    experiment_workorder_generation_node,
-    await_experiment_results_node,
-    experiment_result_analysis_node,
-    decide_next_iteration_node,
-    await_plan_confirmation_node
+    experiment_workorder_generation_node
+    # 已删除：performance_improvement_prediction_node（重复预测）
+    # 迭代相关节点已删除（简化版本）
 )
 
 __all__ = [
@@ -43,14 +37,7 @@ __all__ = [
     "p2_structure_optimization_node",
     "p3_process_optimization_node",
     "optimization_summary_node",
-    "iteration_planning_node",
-    "result_summary_node",
-    # 实验闭环节点
+    # 用户选择和实验工单节点（简化版本）
     "await_user_selection_node",
-    "performance_improvement_prediction_node",
-    "experiment_workorder_generation_node",
-    "await_experiment_results_node",
-    "experiment_result_analysis_node",
-    "decide_next_iteration_node",
-    "await_plan_confirmation_node"
+    "experiment_workorder_generation_node"
 ]

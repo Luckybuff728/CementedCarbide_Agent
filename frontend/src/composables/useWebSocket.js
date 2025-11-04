@@ -1,6 +1,9 @@
 /**
  * WebSocket组合式函数
  * 处理实时通信和流式数据接收
+ * 
+ * 注意: 控制台中的 "Unchecked runtime.lastError: can not use with devtools" 警告
+ * 是浏览器扩展(如Chrome扩展)引起的,不是代码问题,可以安全忽略
  */
 import { ref, onUnmounted } from 'vue'
 
@@ -53,8 +56,17 @@ export function useWebSocket() {
       }
 
       ws.value.onerror = (error) => {
-        console.error('WebSocket错误:', error)
+        console.error('WebSocket连接错误，请检查后端是否启动')
+        console.error('后端地址应为: ws://localhost:8000/ws/coating')
+        console.error('错误详情:', error)
         isConnected.value = false
+        
+        if (messageHandler) {
+          messageHandler({
+            type: 'error',
+            message: 'WebSocket连接失败，请确保后端服务器已启动（运行 start_backend.bat）'
+          })
+        }
       }
 
       ws.value.onclose = () => {

@@ -116,12 +116,14 @@ def demo_mode():
             "x_content": 0.0
         },
         "process_params": {
+            "process_type": "magnetron_sputtering",
             "deposition_pressure": 0.6,
             "n2_flow": 210,
-            "ar_flow": 280,
-            "kr_flow": 200,
             "bias_voltage": 90,
-            "deposition_temperature": 550
+            "deposition_temperature": 500,
+            "other_gases": [
+                {"type": "Ar", "flow": 280}
+            ]
         },
         "structure_design": {
             "total_thickness": 3.0,
