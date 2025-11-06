@@ -408,7 +408,7 @@ const handleLLMStream = (data) => {
 
 // 生命周期
 onMounted(() => {
-  connect('ws://localhost:8000/ws/coating', handleWebSocketMessage)
+  connect('ws://192.168.6.108:8000/ws/coating', handleWebSocketMessage)
 })
 
 onUnmounted(() => {

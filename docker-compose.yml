@@ -1,8 +1,6 @@
 # TopMat Agent 生产环境 Docker Compose 配置
 # 前后端分离架构，优化镜像大小和稳定性
 
-version: '3.8'
-
 services:
   # 后端服务
   backend:
@@ -11,6 +9,8 @@ services:
       dockerfile: Dockerfile
     container_name: topmat-backend
     restart: always
+    ports:
+      - "8000:8000"
     environment:
       # 从.env文件加载环境变量
       - DASHSCOPE_API_KEY=${DASHSCOPE_API_KEY}
@@ -53,7 +53,7 @@ services:
     container_name: topmat-frontend
     restart: always
     ports:
-      - "80:80"
+      - "8081:80"
     depends_on:
       backend:
         condition: service_healthy
