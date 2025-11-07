@@ -44,6 +44,7 @@
 import { ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Loading, CircleClose, RefreshRight, Grid, Download } from '@element-plus/icons-vue'
+import { API_BASE_URL } from '../config'
 
 // VTK.js 导入
 import '@kitware/vtk.js/Rendering/Profiles/Volume'
@@ -63,10 +64,10 @@ const props = defineProps({
     type: Object,
     default: null
   },
-  // API基础URL
+  // API基础URL - 从配置文件读取
   baseUrl: {
     type: String,
-    default: 'http://localhost:8000'
+    default: API_BASE_URL
   },
   // 容器高度
   height: {

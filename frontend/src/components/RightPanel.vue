@@ -353,6 +353,7 @@ import {
 } from '@vicons/ionicons5'
 import { useWorkflowStore } from '../stores/workflow'
 import { getConfidenceColor, getConfidenceBadge } from '../utils/markdown'
+import { API_BASE_URL } from '../config'
 import SummaryCard from './SummaryCard.vue'
 import MarkdownRenderer from './MarkdownRenderer.vue'
 import ExperimentInputCard from './ExperimentInputCard.vue'
@@ -366,8 +367,8 @@ const emit = defineEmits(['optimization-select', 'jump-to-node', 'experiment-sub
 const selectedOpt = ref(null)
 const rightPanelRef = ref(null)
 
-// API基础URL
-const apiBaseUrl = ref('http://localhost:8000')
+// API基础URL - 从配置文件读取
+const apiBaseUrl = ref(API_BASE_URL)
 
 // 时间序列文件列表
 const timeSeriesFiles = ref([])

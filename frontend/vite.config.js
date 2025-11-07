@@ -1,9 +1,15 @@
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import vue from '@vitejs/plugin-vue'
 
 // https://vite.dev/config/
-export default defineConfig({
-  plugins: [vue()],
+export default defineConfig(({ mode }) => {
+  // 加载环境变量
+  const env = loadEnv(mode, process.cwd() + '/frontend', '')
+  const apiBaseUrl = env.VITE_API_BASE_URL || 'http://localhost:8000'
+  const wsBaseUrl = env.VITE_WS_BASE_URL || 'ws://localhost:8000'
+
+  return {
+    plugins: [vue()],
   
   // 生产环境构建配置
   build: {
@@ -44,13 +50,14 @@ export default defineConfig({
     // API代理（开发环境）
     proxy: {
       '/api': {
-        target: 'http://localhost:8000',
+        target: apiBaseUrl,
         changeOrigin: true
       },
       '/ws': {
-        target: 'ws://localhost:8000',
+        target: wsBaseUrl,
         ws: true
       }
     }
+  }
   }
 })

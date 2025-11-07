@@ -5,6 +5,7 @@ import { useWorkflowStore } from './stores/workflow'
 import { useWebSocket } from './composables/useWebSocket'
 import { useWorkflowHandler } from './composables/useWorkflowHandler'
 import { useLayoutManager } from './composables/useLayoutManager'
+import { WS_ENDPOINTS } from './config'
 
 import ErrorBoundary from './components/ErrorBoundary.vue'
 import StatusBar from './components/StatusBar.vue'
@@ -188,7 +189,7 @@ const handleClear = () => {}
 
 // ==================== 生命周期 ====================
 onMounted(() => {
-  connect('ws://localhost:8000/ws/coating', handleWebSocketMessage)
+  connect(WS_ENDPOINTS.coating, handleWebSocketMessage)
 })
 
 onUnmounted(() => {

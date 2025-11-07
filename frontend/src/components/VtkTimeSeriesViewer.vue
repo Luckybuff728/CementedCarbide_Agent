@@ -147,6 +147,7 @@ import {
   DArrowLeft,
   DArrowRight
 } from '@element-plus/icons-vue'
+import { API_BASE_URL } from '../config'
 
 // VTK.js 导入
 import '@kitware/vtk.js/Rendering/Profiles/Volume'
@@ -165,10 +166,10 @@ const props = defineProps({
     default: () => []
     // 格式: [{ name: 'conc-0.vtk', timeStep: 0 }, ...]
   },
-  // API基础URL
+  // API基础URL - 从配置文件读取
   baseUrl: {
     type: String,
-    default: 'http://localhost:8000'
+    default: API_BASE_URL
   },
   // 容器高度
   height: {
