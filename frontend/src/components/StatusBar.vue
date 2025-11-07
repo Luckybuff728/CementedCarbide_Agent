@@ -6,6 +6,24 @@
           <h2 class="app-title">TopMat Agent</h2>
           <p class="app-subtitle">涂层材料智能分析系统</p>
         </div>
+        
+        <!-- WebSocket连接状态指示器 -->
+        <div class="connection-indicator">
+          <div :class="['connection-dot', connectionStateClass]"></div>
+          <span :class="['connection-text', connectionStateClass]">{{ connectionStateText }}</span>
+        </div>
+        
+        <el-divider direction="vertical" />
+        <!-- 迭代轮次显示 - 常显在进度节点之前 -->
+        <div class="iteration-indicator">
+          <el-tag 
+            :type="workflowStore.currentIteration > 1 ? 'primary' : 'info'" 
+            effect="dark" 
+            size="large"
+          >
+            第 {{ workflowStore.currentIteration }} 轮
+          </el-tag>
+        </div>
         <el-divider direction="vertical" />
         <div class="progress-nodes">
           <div 
@@ -24,35 +42,51 @@
       </div>
       
       <div class="actions">
+        <!-- 历史查看模式：显示返回按钮 -->
         <n-button 
+          v-if="workflowStore.viewMode === 'history'" 
           size="small" 
-          @click="handleExport" 
-          :disabled="!canExport"
-          secondary
+          @click="handleReturnToCurrent" 
+          type="warning"
         >
           <template #icon>
-            <n-icon><Download /></n-icon>
+            <n-icon><ArrowBackOutline /></n-icon>
           </template>
-          导出
+          返回当前 (第{{ workflowStore.currentIteration }}轮)
         </n-button>
-        <n-button 
-          size="small" 
-          @click="handleClear" 
-          :disabled="!canClear"
-          secondary
-        >
-          <template #icon>
-            <n-icon><Trash /></n-icon>
-          </template>
-          清空
-        </n-button>
+        
+        <!-- 正常模式：导出和清空按钮 -->
+        <template v-else>
+          <n-button 
+            size="small" 
+            @click="handleExport" 
+            :disabled="!canExport"
+            secondary
+          >
+            <template #icon>
+              <n-icon><Download /></n-icon>
+            </template>
+            导出
+          </n-button>
+          <n-button 
+            size="small" 
+            @click="handleClear" 
+            :disabled="!canClear"
+            secondary
+          >
+            <template #icon>
+              <n-icon><Trash /></n-icon>
+            </template>
+            清空
+          </n-button>
+        </template>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { computed, h } from 'vue'
+import { computed, h, inject } from 'vue'
 import { ElMessageBox, ElMessage } from 'element-plus'
 import { NButton, NIcon } from 'naive-ui'
 import { 
@@ -61,12 +95,51 @@ import {
   EllipseOutline,
   Settings,
   Download,
-  Trash
+  Trash,
+  ArrowBackOutline
 } from '@vicons/ionicons5'
 import { useWorkflowStore } from '../stores/workflow'
 
 const workflowStore = useWorkflowStore()
 const emit = defineEmits(['jump-to-node', 'export', 'clear'])
+
+// 获取WebSocket连接状态（从App.vue注入）
+const connectionState = inject('connectionState', { value: 'disconnected' })
+const reconnectAttempts = inject('reconnectAttempts', { value: 0 })
+
+// 连接状态计算
+const connectionStateClass = computed(() => {
+  switch (connectionState.value) {
+    case 'connected':
+      return 'connected'
+    case 'connecting':
+    case 'reconnecting':
+      return 'connecting'
+    default:
+      return 'disconnected'
+  }
+})
+
+const connectionStateText = computed(() => {
+  switch (connectionState.value) {
+    case 'connected':
+      return '已连接'
+    case 'connecting':
+      return '连接中...'
+    case 'reconnecting':
+      return `重连中 (${reconnectAttempts.value})...`
+    case 'disconnected':
+      return '未连接'
+    default:
+      return '未知状态'
+  }
+})
+
+// 返回当前轮次
+function handleReturnToCurrent() {
+  workflowStore.returnToCurrent()
+  ElMessage.success('已返回当前轮次')
+}
 
 const nodes = computed(() => {
   const nodeList = [
@@ -107,7 +180,7 @@ function getNodeStatus(nodeId) {
 }
 
 function getOptimizationStatus() {
-  if (workflowStore.p1Content || workflowStore.p2Content || workflowStore.p3Content) {
+  if (workflowStore.displayP1Content || workflowStore.displayP2Content || workflowStore.displayP3Content) {
     return 'completed'
   }
   return 'pending'
@@ -278,6 +351,16 @@ function handleClear() {
   background: var(--success);
 }
 
+.iteration-indicator {
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+}
+
+.iteration-badge {
+  margin-top: 4px;
+}
+
 .actions {
   display: flex;
   gap: 12px;
@@ -287,5 +370,73 @@ function handleClear() {
 /* Naive UI按钮自定义样式 */
 .actions :deep(.n-button) {
   border-radius: 6px;
+}
+
+/* 连接状态指示器 */
+.connection-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 6px;
+  background: var(--bg-secondary);
+}
+
+.connection-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  transition: all 0.3s;
+}
+
+.connection-dot.connected {
+  background: #10b981;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+  animation: pulse-green 2s ease-in-out infinite;
+}
+
+.connection-dot.connecting {
+  background: #f59e0b;
+  animation: pulse-yellow 1s ease-in-out infinite;
+}
+
+.connection-dot.disconnected {
+  background: #ef4444;
+}
+
+.connection-text {
+  font-size: 12px;
+  font-weight: 500;
+  transition: color 0.3s;
+}
+
+.connection-text.connected {
+  color: #10b981;
+}
+
+.connection-text.connecting {
+  color: #f59e0b;
+}
+
+.connection-text.disconnected {
+  color: #ef4444;
+}
+
+@keyframes pulse-green {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes pulse-yellow {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.2);
+  }
 }
 </style>

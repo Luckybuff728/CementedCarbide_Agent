@@ -34,7 +34,7 @@
 <script setup>
 import { ref, computed, watch, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
-import { ArrowDown, ArrowUp, DocumentCopy } from '@element-plus/icons-vue'
+import { ArrowDown, ArrowUp, DocumentCopy, Loading } from '@element-plus/icons-vue'
 import { NIcon } from 'naive-ui'
 import {
   HourglassOutline,
@@ -43,7 +43,11 @@ import {
   CloseCircle
 } from '@vicons/ionicons5'
 import { getStatusType, getStatusText, formatTime } from '../utils/markdown'
+import { useWorkflowStore } from '../stores/workflow'
 import MarkdownRenderer from './MarkdownRenderer.vue'
+
+// 使用workflow store
+const workflowStore = useWorkflowStore()
 
 const props = defineProps({
   step: {
@@ -169,36 +173,41 @@ watch(
 <style scoped>
 .process-card {
   background: white;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   margin-bottom: 16px;
   border: 1px solid var(--border-color);
-  border-left: 4px solid var(--border-color);
-  transition: all 0.3s ease;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  border-left: 3px solid var(--border-color);
+  transition: all var(--transition-base);
+  box-shadow: var(--shadow-sm);
 }
 
 .process-card:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+  border-color: var(--primary-light);
 }
 
 .process-card.current {
   border-left-color: var(--primary);
-  border-color: rgba(59, 130, 246, 0.3);
-  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.15);
-  background: linear-gradient(90deg, #eff6ff 0%, white 10%);
+  border-left-width: 4px;
+  border-color: var(--primary-light);
+  box-shadow: var(--shadow-lg);
+  background: linear-gradient(90deg, var(--primary-lighter) 0%, white 10%);
 }
 
 .process-card.processing {
   border-left-color: var(--warning);
+  border-left-width: 4px;
 }
 
 .process-card.completed {
   border-left-color: var(--success);
+  border-left-width: 4px;
 }
 
 .process-card.error {
   border-left-color: var(--danger);
+  border-left-width: 4px;
 }
 
 .process-card.collapsed .card-header {
@@ -206,17 +215,17 @@ watch(
 }
 
 .card-header {
-  padding: 14px 18px;
+  padding: 18px 20px;
   cursor: pointer;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid var(--border-light);
-  transition: all 0.2s;
+  border-bottom: 1px solid var(--border-color);
+  transition: all var(--transition-fast);
 }
 
 .card-header:hover {
-  background: #f9fafb;
+  background: var(--bg-secondary);
 }
 
 .header-left {
@@ -230,11 +239,12 @@ watch(
   margin: 0;
   font-size: 15px;
   font-weight: 600;
+  color: var(--text-primary);
 }
 
 .status-icon {
   font-size: 20px;
-  transition: all 0.3s ease;
+  transition: all var(--transition-base);
 }
 
 .status-icon.pending {
@@ -280,9 +290,10 @@ watch(
 }
 
 .card-content {
-  padding: 20px;
+  padding: 24px;
   max-height: 600px;
   overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .card-footer {
@@ -296,7 +307,7 @@ watch(
 /* 折叠动画 */
 .collapse-enter-active,
 .collapse-leave-active {
-  transition: all 0.3s ease;
+  transition: all var(--transition-base);
   overflow: hidden;
 }
 

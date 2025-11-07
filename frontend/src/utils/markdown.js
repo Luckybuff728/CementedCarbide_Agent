@@ -2,13 +2,42 @@
  * Markdown渲染工具
  */
 import MarkdownIt from 'markdown-it'
+import hljs from 'highlight.js/lib/core'
+import javascript from 'highlight.js/lib/languages/javascript'
+import python from 'highlight.js/lib/languages/python'
+import json from 'highlight.js/lib/languages/json'
+import xml from 'highlight.js/lib/languages/xml'
+import bash from 'highlight.js/lib/languages/bash'
+import sql from 'highlight.js/lib/languages/sql'
+
+// 注册语言
+hljs.registerLanguage('javascript', javascript)
+hljs.registerLanguage('python', python)
+hljs.registerLanguage('json', json)
+hljs.registerLanguage('xml', xml)
+hljs.registerLanguage('html', xml)
+hljs.registerLanguage('bash', bash)
+hljs.registerLanguage('shell', bash)
+hljs.registerLanguage('sql', sql)
 
 // 创建Markdown实例
 const md = new MarkdownIt({
   html: true,        // 允许HTML标签
   linkify: true,     // 自动转换URL为链接
   typographer: true, // 启用排版优化
-  breaks: true       // 转换换行符为<br>
+  breaks: true,      // 转换换行符为<br>
+  highlight: function (str, lang) {
+    // 代码高亮
+    if (lang && hljs.getLanguage(lang)) {
+      try {
+        return `<pre class="hljs"><code class="language-${lang}">${hljs.highlight(str, { language: lang, ignoreIllegals: true }).value}</code></pre>`
+      } catch (err) {
+        console.error('Highlight error:', err)
+      }
+    }
+    // 未指定语言或不支持的语言，使用纯文本
+    return `<pre class="hljs"><code>${md.utils.escapeHtml(str)}</code></pre>`
+  }
 })
 
 /**
@@ -18,7 +47,16 @@ const md = new MarkdownIt({
  */
 export function renderMarkdown(text) {
   if (!text) return ''
-  return md.render(text)
+  
+  try {
+    // 处理特殊字符，防止渲染错误
+    const sanitizedText = text.replace(/\u0000/g, '')
+    return md.render(sanitizedText)
+  } catch (error) {
+    console.error('Markdown render error:', error)
+    // 渲染失败时返回纯文本
+    return `<pre>${text}</pre>`
+  }
 }
 
 /**

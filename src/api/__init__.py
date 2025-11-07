@@ -3,10 +3,11 @@ FastAPI后端服务包
 """
 
 from .main import app
-from .routes.websocket_routes import manager as ConnectionManager, workflow_manager
+from .websocket.manager import manager as ConnectionManager
+from ..graph.workflow import CoatingWorkflowManager
 
 __all__ = [
     "app",
     "ConnectionManager",
-    "workflow_manager"
+    "CoatingWorkflowManager"
 ]

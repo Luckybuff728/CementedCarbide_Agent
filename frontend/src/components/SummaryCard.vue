@@ -58,12 +58,12 @@ const handleClick = () => {
 <style scoped>
 .summary-card {
   background: white;
-  border-radius: 8px;
-  padding: 16px;
-  margin-bottom: 12px;
+  border-radius: var(--radius-lg);
+  padding: 18px;
+  margin-bottom: 16px;
   border: 1px solid var(--border-color);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  transition: all 0.3s ease;
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition-base);
 }
 
 .summary-card.clickable {
@@ -71,16 +71,17 @@ const handleClick = () => {
 }
 
 .summary-card.clickable:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-md);
   transform: translateY(-2px);
-  border-color: rgba(59, 130, 246, 0.3);
+  border-color: var(--primary-light);
+  background: var(--primary-lighter);
 }
 
 .card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 
 .header-left {
@@ -96,8 +97,9 @@ const handleClick = () => {
 
 .header-left h4 {
   margin: 0;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
+  color: var(--text-primary);
 }
 
 .header-right {
@@ -109,11 +111,12 @@ const handleClick = () => {
 .click-icon {
   font-size: 14px;
   color: var(--text-tertiary);
-  transition: transform 0.2s;
+  transition: all var(--transition-fast);
 }
 
 .summary-card.clickable:hover .click-icon {
   transform: translateX(3px);
+  color: var(--primary);
 }
 
 .card-body {

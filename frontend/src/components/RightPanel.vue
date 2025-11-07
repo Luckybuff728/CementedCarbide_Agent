@@ -1,16 +1,46 @@
 <template>
-  <div class="right-panel" ref="rightPanelRef">
+  <div class="right-panel" ref="rightPanelRef" @scroll="handlePanelScroll">
+    <!-- 空状态展示 -->
+    <div v-if="!hasAnyContent" class="empty-state">
+      <div class="empty-icon">
+        <n-icon :component="RocketOutline" />
+      </div>
+      <h3 class="empty-title">准备开始分析</h3>
+      <p class="empty-description">
+        在左侧面板输入涂层参数，点击「开始分析」按钮<br />
+        系统将为您提供全面的性能预测和优化建议
+      </p>
+      <div class="empty-features">
+        <div class="feature-item">
+          <n-icon :component="CheckmarkCircleOutline" color="#10b981" />
+          <span>参数验证与可行性分析</span>
+        </div>
+        <div class="feature-item">
+          <n-icon :component="CheckmarkCircleOutline" color="#10b981" />
+          <span>TopPhi第一性原理模拟</span>
+        </div>
+        <div class="feature-item">
+          <n-icon :component="CheckmarkCircleOutline" color="#10b981" />
+          <span>AI性能预测与历史对比</span>
+        </div>
+        <div class="feature-item">
+          <n-icon :component="CheckmarkCircleOutline" color="#10b981" />
+          <span>智能优化建议与实验工单</span>
+        </div>
+      </div>
+    </div>
+
     <!-- 参数验证摘要 -->
     <SummaryCard 
       v-if="hasValidationResult" 
       icon=""
-      :icon-component="getValidationIcon()"
+      :icon-component="getValidationIcon"
       title="参数验证"
       :clickable="true"
       @click="jumpToNode('input_validation')"
     >
       <div class="validation-summary">
-        <template v-if="isValidationSuccess()">
+        <template v-if="isValidationSuccess">
           <div class="validation-item success">
             <n-icon :component="CheckmarkCircleOutline" color="#10b981" />
             <span>成分配比验证通过</span>
@@ -51,21 +81,37 @@
       icon=""
       :icon-component="FlaskOutline"
       title="TopPhi第一性原理"
-      :clickable="true"
-      @click="jumpToNode('topphi_simulation')"
+      :clickable="false"
     >
-      <div class="topphi-summary">
-        <div class="summary-row">
-          <span class="label">晶体结构</span>
-          <span class="value">立方相</span>
-        </div>
-        <div class="summary-row">
-          <span class="label">形成能</span>
-          <span class="value">-0.85 eV</span>
-        </div>
-        <div class="summary-row">
-          <span class="label">带隙</span>
-          <span class="value">2.1 eV</span>
+      <div class="topphi-content">
+        <!-- 文本摘要 -->
+
+        
+        <!-- VTK可视化 -->
+        <div v-if="topPhiVtkData" class="vtk-visualization">
+          <!-- 时间序列播放器 -->
+          <VtkTimeSeriesViewer
+            v-if="isTimeSeries && timeSeriesFiles.length > 0"
+            :time-series-files="timeSeriesFiles"
+            :base-url="apiBaseUrl"
+            height="450px"
+            :auto-play="false"
+          />
+          
+          <!-- 单帧查看器 -->
+          <VtkViewer
+            v-else-if="!isTimeSeries"
+            :vtk-data="topPhiVtkData"
+            :base-url="apiBaseUrl"
+            height="450px"
+            render-mode="volume"
+          />
+          
+          <!-- 加载时间序列中 -->
+          <div v-else-if="isTimeSeries && loadingTimeSeries" class="loading-timeseries">
+            <el-icon class="is-loading" :size="40"><Loading /></el-icon>
+            <span>加载时间序列数据...</span>
+          </div>
         </div>
       </div>
     </SummaryCard>
@@ -110,7 +156,7 @@
 
     <!-- 历史对比摘要 -->
     <SummaryCard 
-      v-if="workflowStore.historicalComparison" 
+      v-if="workflowStore.displayHistoricalComparison" 
       icon=""
       :icon-component="BarChartOutline"
       title="历史对比"
@@ -120,19 +166,19 @@
       <div class="comparison-summary">
         <div class="stat-row">
           <span>相似案例</span>
-          <span class="stat-value">{{ workflowStore.historicalComparison.total_cases || 0 }} 个</span>
+          <span class="stat-value">{{ workflowStore.displayHistoricalComparison.total_cases || 0 }} 个</span>
         </div>
         <div class="stat-row">
           <span>最高硬度</span>
-          <span class="stat-value highlight">{{ workflowStore.historicalComparison.highest_hardness || 0 }} GPa</span>
+          <span class="stat-value highlight">{{ workflowStore.displayHistoricalComparison.highest_hardness || 0 }} GPa</span>
         </div>
-        <div v-if="workflowStore.historicalComparison.similar_cases" class="cases-preview">
+        <div v-if="workflowStore.displayHistoricalComparison.similar_cases" class="cases-preview">
           <div 
-            v-for="(c, i) in workflowStore.historicalComparison.similar_cases.slice(0, 2)"
+            v-for="(c, i) in workflowStore.displayHistoricalComparison.similar_cases.slice(0, 2)"
             :key="i"
             class="case-item"
           >
-            <el-tag size="small" type="info">{{ Math.round(c.similarity * 100) }}% 相似</el-tag>
+            <n-tag size="small" type="info">{{ Math.round(c.similarity * 100) }}% 相似</n-tag>
             <span>{{ c.hardness }} GPa</span>
           </div>
         </div>
@@ -141,7 +187,7 @@
 
     <!-- 根因分析摘要 -->
     <SummaryCard 
-      v-if="workflowStore.integratedAnalysis" 
+      v-if="workflowStore.displayIntegratedAnalysis" 
       icon=""
       :icon-component="BulbOutline"
       title="根因分析"
@@ -176,15 +222,15 @@
     >
       <div class="optimization-summary">
         <div class="suggestion-list">
-          <div v-if="workflowStore.p1Content" class="suggestion-item">
+          <div v-if="workflowStore.displayP1Content" class="suggestion-item">
             <span class="suggestion-tag">P1</span>
             <span>成分优化方案可用</span>
           </div>
-          <div v-if="workflowStore.p2Content" class="suggestion-item">
+          <div v-if="workflowStore.displayP2Content" class="suggestion-item">
             <span class="suggestion-tag">P2</span>
             <span>结构优化方案可用</span>
           </div>
-          <div v-if="workflowStore.p3Content" class="suggestion-item">
+          <div v-if="workflowStore.displayP3Content" class="suggestion-item">
             <span class="suggestion-tag">P3</span>
             <span>工艺优化方案可用</span>
           </div>
@@ -218,12 +264,12 @@
       </div>
 
       <!-- 综合建议 -->
-      <div v-if="workflowStore.comprehensiveRecommendation" class="recommendation-box">
+      <div v-if="workflowStore.displayComprehensiveRecommendation" class="recommendation-box">
         <h5>📌 综合建议</h5>
-        <p>{{ workflowStore.comprehensiveRecommendation }}</p>
+        <p>{{ workflowStore.displayComprehensiveRecommendation }}</p>
       </div>
 
-      <el-button 
+      <n-button 
         type="primary"
         size="large"
         :disabled="!selectedOpt"
@@ -231,12 +277,12 @@
         block
       >
         确认选择并生成工单
-      </el-button>
+      </n-button>
     </div>
 
     <!-- 实验工单摘要 -->
     <SummaryCard 
-      v-if="workflowStore.experimentWorkorder" 
+      v-if="workflowStore.displayExperimentWorkorder" 
       icon=""
       :icon-component="DocumentTextOutline"
       title="实验工单"
@@ -266,13 +312,30 @@
         </div>
       </div>
     </SummaryCard>
+    
+    <!-- 实验数据输入 -->
+    <ExperimentInputCard
+      v-if="workflowStore.showExperimentInput"
+      :iteration="workflowStore.currentIteration"
+      :historicalBest="getHistoricalBest()"
+      :targetHardness="30"
+      @submit="handleExperimentSubmit"
+      @cancel="handleExperimentCancel"
+    />
+    
+    <!-- 迭代历史 -->
+    <IterationHistoryPanel
+      v-if="workflowStore.iterationHistory.length > 0"
+      :history="workflowStore.iterationHistory"
+    />
   </div>
 </template>
 
 <script setup>
 import { ref, computed, watch, nextTick } from 'vue'
+import { useMessage } from 'naive-ui'
 import { ElMessage } from 'element-plus'
-import { Download, CircleCheck } from '@element-plus/icons-vue'
+import { Download, CircleCheck, Loading } from '@element-plus/icons-vue'
 import { NButton, NIcon } from 'naive-ui'
 import {
   CheckmarkCircleOutline,
@@ -284,49 +347,125 @@ import {
   DocumentTextOutline,
   Download as DownloadIcon,
   BuildOutline,
-  SettingsOutline
+  LayersOutline,
+  SettingsOutline,
+  RocketOutline
 } from '@vicons/ionicons5'
 import { useWorkflowStore } from '../stores/workflow'
 import { getConfidenceColor, getConfidenceBadge } from '../utils/markdown'
 import SummaryCard from './SummaryCard.vue'
 import MarkdownRenderer from './MarkdownRenderer.vue'
+import ExperimentInputCard from './ExperimentInputCard.vue'
+import IterationHistoryPanel from './IterationHistoryPanel.vue'
+import VtkTimeSeriesViewer from './VtkTimeSeriesViewer.vue'
+import VtkViewer from './VtkViewer.vue'
 
 const workflowStore = useWorkflowStore()
-const emit = defineEmits(['optimization-select', 'jump-to-node'])
+const emit = defineEmits(['optimization-select', 'jump-to-node', 'experiment-submit'])
 
 const selectedOpt = ref(null)
 const rightPanelRef = ref(null)
 
+// API基础URL
+const apiBaseUrl = ref('http://localhost:8000')
+
+// 时间序列文件列表
+const timeSeriesFiles = ref([])
+const loadingTimeSeries = ref(false)
+
+// 获取TopPhi节点的VTK数据
+const topPhiVtkData = computed(() => {
+  // 从store中获取TopPhi模拟结果
+  const topPhiResult = workflowStore.displayTopphiResult
+  if (!topPhiResult || !topPhiResult.vtk_data) return null
+  return topPhiResult.vtk_data
+})
+
+// 判断是否为时间序列
+const isTimeSeries = computed(() => {
+  return topPhiVtkData.value?.type === 'timeseries'
+})
+
+// 监听时间序列数据变化，自动获取文件列表
+watch(
+  () => [isTimeSeries.value, topPhiVtkData.value?.folder, workflowStore.viewMode],
+  async ([isTS, folder, viewMode]) => {
+    console.log('[RightPanel] 监听触发 - isTimeSeries:', isTS, 'folder:', folder, 'viewMode:', viewMode)
+    
+    // 如果不是时间序列，清空数据
+    if (!isTS) {
+      timeSeriesFiles.value = []
+      return
+    }
+    
+    // 如果是时间序列且有文件夹，加载文件列表
+    if (isTS && folder) {
+      loadingTimeSeries.value = true
+      try {
+        const response = await fetch(`${apiBaseUrl.value}/api/vtk/timeseries/${folder}`)
+        if (response.ok) {
+          const data = await response.json()
+          timeSeriesFiles.value = data.files
+          console.log('[RightPanel] 时间序列文件加载成功:', data.files.length, '帧')
+        } else {
+          console.error('[RightPanel] 获取时间序列列表失败:', response.statusText)
+        }
+      } catch (err) {
+        console.error('[RightPanel] 获取时间序列列表出错:', err)
+      } finally {
+        loadingTimeSeries.value = false
+      }
+    }
+  },
+  { immediate: true }
+)
+
+// 是否有任何内容
+const hasAnyContent = computed(() => {
+  return workflowStore.displayPerformancePrediction ||
+         workflowStore.displayHistoricalComparison ||
+         workflowStore.displayIntegratedAnalysis ||
+         hasOptimizationSuggestions.value ||
+         workflowStore.showOptimizationSelection ||
+         workflowStore.displayExperimentWorkorder ||
+         workflowStore.showExperimentInput ||
+         workflowStore.iterationHistory.length > 0
+})
+
 // 是否有验证结果
 const hasValidationResult = computed(() => {
-  const step = workflowStore.processSteps.find(s => s.nodeId === 'input_validation')
+  const step = workflowStore.displayProcessSteps.find(s => s.nodeId === 'input_validation')
   return step && (step.status === 'completed' || step.status === 'error')
 })
 
-// 判断验证是否成功
-const isValidationSuccess = () => {
-  // ⚠️ 关键修复：检查validationResult中的实际验证状态，而不是节点执行状态
-  // 节点执行完成（completed）不代表验证通过，可能验证失败但执行完成
-  if (workflowStore.validationResult) {
-    const isSuccess = workflowStore.validationResult.input_validated === true
-    console.log('[🔍 验证状态判断] input_validated=', workflowStore.validationResult.input_validated, '→', isSuccess)
+// 判断验证是否成功（计算属性，自动缓存结果）
+const isValidationSuccess = computed(() => {
+  // 使用displayValidationResult支持历史查看
+  const validationResult = workflowStore.displayValidationResult
+  if (validationResult) {
+    const isSuccess = validationResult.input_validated === true
+    // 只在开发模式下输出调试日志
+    if (import.meta.env.DEV) {
+      console.log('[🔍 验证状态] input_validated=', validationResult.input_validated, '→', isSuccess)
+    }
     return isSuccess
   }
   
   // 降级方案：如果没有validationResult，假设通过
-  console.log('[⚠️ 验证状态判断] 没有validationResult，假设通过')
   return true
-}
+})
 
-// 获取验证图标
-const getValidationIcon = () => {
-  return isValidationSuccess() ? CheckmarkCircleOutline : CloseCircleOutline
-}
+// 获取验证图标（改为计算属性）
+const getValidationIcon = computed(() => {
+  return isValidationSuccess.value ? CheckmarkCircleOutline : CloseCircleOutline
+})
 
 // 获取验证错误信息
 const getValidationErrors = () => {
-  if (!workflowStore.validationResult) return []
-  const errors = workflowStore.validationResult.validation_errors || []
+  // 使用displayValidationResult支持历史查看
+  const validationResult = workflowStore.displayValidationResult
+  if (!validationResult) return []
+  const errors = validationResult.validation_errors || []
   
   // 提取错误文本，去除Markdown标记
   return errors.map(err => {
@@ -338,20 +477,21 @@ const getValidationErrors = () => {
   }).filter(Boolean)
 }
 
-// 是否有TopPhi结果
+// 是否有TopPhi结果（支持历史查看）
 const hasTopPhiResult = computed(() => {
-  return workflowStore.completedNodes.includes('topphi_simulation')
+  // 使用displayTopphiResult，它会自动根据查看模式切换数据源
+  return workflowStore.displayTopphiResult !== null
 })
 
 // 是否有ML预测结果
 const hasMlPrediction = computed(() => {
-  const step = workflowStore.processSteps.find(s => s.nodeId === 'ml_prediction')
+  const step = workflowStore.displayProcessSteps.find(s => s.nodeId === 'ml_prediction')
   return step && step.status === 'completed'
 })
 
 // 获取ML预测数据（从performancePrediction中提取）
 const getMlPredictionData = () => {
-  const pred = workflowStore.performancePrediction
+  const pred = workflowStore.displayPerformancePrediction
   if (!pred) return { hardness: 'N/A', adhesion: 'N/A', oxidation: 'N/A', confidence: 0 }
   
   return {
@@ -376,7 +516,7 @@ const getMlConfidenceBadge = () => {
 
 // 是否有优化建议
 const hasOptimizationSuggestions = computed(() => {
-  return workflowStore.p1Content || workflowStore.p2Content || workflowStore.p3Content
+  return workflowStore.displayP1Content || workflowStore.displayP2Content || workflowStore.displayP3Content
 })
 
 // 总节点数
@@ -391,21 +531,21 @@ const optimizationOptions = computed(() => [
     title: 'P1 成分优化',
     iconComponent: FlaskOutline,
     description: '调整Al/Ti/N比例及合金元素',
-    summary: getSummaryFromContent(workflowStore.p1Content)
+    summary: getSummaryFromContent(workflowStore.displayP1Content)
   },
   {
     id: 'P2',
     title: 'P2 结构优化',
     iconComponent: BuildOutline,
     description: '多层/梯度结构设计',
-    summary: getSummaryFromContent(workflowStore.p2Content)
+    summary: getSummaryFromContent(workflowStore.displayP2Content)
   },
   {
     id: 'P3',
     title: 'P3 工艺优化',
-    iconComponent: SettingsOutline,
-    description: '沉积参数与气体流量调整',
-    summary: getSummaryFromContent(workflowStore.p3Content)
+    iconComponent: LayersOutline,
+    description: '沉积温度/偏压/气氛优化',
+    summary: getSummaryFromContent(workflowStore.displayP3Content)
   }
 ])
 
@@ -433,7 +573,7 @@ const getSummaryFromContent = (content) => {
 
 // 获取根因分析摘要（从root_cause_analysis提取前200字符）
 const getRootCauseAnalysisSummary = () => {
-  const analysis = workflowStore.integratedAnalysis
+  const analysis = workflowStore.displayIntegratedAnalysis
   if (!analysis) return '暂无分析结果'
   
   // 优先从root_cause_analysis提取
@@ -457,7 +597,7 @@ const getRootCauseAnalysisSummary = () => {
 
 // 获取优化建议（从recommendation提取）
 const getRecommendation = () => {
-  const analysis = workflowStore.integratedAnalysis
+  const analysis = workflowStore.displayIntegratedAnalysis
   if (!analysis) return ''
   
   const rec = analysis.recommendation
@@ -473,7 +613,7 @@ const getRecommendation = () => {
 
 // 获取优化建议徽章
 const getOptimizationBadge = () => {
-  const count = [workflowStore.p1Content, workflowStore.p2Content, workflowStore.p3Content].filter(Boolean).length
+  const count = [workflowStore.displayP1Content, workflowStore.displayP2Content, workflowStore.displayP3Content].filter(Boolean).length
   if (count === 0) return null
   return {
     text: `${count}个方案`,
@@ -505,35 +645,96 @@ const getSelectedPlan = () => {
     return selectedOpt.value
   }
   // 从内容中推断
-  if (workflowStore.p1Content) return 'P1 成分优化'
-  if (workflowStore.p2Content) return 'P2 结构优化'
-  if (workflowStore.p3Content) return 'P3 工艺优化'
+  if (workflowStore.displayP1Content) return 'P1 成分优化'
+  if (workflowStore.displayP2Content) return 'P2 结构优化'
+  if (workflowStore.displayP3Content) return 'P3 工艺优化'
   return '综合方案'
 }
 
 // 下载工单
 const downloadWorkorder = () => {
-  try {
-    const blob = new Blob([workflowStore.experimentWorkorder], { type: 'text/plain' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `experiment_workorder_${Date.now()}.txt`
-    a.click()
-    URL.revokeObjectURL(url)
-    ElMessage.success('工单已下载')
-  } catch (error) {
-    ElMessage.error('下载失败')
+  const content = workflowStore.displayExperimentWorkorder
+  if (!content) {
+    ElMessage.warning('没有工单内容')
+    return
   }
+  
+  const blob = new Blob([content], { type: 'text/markdown' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `experiment_workorder_${Date.now()}.md`
+  a.click()
+  URL.revokeObjectURL(url)
+  
+  message.success('工单已下载')
+}
+
+// 获取历史最优数据
+const getHistoricalBest = () => {
+  // 第2轮及以后：使用上一轮的实验数据作为参考
+  if (workflowStore.currentIteration > 1 && workflowStore.iterationHistory.length > 0) {
+    const lastIteration = workflowStore.iterationHistory[workflowStore.iterationHistory.length - 1]
+    if (lastIteration && lastIteration.experiment_results) {
+      return {
+        hardness: lastIteration.experiment_results.hardness,
+        adhesion_strength: lastIteration.experiment_results.adhesion_strength,
+        oxidation_temperature: lastIteration.experiment_results.oxidation_temperature
+      }
+    }
+  }
+  
+  // 第1轮：使用历史数据库中的案例作为参考
+  if (!workflowStore.displayHistoricalComparison?.similar_cases) return null
+  const cases = workflowStore.displayHistoricalComparison.similar_cases
+  if (cases.length === 0) return null
+  return cases[0] // 返回硬度最高的案例
+}
+
+// 处理实验数据提交
+const handleExperimentSubmit = (data) => {
+  emit('experiment-submit', data)
+}
+
+// 处理取消
+const handleExperimentCancel = () => {
+  workflowStore.showExperimentInput = false
 }
 
 // ========== 自动滚动逻辑 ==========
 
-// 滚动到底部
-const scrollToBottom = () => {
+// 自动滚动控制标志
+const autoScrollEnabled = ref(true)
+
+// 检测面板是否在底部附近
+const isPanelNearBottom = () => {
+  if (!rightPanelRef.value) return false
+  const { scrollTop, scrollHeight, clientHeight } = rightPanelRef.value
+  return scrollHeight - scrollTop - clientHeight < 100  // 距离底部小于100px
+}
+
+// 处理面板滚动事件（用户手动滚动时触发）
+const handlePanelScroll = () => {
   if (!rightPanelRef.value) return
+  
+  const nearBottom = isPanelNearBottom()
+  
+  // 用户离开底部，立即暂停自动滚动
+  if (!nearBottom) {
+    autoScrollEnabled.value = false
+  } else {
+    // 用户滚动到底部附近，恢复自动滚动
+    autoScrollEnabled.value = true
+  }
+}
+
+// 滚动到底部（只在启用自动滚动时执行）
+const scrollToBottom = () => {
+  if (!rightPanelRef.value || !autoScrollEnabled.value) return
   nextTick(() => {
-    rightPanelRef.value.scrollTop = rightPanelRef.value.scrollHeight
+    if (rightPanelRef.value) {
+      rightPanelRef.value.scrollTop = rightPanelRef.value.scrollHeight
+    }
   })
 }
 
@@ -547,7 +748,7 @@ watch(
 
 // 监听优化内容变化，自动滚动
 watch(
-  () => [workflowStore.p1Content, workflowStore.p2Content, workflowStore.p3Content],
+  () => [workflowStore.displayP1Content, workflowStore.displayP2Content, workflowStore.displayP3Content],
   () => {
     scrollToBottom()
   }
@@ -562,15 +763,40 @@ watch(
     }
   }
 )
+
+// 监听优化方案选择显示状态，自动滚动到底部
+watch(
+  () => workflowStore.showOptimizationSelection,
+  (newVal) => {
+    if (newVal) {
+      // 新内容出现时，恢复自动滚动并滚动到底部
+      autoScrollEnabled.value = true
+      scrollToBottom()
+    }
+  }
+)
+
+// 监听实验输入显示状态，自动滚动到底部
+watch(
+  () => workflowStore.showExperimentInput,
+  (newVal) => {
+    if (newVal) {
+      // 新内容出现时，恢复自动滚动并滚动到底部
+      autoScrollEnabled.value = true
+      scrollToBottom()
+    }
+  }
+)
 </script>
 
 <style scoped>
 .right-panel {
-  min-width: 200px;
-  max-width: 600px;
-  background: #f9fafb;
-  padding: 16px;
+  min-width: 400px;
+  max-width: 800px;
+  background: var(--bg-secondary);
+  padding: 20px;
   overflow-y: auto;
+  border-left: 1px solid var(--border-color);
 }
 
 /* 任务总览 */
@@ -608,9 +834,10 @@ watch(
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 12px;
-  background: var(--bg-secondary);
-  border-radius: var(--radius-sm);
+  padding: 16px;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-light);
 }
 
 .metric-label {
@@ -918,6 +1145,12 @@ watch(
 }
 
 /* TopPhi模拟 */
+.topphi-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
 .topphi-summary {
   display: flex;
   flex-direction: column;
@@ -936,6 +1169,30 @@ watch(
 
 .summary-row .value {
   font-weight: 600;
+}
+
+/* VTK可视化 */
+.vtk-visualization {
+  margin-top: 12px;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  background: #1a1a1a;
+}
+
+.loading-timeseries {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  gap: 12px;
+  color: #fff;
+  font-size: 14px;
+}
+
+.loading-timeseries .el-icon {
+  color: #67c23a;
 }
 
 /* 优化建议 */
@@ -963,5 +1220,101 @@ watch(
   border-radius: 4px;
   font-size: 12px;
   font-weight: 600;
+}
+
+/* 空状态 */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+  min-height: 400px;
+}
+
+.empty-icon-wrapper {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 28px;
+  box-shadow: 0 12px 32px rgba(37, 99, 235, 0.25);
+  animation: float 3s ease-in-out infinite;
+}
+
+.empty-icon .n-icon {
+  font-size: 48px;
+  color: white;
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+    box-shadow: 0 12px 32px rgba(37, 99, 235, 0.25);
+  }
+  50% {
+    transform: translateY(-10px);
+    box-shadow: 0 16px 40px rgba(37, 99, 235, 0.35);
+  }
+}
+
+.empty-title {
+  margin: 0 0 12px 0;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+}
+
+.empty-description {
+  margin: 0 0 36px 0;
+  font-size: 15px;
+  color: var(--text-secondary);
+  text-align: center;
+  line-height: 1.6;
+}
+
+.empty-features {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  max-width: 300px;
+}
+
+.feature-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  background: white;
+  border-radius: var(--radius-lg);
+  border: 2px solid var(--border-light);
+  box-shadow: var(--shadow-sm);
+  font-size: 14px;
+  color: var(--text-primary);
+  transition: all var(--transition-base);
+}
+
+.feature-item:hover {
+  transform: translateX(4px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--primary-light);
+  background: var(--primary-lighter);
+}
+
+.feature-item .n-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.feature-item span {
+  text-align: left;
+  line-height: 1.5;
+  font-weight: 500;
 }
 </style>

@@ -10,15 +10,12 @@ import logging
 from datetime import datetime
 
 from ...models.coating_models import CoatingInput
-from ...graph.workflow import CoatingWorkflowManager
+from ...graph.workflow_manager import workflow_manager
 
 logger = logging.getLogger(__name__)
 
 # 创建路由器
 router = APIRouter(prefix="/api/coating", tags=["coating"])
-
-# 全局工作流管理器
-workflow_manager = CoatingWorkflowManager(use_memory=True)
 
 
 # API模型定义

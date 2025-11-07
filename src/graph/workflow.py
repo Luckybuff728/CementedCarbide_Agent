@@ -21,9 +21,11 @@ from .nodes import (
     p1_composition_optimization_node,
     p2_structure_optimization_node, 
     p3_process_optimization_node,
-    optimization_summary_node
-    # 注意：await_user_selection和experiment_workorder_generation已移除
-    # 工单生成将通过独立函数实现，不作为工作流节点
+    optimization_summary_node,
+    # 迭代优化节点
+    await_user_selection_node,
+    experiment_workorder_node,
+    await_experiment_results_node
 )
 import logging
 
@@ -38,7 +40,16 @@ def should_continue_after_validation(state: CoatingWorkflowState) -> Literal["to
         return "error_handler"
 
 
-# 迭代相关的路由函数已删除（简化版本不需要）
+def should_continue_iteration(state: CoatingWorkflowState) -> Literal["historical_comparison", "END"]:
+    """根据用户决策判断是否继续迭代"""
+    continue_iteration = state.get("continue_iteration", False)
+    
+    if continue_iteration:
+        logger.info(f"[迭代判断] 用户选择继续，开始第 {state.get('current_iteration')} 轮迭代")
+        return "historical_comparison"
+    else:
+        logger.info(f"[迭代判断] 用户选择完成，结束迭代")
+        return "END"
 
 
 def create_coating_workflow(
@@ -72,8 +83,10 @@ def create_coating_workflow(
     workflow.add_node("p3_process_optimization", p3_process_optimization_node)
     workflow.add_node("optimization_summary", optimization_summary_node)
     
-    # 注意：移除了await_user_selection和experiment_workorder_generation节点
-    # 工单生成将通过单独的WebSocket消息触发
+    # 迭代优化节点
+    workflow.add_node("await_user_selection", await_user_selection_node)
+    workflow.add_node("experiment_workorder", experiment_workorder_node)
+    workflow.add_node("await_experiment_results", await_experiment_results_node)
     
     # ==================== 设置工作流路径 ====================
     # 入口点
@@ -104,11 +117,20 @@ def create_coating_workflow(
     workflow.add_edge("p2_structure_optimization", "optimization_summary")
     workflow.add_edge("p3_process_optimization", "optimization_summary")
     
-    # 优化汇总后直接结束，等待用户选择
-    workflow.add_edge("optimization_summary", END)
+    # 优化汇总后进入迭代循环
+    workflow.add_edge("optimization_summary", "await_user_selection")
+    workflow.add_edge("await_user_selection", "experiment_workorder")
+    workflow.add_edge("experiment_workorder", "await_experiment_results")
     
-    # 注意：工单生成不再是工作流的一部分
-    # 用户选择后，通过单独的generate_workorder消息触发
+    # 根据用户决策判断是否继续迭代
+    workflow.add_conditional_edges(
+        "await_experiment_results",
+        should_continue_iteration,
+        {
+            "historical_comparison": "historical_comparison",  # 继续迭代
+            "END": END  # 完成优化
+        }
+    )
     
     # ==================== 终端边 ====================
     workflow.add_edge("error_handler", END)
@@ -164,8 +186,14 @@ class CoatingWorkflowManager:
                 "process_params": input_data.get("process_params", {}),
                 "structure_design": input_data.get("structure_design", {}),
                 "target_requirements": input_data.get("target_requirements", ""),
-                "current_iteration": 0,
+                "current_iteration": 1,  # 初始化为第1轮
                 "max_iterations": 5,
+                "iteration_history": [],  # 迭代历史
+                "experimental_results": {},  # 实验结果
+                "continue_iteration": False,  # 继续迭代标志
+                "convergence_achieved": False,  # 收敛标志
+                "selected_optimization_name": None,  # 选择的优化方案名称
+                "experiment_workorder": None,  # 实验工单内容
                 "messages": [],
                 "stream_outputs": [],
                 "workflow_status": "started"

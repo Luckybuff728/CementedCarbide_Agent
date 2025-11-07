@@ -3,6 +3,7 @@ LangGraph工作流包
 """
 
 from .workflow import CoatingWorkflowManager, create_coating_workflow
+from .workflow_manager import workflow_manager
 from .state import CoatingWorkflowState, MemoryState
 from .nodes import (
     input_validation_node,
@@ -15,14 +16,17 @@ from .nodes import (
     p1_composition_optimization_node,
     p2_structure_optimization_node,
     p3_process_optimization_node,
-    optimization_summary_node
-    # 注意：await_user_selection_node 和 experiment_workorder_generation_node 已删除
-    # 将在实施迭代优化功能时重新添加
+    optimization_summary_node,
+    # 迭代优化节点
+    await_user_selection_node,
+    experiment_workorder_node,
+    await_experiment_results_node
 )
 
 __all__ = [
     "CoatingWorkflowManager",
     "create_coating_workflow",
+    "workflow_manager",
     "CoatingWorkflowState",
     "MemoryState",
     "input_validation_node",
@@ -33,5 +37,8 @@ __all__ = [
     "p1_composition_optimization_node",
     "p2_structure_optimization_node",
     "p3_process_optimization_node",
-    "optimization_summary_node"
+    "optimization_summary_node",
+    "await_user_selection_node",
+    "experiment_workorder_node",
+    "await_experiment_results_node"
 ]

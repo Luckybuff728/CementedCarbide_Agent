@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 import logging
 from datetime import datetime
 
-from .routes import coating_router, setup_websocket_routes
+from .routes import coating_router, vtk_router, setup_websocket_routes
 
 # 配置日志
 logging.basicConfig(level=logging.INFO)
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 # 创建FastAPI应用
 app = FastAPI(
     title="TopMat Agent API",
-    description="硬质合金涂层优化专家系统API - 重构版",
+    description="硬质合金涂层优化专家系统API",
     version="1.0.1"
 )
 
@@ -32,6 +32,7 @@ app.add_middleware(
 
 # 注册路由
 app.include_router(coating_router)
+app.include_router(vtk_router)
 
 # 设置WebSocket路由
 setup_websocket_routes(app)
@@ -108,7 +109,7 @@ async def general_exception_handler(request, exc):
 @app.on_event("startup")
 async def startup_event():
     """应用启动事件"""
-    logger.info("TopMat Agent API 启动完成 - 重构版")
+    logger.info("TopMat Agent API 启动完成")
     logger.info("Service层架构已激活")
 
 

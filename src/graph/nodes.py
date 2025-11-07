@@ -180,9 +180,140 @@ def optimization_summary_node(state: CoatingWorkflowState) -> Dict:
 
 
 
-# ==================== 迭代优化节点（待实现） ====================
-# 以下节点将在实施迭代优化功能时添加：
-# - await_user_selection_node
-# - experiment_workorder_node
-# - await_experiment_results_node
-# - convergence_check_node
+# ==================== 迭代优化节点 ====================
+
+def await_user_selection_node(state: CoatingWorkflowState) -> Dict:
+    """等待用户选择优化方案节点 - 使用interrupt暂停工作流"""
+    from langgraph.types import interrupt
+    
+    logger.info(f"[等待用户选择] 任务 {state['task_id']}, 迭代 {state.get('current_iteration', 1)}")
+    
+    # 使用interrupt暂停工作流，等待用户选择
+    user_selection = interrupt({
+        "type": "await_user_selection",
+        "iteration": state.get("current_iteration", 1),
+        "options": ["P1", "P2", "P3"],
+        "p1_summary": state.get("p1_content", "")[:200] if state.get("p1_content") else "",
+        "p2_summary": state.get("p2_content", "")[:200] if state.get("p2_content") else "",
+        "p3_summary": state.get("p3_content", "")[:200] if state.get("p3_content") else "",
+        "comprehensive_recommendation": state.get("comprehensive_recommendation", "")
+    })
+    
+    logger.info(f"[等待用户选择] 用户选择: {user_selection}")
+    
+    # ✅ 修复：interrupt返回的是整个resume对象，需要提取字段
+    if isinstance(user_selection, dict):
+        selected_type = user_selection.get("selected_optimization_type")
+        selected_name = user_selection.get("selected_optimization_name")
+    else:
+        # 兼容直接传入字符串的情况
+        selected_type = user_selection
+        selected_name = None
+    
+    return {
+        "selected_optimization_type": selected_type,  # "P1" / "P2" / "P3"
+        "selected_optimization_name": selected_name,
+        "current_step": "user_selected"
+    }
+
+
+def experiment_workorder_node(state: CoatingWorkflowState) -> Dict:
+    """生成实验工单节点 - 集成现有workorder_service"""
+    from ..services.workorder_service import generate_workorder
+    
+    logger.info(f"[工单生成] 任务 {state['task_id']}, 迭代 {state.get('current_iteration', 1)}")
+    
+    selected_type = state.get("selected_optimization_type")
+    if not selected_type:
+        logger.error("[工单生成] 缺少用户选择的优化方案")
+        return {
+            "error_message": "缺少用户选择的优化方案",
+            "workflow_status": "error"
+        }
+    
+    # 流式输出回调
+    def stream_callback(node: str, content: str):
+        send_stream_chunk_sync("experiment_workorder", content)
+    
+    try:
+        # 调用现有的工单生成服务
+        result = generate_workorder(
+            task_id=state['task_id'],
+            selected_option=selected_type,
+            task_state=state,
+            stream_callback=stream_callback
+        )
+        
+        if not result.get("success"):
+            logger.error(f"[工单生成] 失败: {result.get('error')}")
+            return {
+                "error_message": result.get("error"),
+                "workflow_status": "error"
+            }
+        
+        logger.info(f"[工单生成] 完成")
+        
+        return {
+            "experiment_workorder": result.get("experiment_workorder"),
+            "selected_optimization_name": result.get("selected_optimization_name"),
+            "current_step": "workorder_generated"
+        }
+    
+    except Exception as e:
+        return error_handler.handle_workflow_error(e, "experiment_workorder", state)
+
+
+def await_experiment_results_node(state: CoatingWorkflowState) -> Dict:
+    """等待实验结果节点 - 包含用户继续迭代的决策"""
+    from langgraph.types import interrupt
+    from datetime import datetime
+    
+    logger.info(f"[等待实验] 任务 {state['task_id']}, 迭代 {state.get('current_iteration', 1)}")
+    
+    # 使用interrupt暂停，等待实验数据 + 用户决策
+    result = interrupt({
+        "type": "await_experiment_results",
+        "iteration": state.get("current_iteration", 1),
+        "workorder": state.get("experiment_workorder", ""),
+        "expected_fields": {
+            "hardness": "硬度 (GPa)",
+            "adhesion_strength": "结合力 (N)",
+            "oxidation_temperature": "抗氧化温度 (℃)",
+            "wear_rate": "磨损率 (mm³/Nm)",
+            "surface_roughness": "表面粗糙度 (μm)",
+            "notes": "备注",
+            "continue_iteration": "是否继续迭代 (boolean)"
+        }
+    })
+    
+    # 从result中提取数据
+    experiment_data = result.get("experiment_data", {})
+    continue_iteration = result.get("continue_iteration", False)
+    
+    logger.info(f"[等待实验] 实验数据: {experiment_data}")
+    logger.info(f"[等待实验] 继续迭代: {continue_iteration}")
+    
+    # 记录当前迭代到历史
+    iteration_record = {
+        "iteration": state.get("current_iteration", 1),
+        "selected_optimization": state.get("selected_optimization_type"),
+        "selected_optimization_name": state.get("selected_optimization_name"),
+        "experiment_results": experiment_data,
+        "timestamp": datetime.now().isoformat()
+    }
+    
+    iteration_history = state.get("iteration_history", [])
+    iteration_history.append(iteration_record)
+    
+    logger.info(f"[等待实验] 已记录第 {iteration_record['iteration']} 轮迭代到历史")
+    
+    # ✅ 只有继续迭代时才递增迭代次数
+    next_iteration = state.get("current_iteration", 1) + 1 if continue_iteration else state.get("current_iteration", 1)
+    
+    return {
+        "experimental_results": experiment_data,
+        "continue_iteration": continue_iteration,
+        "iteration_history": iteration_history,
+        "current_iteration": next_iteration,
+        "current_step": "experiment_received"
+    }

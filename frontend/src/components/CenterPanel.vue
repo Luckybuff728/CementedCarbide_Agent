@@ -26,9 +26,84 @@
     
     <div class="panel-content" ref="scrollContainer" @scroll="handleScroll">
       <!-- 空状态 -->
-      <div v-if="workflowStore.processSteps.length === 0" class="empty-state">
-        <n-icon class="empty-icon" :component="DocumentTextOutline" />
-        <p>请在左侧输入参数并点击“开始分析”</p>
+      <div v-if="workflowStore.displayProcessSteps.length === 0" class="empty-state">
+        <p class="empty-description">
+          输入涂层参数后，系统将自动执行以下分析流程
+        </p>
+        
+        <!-- 流程步骤预览 -->
+        <div class="process-preview">
+          <div class="preview-step">
+            <div class="step-number">1</div>
+            <div class="step-info">
+              <div class="step-title">
+                <n-icon :component="CheckmarkCircleOutline" />
+                <span>参数验证</span>
+              </div>
+              <div class="step-desc">验证成分配比、工艺参数和结构设计</div>
+            </div>
+          </div>
+          
+          <div class="preview-step">
+            <div class="step-number">2</div>
+            <div class="step-info">
+              <div class="step-title">
+                <n-icon :component="FlaskOutline" />
+                <span>TopPhi模拟</span>
+              </div>
+              <div class="step-desc">第一性原理计算晶体结构和电子性质</div>
+            </div>
+          </div>
+          
+          <div class="preview-step">
+            <div class="step-number">3</div>
+            <div class="step-info">
+              <div class="step-title">
+                <n-icon :component="RadioButtonOnOutline" />
+                <span>AI性能预测</span>
+              </div>
+              <div class="step-desc">机器学习预测硬度、结合力等性能指标</div>
+            </div>
+          </div>
+          
+          <div class="preview-step">
+            <div class="step-number">4</div>
+            <div class="step-info">
+              <div class="step-title">
+                <n-icon :component="BarChartOutline" />
+                <span>历史对比</span>
+              </div>
+              <div class="step-desc">与历史案例对比，识别相似配方</div>
+            </div>
+          </div>
+          
+          <div class="preview-step">
+            <div class="step-number">5</div>
+            <div class="step-info">
+              <div class="step-title">
+                <n-icon :component="BulbOutline" />
+                <span>根因分析</span>
+              </div>
+              <div class="step-desc">综合分析性能结果，提供优化建议</div>
+            </div>
+          </div>
+          
+          <div class="preview-step">
+            <div class="step-number">6</div>
+            <div class="step-info">
+              <div class="step-title">
+                <n-icon :component="DocumentTextOutline" />
+                <span>实验工单</span>
+              </div>
+              <div class="step-desc">生成详细实验方案和操作指导</div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="empty-hint">
+          <n-icon :component="ArrowForwardOutline" />
+          <span>在左侧面板输入参数，点击「开始分析」启动流程</span>
+        </div>
       </div>
       
       <!-- 前期分析卡片（排除P1/P2/P3和优化方案汇总） -->
@@ -65,7 +140,7 @@
           <div v-show="!optimizationCollapsed" class="card-content">
             <el-tabs v-model="activeOptimizationTab" class="optimization-tabs">
               <el-tab-pane 
-                v-if="workflowStore.p1Content" 
+                v-if="workflowStore.displayP1Content" 
                 name="p1"
               >
                 <template #label>
@@ -75,11 +150,11 @@
                   </div>
                 </template>
                 <div ref="p1TabContent" class="tab-content-wrapper" @scroll="handleTabScroll">
-                  <MarkdownRenderer :content="workflowStore.p1Content" :streaming="workflowStore.isProcessing && workflowStore.currentNode === 'p1_composition_optimization'" />
+                  <MarkdownRenderer :content="workflowStore.displayP1Content" :streaming="workflowStore.isProcessing && workflowStore.currentNode === 'p1_composition_optimization'" />
                 </div>
               </el-tab-pane>
               <el-tab-pane 
-                v-if="workflowStore.p2Content" 
+                v-if="workflowStore.displayP2Content" 
                 name="p2"
               >
                 <template #label>
@@ -89,11 +164,11 @@
                   </div>
                 </template>
                 <div ref="p2TabContent" class="tab-content-wrapper" @scroll="handleTabScroll">
-                  <MarkdownRenderer :content="workflowStore.p2Content" :streaming="workflowStore.isProcessing && workflowStore.currentNode === 'p2_structure_optimization'" />
+                  <MarkdownRenderer :content="workflowStore.displayP2Content" :streaming="workflowStore.isProcessing && workflowStore.currentNode === 'p2_structure_optimization'" />
                 </div>
               </el-tab-pane>
               <el-tab-pane 
-                v-if="workflowStore.p3Content" 
+                v-if="workflowStore.displayP3Content" 
                 name="p3"
               >
                 <template #label>
@@ -103,7 +178,7 @@
                   </div>
                 </template>
                 <div ref="p3TabContent" class="tab-content-wrapper" @scroll="handleTabScroll">
-                  <MarkdownRenderer :content="workflowStore.p3Content" :streaming="workflowStore.isProcessing && workflowStore.currentNode === 'p3_process_optimization'" />
+                  <MarkdownRenderer :content="workflowStore.displayP3Content" :streaming="workflowStore.isProcessing && workflowStore.currentNode === 'p3_process_optimization'" />
                 </div>
               </el-tab-pane>
             </el-tabs>
@@ -155,7 +230,12 @@ import {
   FlaskOutline,
   BuildOutline,
   SettingsOutline as SettingsOutlineIcon,
-  CheckmarkCircle
+  CheckmarkCircle,
+  TimeOutline,
+  CheckmarkCircleOutline,
+  RadioButtonOnOutline,
+  BarChartOutline,
+  ArrowForwardOutline
 } from '@vicons/ionicons5'
 import { useWorkflowStore } from '../stores/workflow'
 import ProcessCard from './ProcessCard.vue'
@@ -183,7 +263,7 @@ const tabAutoScrollEnabled = ref(true)  // Tab内容自动滚动
 
 // 是否显示优化方案卡片
 const showOptimizationCards = computed(() => {
-  return workflowStore.p1Content || workflowStore.p2Content || workflowStore.p3Content
+  return workflowStore.displayP1Content || workflowStore.displayP2Content || workflowStore.displayP3Content
 })
 
 // 优化建议之前的卡片（只包含前期分析节点）
@@ -195,13 +275,13 @@ const beforeOptimizationSteps = computed(() => {
     'historical_comparison',
     'integrated_analysis'
   ]
-  return workflowStore.processSteps.filter(step => beforeNodes.includes(step.nodeId))
+  return workflowStore.displayProcessSteps.filter(step => beforeNodes.includes(step.nodeId))
 })
 
 // 优化建议之后的卡片（优化方案汇总、实验工单）
 const afterOptimizationSteps = computed(() => {
   const afterNodes = ['optimization_summary', 'experiment_workorder']
-  return workflowStore.processSteps.filter(step => afterNodes.includes(step.nodeId))
+  return workflowStore.displayProcessSteps.filter(step => afterNodes.includes(step.nodeId))
 })
 
 // 切换优化建议折叠状态
@@ -212,10 +292,10 @@ const toggleOptimizationCollapse = () => {
 // 复制优化建议内容
 const copyOptimizationContent = async () => {
   const currentContent = activeOptimizationTab.value === 'p1' 
-    ? workflowStore.p1Content 
+    ? workflowStore.displayP1Content 
     : activeOptimizationTab.value === 'p2' 
-      ? workflowStore.p2Content 
-      : workflowStore.p3Content
+      ? workflowStore.displayP2Content 
+      : workflowStore.displayP3Content
   
   if (currentContent) {
     try {
@@ -373,12 +453,12 @@ watch(() => workflowStore.currentNode, (newNode) => {
 // 监听流式内容变化，触发智能自动滚动
 watch(
   () => [
-    workflowStore.processSteps.length,
-    workflowStore.p1Content,
-    workflowStore.p2Content,
-    workflowStore.p3Content,
+    workflowStore.displayProcessSteps.length,
+    workflowStore.displayP1Content,
+    workflowStore.displayP2Content,
+    workflowStore.displayP3Content,
     // 监听最后一个step的content长度
-    workflowStore.processSteps[workflowStore.processSteps.length - 1]?.content
+    workflowStore.displayProcessSteps[workflowStore.displayProcessSteps.length - 1]?.content
   ],
   () => {
     smartAutoScroll()
@@ -412,14 +492,14 @@ defineExpose({
 <style scoped>
 .center-panel {
   flex: 1;
-  background: #f9fafb;
+  background: var(--bg-secondary);
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
 
 .panel-header {
-  padding: 16px 20px;
+  padding: 20px;
   background: white;
   border-bottom: 1px solid var(--border-color);
   display: flex;
@@ -435,7 +515,8 @@ defineExpose({
 
 .header-left h3 {
   margin: 0;
-  font-size: 16px;
+  font-size: 18px;
+  font-weight: 600;
 }
 
 .actions {
@@ -454,41 +535,174 @@ defineExpose({
   display: flex;
   flex-direction: column;
   align-items: center;
+  padding: 40px 20px;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.empty-icon-wrapper {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
+  display: flex;
+  align-items: center;
   justify-content: center;
-  height: 100%;
-  color: var(--text-tertiary);
+  margin-bottom: 28px;
+  box-shadow: 0 12px 32px rgba(37, 99, 235, 0.25);
+  animation: pulse 2s ease-in-out infinite;
 }
 
 .empty-icon {
-  font-size: 64px;
-  margin-bottom: 16px;
-  opacity: 0.3;
-  color: var(--text-tertiary);
+  font-size: 48px;
+  color: white;
 }
 
-.empty-state p {
-  font-size: 14px;
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 12px 32px rgba(37, 99, 235, 0.25);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 16px 40px rgba(37, 99, 235, 0.35);
+  }
+}
+
+.empty-title {
+  margin: 0 0 12px 0;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+}
+
+.empty-description {
+  margin: 0 0 36px 0;
+  font-size: 15px;
+  color: var(--text-secondary);
+  text-align: center;
+  line-height: 1.6;
+}
+
+/* 流程预览 */
+.process-preview {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 32px;
+}
+
+.preview-step {
+  display: flex;
+  gap: 16px;
+  padding: 20px;
+  background: white;
+  border-radius: var(--radius-lg);
+  border: 2px solid var(--border-light);
+  transition: all var(--transition-base);
+  box-shadow: var(--shadow-sm);
+}
+
+.preview-step:hover {
+  border-color: var(--primary-light);
+  box-shadow: var(--shadow-md);
+  transform: translateX(4px);
+  background: var(--primary-lighter);
+}
+
+.step-number {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary-light) 0%, var(--primary-lighter) 100%);
+  color: var(--primary);
+  font-size: 15px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-xs);
+}
+
+.step-info {
+  flex: 1;
+}
+
+.step-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.step-title .n-icon {
+  font-size: 18px;
+  color: var(--primary);
+}
+
+.step-desc {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+/* 空状态提示 */
+.empty-hint {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 24px;
+  background: linear-gradient(135deg, var(--primary-lighter) 0%, var(--primary-light) 100%);
+  border-radius: var(--radius-lg);
+  border: 2px solid var(--primary-light);
+  color: var(--primary);
+  font-size: 15px;
+  font-weight: 600;
+  box-shadow: var(--shadow-xs);
+}
+
+.empty-hint .n-icon {
+  font-size: 20px;
+  animation: slideRight 1.5s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+@keyframes slideRight {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(4px);
+  }
 }
 
 /* ProcessCard样式（与ProcessCard.vue保持一致） */
 .process-card {
   background: white;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   margin-bottom: 16px;
   border: 1px solid var(--border-color);
-  border-left: 4px solid var(--border-color);
+  border-left: 3px solid var(--border-color);
   overflow: hidden;
-  transition: all 0.3s ease;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  transition: all var(--transition-base);
+  box-shadow: var(--shadow-sm);
 }
 
 .process-card:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+  border-color: var(--primary-light);
 }
 
 .process-card.completed {
   border-left-color: var(--success);
+  border-left-width: 4px;
 }
 
 .process-card.collapsed .card-header {
@@ -496,17 +710,17 @@ defineExpose({
 }
 
 .card-header {
-  padding: 14px 18px;
+  padding: 18px 20px;
   cursor: pointer;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid var(--border-light);
-  transition: all 0.2s;
+  border-bottom: 1px solid var(--border-color);
+  transition: all var(--transition-fast);
 }
 
 .card-header:hover {
-  background: #f9fafb;
+  background: var(--bg-secondary);
 }
 
 .header-left {
@@ -547,7 +761,7 @@ defineExpose({
 }
 
 .card-content {
-  padding: 20px;
+  padding: 24px;
   max-height: 600px;
   overflow-y: auto;
 }
@@ -568,9 +782,9 @@ defineExpose({
 
 .optimization-tabs :deep(.el-tabs__header) {
   margin: 0 0 16px 0;
-  background: var(--bg-secondary);
-  padding: 4px;
-  border-radius: var(--radius-sm);
+  background: var(--bg-tertiary);
+  padding: 6px;
+  border-radius: var(--radius-lg);
 }
 
 .optimization-tabs :deep(.el-tabs__item) {
@@ -593,7 +807,8 @@ defineExpose({
 
 .optimization-tabs :deep(.el-tabs__item.is-active) {
   background: white;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-xs);
 }
 
 .optimization-tabs :deep(.el-tabs__content) {
@@ -610,7 +825,7 @@ defineExpose({
 /* 折叠动画 */
 .collapse-enter-active,
 .collapse-leave-active {
-  transition: all 0.3s ease;
+  transition: all var(--transition-base);
   overflow: hidden;
 }
 

@@ -7,6 +7,9 @@ import json
 import time
 from .validation_service import ValidationService
 from .optimization_service import OptimizationService, OptimizationType
+from .topphi_service import TopPhiService
+from .ml_prediction_service import MLPredictionService
+from .historical_data_service import HistoricalDataService
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +20,10 @@ class CoatingService:
     def __init__(self):
         self.validation_service = ValidationService()
         self.optimization_service = OptimizationService()
+        # ✅ 拆分后的独立服务
+        self.topphi_service = TopPhiService()
+        self.ml_service = MLPredictionService()
+        self.historical_service = HistoricalDataService()
     
     def validate_input(self, state: Dict[str, Any], stream_callback=None) -> Dict[str, Any]:
         """
@@ -97,31 +104,15 @@ class CoatingService:
     
     def simulate_topphi(self, state: Dict[str, Any]) -> Dict[str, Any]:
         """
-        TopPhi模拟 - 预留MCP工具接口
+        TopPhi模拟 - 调用独立的TopPhiService
         """
         logger.info(f"[TopPhi模拟] 任务 {state['task_id']} 开始")
         
         composition = state.get("coating_composition", {})
         params = state.get("process_params", {})
         
-        # 模拟计算时间
-        time.sleep(3)
-        
-        # TODO: 接入MCP工具 - TopPhi模拟服务
-        # mcp_result = await call_mcp_tool("topphi_simulate", {"composition": composition, "params": params})
-        
-        # 当前使用示例数据模拟
-        topphi_result = {
-            "grain_size_nm": 8.5,
-            "preferred_orientation": "(111)",
-            "residual_stress_gpa": -2.5,
-            "lattice_constant": 4.15,
-            "formation_energy": -0.85,
-            "confidence": 0.82,
-            "simulation_time": 120
-        }
-        
-        logger.info(f"[TopPhi模拟] 完成 - 晶粒尺寸: {topphi_result['grain_size_nm']} nm")
+        # ✅ 使用拆分后的TopPhiService
+        topphi_result = self.topphi_service.simulate_deposition(composition, params)
         
         return {
             "topphi_simulation": topphi_result,
@@ -130,38 +121,16 @@ class CoatingService:
     
     def predict_ml_performance(self, state: Dict[str, Any]) -> Dict[str, Any]:
         """
-        ML模型预测 - 预留MCP工具接口
+        ML模型预测 - 调用独立的MLPredictionService
         """
         logger.info(f"[ML模型预测] 任务 {state['task_id']} 开始")
         
         composition = state.get("coating_composition", {})
         params = state.get("process_params", {})
         structure = state.get("structure_design", {})
-        logger.info(f"[ML模型预测] 读取参数: Al={composition.get('al_content', 0)}%, Ti={composition.get('ti_content', 0)}%, 沉积温度={params.get('deposition_temperature', 0)}°C")
         
-        # 模拟预测计算时间
-        time.sleep(3)
-        
-        # TODO: 接入MCP工具 - ML预测服务
-        # mcp_result = await call_mcp_tool("ml_predict", {...})
-        
-        # 当前使用示例数据模拟
-        ml_prediction = {
-            "hardness_gpa": 28.5,
-            "hardness_std": 1.2,
-            "adhesion_level": "HF1",
-            "wear_rate": 1.2e-6,
-            "oxidation_temp_c": 850,
-            "model_confidence": 0.85,
-            "feature_importance": {
-                "al_content": 0.35,
-                "deposition_temp": 0.28,
-                "bias_voltage": 0.22,
-                "ti_content": 0.15
-            }
-        }
-        
-        logger.info(f"[ML模型预测] 完成 - 硬度: {ml_prediction['hardness_gpa']} GPa")
+        # ✅ 使用拆分后的MLPredictionService
+        ml_prediction = self.ml_service.predict_performance(composition, params, structure)
         
         return {
             "ml_prediction": ml_prediction,
@@ -170,57 +139,15 @@ class CoatingService:
     
     def compare_historical_data(self, state: Dict[str, Any]) -> Dict[str, Any]:
         """
-        历史数据比对 - 预留RAG接口
+        历史数据比对 - 调用独立的HistoricalDataService
         """
         logger.info(f"[历史数据比对] 任务 {state['task_id']} 开始")
         
         composition = state.get("coating_composition", {})
         params = state.get("process_params", {})
-        logger.info(f"[历史数据比对] 读取参数: Al={composition.get('al_content', 0)}%, Ti={composition.get('ti_content', 0)}%, N={composition.get('n_content', 0)}%")
         
-        # 模拟数据库检索时间
-        time.sleep(3)
-        
-        # TODO: 接入RAG系统 - 向量数据库检索
-        # similar_cases = await rag_retrieve(...)
-        
-        # 当前使用示例数据模拟
-        similar_cases = [
-            {
-                "case_id": "CASE_001",
-                "composition": {"al_content": 32, "ti_content": 28, "n_content": 40},
-                "hardness": 29.2,
-                "similarity": 0.87,
-                "notes": "相似成分配比，硬度表现良好",
-                "year": "2023"
-            },
-            {
-                "case_id": "CASE_002", 
-                "composition": {"al_content": 35, "ti_content": 25, "n_content": 40},
-                "hardness": 31.1,
-                "similarity": 0.82,
-                "notes": "高Al含量，显著提升硬度",
-                "year": "2024"
-            },
-            {
-                "case_id": "CASE_003",
-                "composition": {"al_content": 30, "ti_content": 30, "n_content": 40},
-                "hardness": 27.8,
-                "similarity": 0.75,
-                "notes": "平衡配比，稳定性好",
-                "year": "2023"
-            }
-        ]
-        
-        # 前端期望的数据结构：包含similar_cases数组的对象
-        historical_comparison = {
-            "similar_cases": similar_cases,
-            "total_cases": len(similar_cases),
-            "highest_hardness": max(c["hardness"] for c in similar_cases),
-            "average_similarity": sum(c["similarity"] for c in similar_cases) / len(similar_cases)
-        }
-        
-        logger.info(f"[历史数据比对] 完成 - 找到 {len(similar_cases)} 个相似案例")
+        # ✅ 使用拆分后的HistoricalDataService
+        historical_comparison = self.historical_service.retrieve_similar_cases(composition, params)
         
         return {
             "historical_comparison": historical_comparison,
@@ -417,7 +344,7 @@ class CoatingService:
    - 当前配方的整体评价和主要改进方向
 
 要求：
-- 简洁明了，不超过150字
+- 简洁明了，不超过100字
 - 每条分析要具体引用上述数据中的数值
 - 使用专业术语，但表述清晰易懂
 - 重点突出影响性能的关键因素

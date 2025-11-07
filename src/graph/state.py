@@ -41,7 +41,9 @@ class CoatingWorkflowState(TypedDict):
     p3_content: str  # P3优化建议内容
     optimization_suggestions: Dict[str, List[Dict]]  # 各类优化建议汇总
     selected_optimization_type: Optional[str]  # 选择的优化类型
+    selected_optimization_name: Optional[str]  # 选择的优化方案名称
     selected_optimization_plan: Optional[Dict]  # 选择的具体方案
+    experiment_workorder: Optional[str]  # 实验工单内容
     
     # 迭代优化
     iteration_history: List[Dict[str, Any]]  # 迭代历史
@@ -49,6 +51,7 @@ class CoatingWorkflowState(TypedDict):
     current_iteration: int  # 当前迭代次数
     max_iterations: int  # 最大迭代次数
     convergence_achieved: bool  # 是否达到收敛
+    continue_iteration: bool  # 用户是否选择继续迭代
     
     # 对话消息(用于与LLM交互)
     messages: Annotated[List[BaseMessage], add_messages]

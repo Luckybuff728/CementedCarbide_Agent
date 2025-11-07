@@ -4,24 +4,24 @@
     <div class="panel-header">
       <h3>参数输入</h3>
       <div class="header-actions">
-        <n-button 
+	        <n-button 
           size="small" 
           type="primary" 
           @click="loadExampleData"
           secondary
         >
           <template #icon>
-            <n-icon><PlayCircle /></n-icon>
+            <n-icon><VideoPlay /></n-icon>
           </template>
           加载示例
         </n-button>
-        <n-button 
+	        <n-button 
           size="small" 
           @click="resetForm"
           secondary
         >
           <template #icon>
-            <n-icon><Refresh /></n-icon>
+            <n-icon><RefreshLeft /></n-icon>
           </template>
           清空
         </n-button>
@@ -37,12 +37,12 @@
         size="default"
       >
         <!-- 使用Collapse折叠面板 -->
-        <el-collapse v-model="activeCollapse" accordion>
+        <el-collapse v-model="activeCollapse">
           <!-- 1. 涂层成分 -->
           <el-collapse-item name="composition">
             <template #title>
               <div class="collapse-title">
-                <n-icon class="title-icon" :component="BeakerOutline" />
+                <el-icon class="title-icon"><Operation /></el-icon>
                 <span class="title-text">涂层成分</span>
                 <el-tag v-if="compositionSum > 0" size="small" type="info">
                   {{ compositionSum.toFixed(1) }}%
@@ -124,14 +124,14 @@
                   @click="removeElement(index)"
                 />
               </div>
-              <n-button 
+	            <n-button 
                 type="primary" 
                 size="small" 
                 @click="addElement"
                 dashed
               >
                 <template #icon>
-                  <n-icon><AddCircle /></n-icon>
+                  <n-icon><Plus /></n-icon>
                 </template>
                 添加元素
               </n-button>
@@ -142,13 +142,13 @@
           <el-collapse-item name="process">
             <template #title>
               <div class="collapse-title">
-                <n-icon class="title-icon" :component="SettingsOutline" />
+                <el-icon class="title-icon"><Setting /></el-icon>
                 <span class="title-text">工艺参数</span>
               </div>
             </template>
 
             <el-form-item label="工艺选择">
-              <el-select v-model="formData.process_type" style="width: 100%">
+              <el-select v-model="formData.process_type" style="width: 100%" placeholder="请选择工艺类型">
                 <el-option label="磁控溅射" value="magnetron_sputtering" />
                 <el-option label="CVD" value="cvd" />
               </el-select>
@@ -232,14 +232,14 @@
                   @click="removeGas(index)"
                 />
               </div>
-              <n-button 
+	            <n-button 
                 type="primary" 
                 size="small" 
                 @click="addGas"
                 dashed
               >
                 <template #icon>
-                  <n-icon><AddCircle /></n-icon>
+                  <n-icon><Plus /></n-icon>
                 </template>
                 添加气体
               </n-button>
@@ -250,7 +250,7 @@
           <el-collapse-item name="structure">
             <template #title>
               <div class="collapse-title">
-                <n-icon class="title-icon" :component="ConstructOutline" />
+                <el-icon class="title-icon"><Tools /></el-icon>
                 <span class="title-text">结构设计</span>
                 <el-tag v-if="formData.structure_type" size="small" type="info">
                   {{ formData.structure_type === 'multi' ? '多层' : '单层' }}
@@ -259,7 +259,7 @@
             </template>
 
             <el-form-item label="结构类型">
-              <el-select v-model="formData.structure_type" @change="onStructureChange" style="width: 100%">
+              <el-select v-model="formData.structure_type" @change="onStructureChange" style="width: 100%" placeholder="请选择结构类型">
                 <el-option label="单层" value="single" />
                 <el-option label="多层" value="multi" />
               </el-select>
@@ -293,14 +293,14 @@
                   @click="removeLayer(index)"
                 />
               </div>
-              <n-button 
+	              <n-button 
                 type="primary" 
                 size="small" 
                 @click="addLayer"
                 dashed
               >
                 <template #icon>
-                  <n-icon><AddCircle /></n-icon>
+                  <n-icon><Plus /></n-icon>
                 </template>
                 添加层
               </n-button>
@@ -325,7 +325,7 @@
           <el-collapse-item name="performance">
             <template #title>
               <div class="collapse-title">
-                <n-icon class="title-icon" :component="RadioButtonOnOutline" />
+                <el-icon class="title-icon"><Odometer /></el-icon>
                 <span class="title-text">性能需求</span>
               </div>
             </template>
@@ -424,10 +424,9 @@
         @click="handleSubmit" 
         :loading="workflowStore.isProcessing"
         :disabled="compositionSum > 100"
-        block
+        style="width: 100%"
       >
-        开始分析
-      </el-button>
+        开始分析</el-button>
     </div>
   </div>
 </template>
@@ -435,17 +434,16 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { NButton, NIcon } from 'naive-ui'
 import { 
-  BeakerOutline,
-  SettingsOutline,
-  ConstructOutline,
-  RadioButtonOnOutline,
-  AddCircle,
-  Trash,
-  Refresh,
-  PlayCircle
-} from '@vicons/ionicons5'
+  Operation,
+  Setting,
+  Tools,
+  Odometer,
+  Plus,
+  Delete,
+  RefreshLeft,
+  VideoPlay
+} from '@element-plus/icons-vue'
 import { useWorkflowStore } from '../stores/workflow'
 
 const workflowStore = useWorkflowStore()
@@ -455,8 +453,8 @@ const emit = defineEmits(['submit'])
 const formRef = ref(null)
 const selectedTemplate = ref('custom')
 
-// 折叠面板活动项（默认展开第一个）
-const activeCollapse = ref('composition')
+// 折叠面板活动项（默认展开第一个，数组格式支持多个同时展开）
+const activeCollapse = ref(['composition'])
 
 // 应用场景快速提示词
 const scenarioHints = [
@@ -470,7 +468,7 @@ const scenarioHints = [
   '高速加工'
 ]
 
-// 示例场景数据库
+// 示例场景数据
 const exampleScenarios = {
   highSpeedSteel: {
     name: '高速钢材切削',
@@ -564,13 +562,12 @@ const exampleScenarios = {
       structure_type: 'multi',
       total_thickness: 5.0,
       layers: [
-        { type: 'TiN(过渡层)', thickness: 0.5 },
+        { type: 'TiN(过渡�?', thickness: 0.5 },
         { type: 'AlTiN', thickness: 3.0 },
         { type: 'Al2O3', thickness: 1.5 }
       ],
       
-      // 性能需求 - 超高温极端工况
-      substrate_material: '硬质合金(WC-Co)',
+      // 性能需�?- 超高温极端工�?      substrate_material: '硬质合金(WC-Co)',
       adhesion_strength: 60.0,
       elastic_modulus: 450,
       working_temperature: 1100,
@@ -601,8 +598,7 @@ const formData = ref({
   total_thickness: 3.0,
   layers: [],
   
-  // 性能需求
-  substrate_material: '硬质合金(WC-Co)',
+  // 性能需�?  substrate_material: '硬质合金(WC-Co)',
   adhesion_strength: 50.0,
   elastic_modulus: 400,
   working_temperature: 800,
@@ -638,7 +634,7 @@ const loadExampleData = async () => {
             <label style="display: flex; align-items: start; padding: 12px; border: 1px solid #dcdfe6; border-radius: 6px; cursor: pointer; transition: all 0.2s;" class="scenario-option" onmouseover="this.style.borderColor='#409eff'; this.style.backgroundColor='#ecf5ff'" onmouseout="this.style.borderColor='#dcdfe6'; this.style.backgroundColor='transparent'">
               <input type="radio" name="scenario" value="precisionAluminum" style="margin-top: 3px; margin-right: 10px;" />
               <div>
-                <div style="font-weight: 600; color: #303133; margin-bottom: 4px;">✨ 铝合金精密加工</div>
+                <div style="font-weight: 600; color: #303133; margin-bottom: 4px;">⚙️ 铝合金精密加工</div>
                 <div style="font-size: 13px; color: #606266;">单层薄涂层，低温工艺，适用于铝合金精密加工和高光洁度要求</div>
               </div>
             </label>
@@ -779,25 +775,29 @@ const handleSubmit = () => {
 
 <style scoped>
 .left-panel {
-  min-width: 200px;
+  min-width: 280px;
   max-width: 600px;
   background: white;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  border-right: 1px solid var(--border-color);
 }
 
 .panel-header {
-  padding: 16px;
-  border-bottom: 1px solid var(--border-light);
+  padding: 20px;
+  border-bottom: 1px solid var(--border-color);
   display: flex;
   justify-content: space-between;
   align-items: center;
+  background: white;
 }
 
 .panel-header h3 {
   margin: 0;
-  font-size: 16px;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
 }
 
 .header-actions {
@@ -808,13 +808,15 @@ const handleSubmit = () => {
 .panel-content {
   flex: 1;
   overflow-y: auto;
-  padding: 16px;
+  padding: 20px;
+  background: var(--bg-secondary);
 }
 
 .panel-footer {
-  padding: 16px;
+  padding: 20px;
   border-top: 1px solid var(--border-color);
   background: white;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.05);
 }
 
 /* 表单分节 */
@@ -845,7 +847,7 @@ const handleSubmit = () => {
   margin-bottom: 12px;
 }
 
-/* 涂层成分改为单列布局，避免过挤 */
+/* 涂层成分改为单列布局，避免过�?*/
 .composition-grid {
   grid-template-columns: 1fr;
 }
@@ -855,7 +857,7 @@ const handleSubmit = () => {
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 }
 
-/* 带单位的输入框 */
+/* 带单位的输入�?*/
 .input-with-unit {
   display: flex;
   align-items: center;
@@ -876,22 +878,23 @@ const handleSubmit = () => {
 /* 成分总和 */
 .composition-sum {
   text-align: center;
-  padding: 8px;
-  border-radius: var(--radius-sm);
+  padding: 10px;
+  border-radius: var(--radius-md);
   font-size: 13px;
-  font-weight: 500;
-  background: #d1fae5;
+  font-weight: 600;
+  background: var(--success-light);
   color: var(--success);
-  border: 1px solid #a7f3d0;
+  border: 1px solid var(--success);
+  transition: all var(--transition-fast);
 }
 
 .composition-sum.warning {
-  background: #fee2e2;
+  background: var(--danger-light);
   color: var(--danger);
-  border-color: #fecaca;
+  border-color: var(--danger);
 }
 
-/* Element Plus 表单项样式调整 */
+/* Element Plus 表单项样式调�?*/
 :deep(.el-form-item) {
   margin-bottom: 16px;
 }
@@ -907,7 +910,7 @@ const handleSubmit = () => {
   width: 100%;
 }
 
-/* 动态配置区域 */
+/* 动态配置区�?*/
 .other-elements,
 .gas-section,
 .multi-layer-design {
@@ -932,7 +935,7 @@ const handleSubmit = () => {
   margin-bottom: 8px;
 }
 
-/* 应用场景提示词 */
+/* 应用场景提示�?*/
 .scenario-hints {
   margin-top: 8px;
   display: flex;
@@ -978,15 +981,25 @@ const handleSubmit = () => {
 
 /* Element Plus Collapse样式覆盖 */
 :deep(.el-collapse-item__header) {
-  height: 48px;
-  padding: 0 12px;
-  background: var(--bg-tertiary);
-  border-radius: var(--radius-sm);
-  margin-bottom: 8px;
+  height: 52px;
+  padding: 0 16px;
+  background: white;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  margin-bottom: 12px;
+  transition: all var(--transition-fast);
+  box-shadow: var(--shadow-xs);
+}
+
+:deep(.el-collapse-item__header:hover) {
+  border-color: var(--primary-light);
+  background: var(--primary-lighter);
 }
 
 :deep(.el-collapse-item__header.is-active) {
-  background: var(--bg-secondary);
+  background: var(--primary-lighter);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-lighter);
 }
 
 :deep(.el-collapse-item__wrap) {
@@ -994,6 +1007,12 @@ const handleSubmit = () => {
 }
 
 :deep(.el-collapse-item__content) {
-  padding: 16px 12px;
+  padding: 20px 16px;
+  background: white;
+  border: 1px solid var(--border-color);
+  border-top: none;
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  margin-top: -12px;
+  margin-bottom: 12px;
 }
 </style>
