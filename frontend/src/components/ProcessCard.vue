@@ -72,7 +72,7 @@ const autoScrollEnabled = ref(true)  // 卡片内部自动滚动控制
 // 节点名称映射
 const nodeNameMap = {
   'input_validation': '参数验证',
-  'topphi_simulation': 'TopPhi第一性原理模拟',
+  'topphi_simulation': 'TopPhi相场模拟',
   'ml_prediction': 'ML模型性能预测',
   'historical_comparison': '历史数据比对',
   'integrated_analysis': '根因分析',

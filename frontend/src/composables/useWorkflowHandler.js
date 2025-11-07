@@ -25,11 +25,11 @@ export function useWorkflowHandler(setLongTaskStatus = null) {
    * @returns {string} 格式化的Markdown内容
    */
   const generateStructuredContent = (nodeId, data) => {
-    // TopPhi模拟结果
+    // TopPhi相场模拟结果
     if (nodeId === 'topphi_simulation') {
       const topphi = data.topphi_simulation || data
       return `模拟计算完成，数据已就绪。`
-//       ## TopPhi第一性原理模拟结果
+//       ## TopPhi相场模拟结果
 
 // ### 晶体结构参数
 // - **晶粒尺寸**: ${topphi.grain_size_nm || 'N/A'} nm
@@ -172,12 +172,12 @@ ${histData.similar_cases ? histData.similar_cases.slice(0, 3).map((c, i) =>
       console.log('[💾 存储] 验证结果:', validationData)
     }
     
-    // TopPhi模拟结果（包含VTK数据）
+    // TopPhi相场模拟结果（包含VTK数据）
     if (nodeId === 'topphi_simulation') {
       const topphiData = nodeData.topphi_simulation || nodeData
       if (topphiData && typeof topphiData === 'object') {
         workflowStore.topphiResult = topphiData
-        console.log('[💾 存储] TopPhi模拟数据:', topphiData)
+        console.log('[💾 存储] TopPhi相场模拟数据:', topphiData)
         
         // 特别记录VTK数据
         if (topphiData.vtk_data) {

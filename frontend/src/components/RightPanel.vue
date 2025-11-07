@@ -17,7 +17,7 @@
         </div>
         <div class="feature-item">
           <n-icon :component="CheckmarkCircleOutline" color="#10b981" />
-          <span>TopPhi第一性原理模拟</span>
+          <span>相场模拟</span>
         </div>
         <div class="feature-item">
           <n-icon :component="CheckmarkCircleOutline" color="#10b981" />
@@ -75,12 +75,12 @@
       </div>
     </SummaryCard>
 
-    <!-- TopPhi模拟摘要 -->
+    <!-- 相场模拟摘要 -->
     <SummaryCard 
       v-if="hasTopPhiResult" 
       icon=""
       :icon-component="FlaskOutline"
-      title="TopPhi第一性原理"
+      title="TopPhi相场模拟"
       :clickable="false"
     >
       <div class="topphi-content">
@@ -374,9 +374,9 @@ const apiBaseUrl = ref(API_BASE_URL)
 const timeSeriesFiles = ref([])
 const loadingTimeSeries = ref(false)
 
-// 获取TopPhi节点的VTK数据
+// 获取相场模拟节点的VTK数据
 const topPhiVtkData = computed(() => {
-  // 从store中获取TopPhi模拟结果
+  // 从store中获取相场模拟结果
   const topPhiResult = workflowStore.displayTopphiResult
   if (!topPhiResult || !topPhiResult.vtk_data) return null
   return topPhiResult.vtk_data
@@ -1145,7 +1145,7 @@ watch(
   border: 1px solid #fecaca;
 }
 
-/* TopPhi模拟 */
+/* 相场模拟 */
 .topphi-content {
   display: flex;
   flex-direction: column;

@@ -49,9 +49,9 @@
             <div class="step-info">
               <div class="step-title">
                 <n-icon :component="FlaskOutline" />
-                <span>TopPhi模拟</span>
+                <span>TopPhi相场模拟</span>
               </div>
-              <div class="step-desc">第一性原理计算晶体结构和电子性质</div>
+              <div class="step-desc">相场模拟计算晶体结构和微观组织演化</div>
             </div>
           </div>
           

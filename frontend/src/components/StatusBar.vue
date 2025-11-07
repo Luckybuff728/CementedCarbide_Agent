@@ -144,7 +144,7 @@ function handleReturnToCurrent() {
 const nodes = computed(() => {
   const nodeList = [
     { id: 'input_validation', name: '参数验证', status: getNodeStatus('input_validation') },
-    { id: 'topphi_simulation', name: 'TopPhi模拟', status: getNodeStatus('topphi_simulation') },
+    { id: 'topphi_simulation', name: '相场模拟', status: getNodeStatus('topphi_simulation') },
     { id: 'ml_prediction', name: 'ML预测', status: getNodeStatus('ml_prediction') },
     { id: 'historical_comparison', name: '历史对比', status: getNodeStatus('historical_comparison') },
     { id: 'integrated_analysis', name: '根因分析', status: getNodeStatus('integrated_analysis') },
