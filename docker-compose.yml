@@ -6,8 +6,9 @@ services:
       dockerfile: Dockerfile.backend
     container_name: topmat-backend
     restart: always
-    ports:
-      - "8000:8000"
+    # 端口不直接暴露到主机，只通过 Nginx 访问（如需调试可临时打开）
+    # ports:
+    #   - "8000:8000"
     environment:
       - DASHSCOPE_API_KEY=${DASHSCOPE_API_KEY}
       - DASHSCOPE_MODEL_NAME=${DASHSCOPE_MODEL_NAME:-qwen-plus}
