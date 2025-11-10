@@ -3,11 +3,17 @@
  * 统一管理所有配置项，避免硬编码
  */
 
-// API基础URL配置
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+// API基础URL配置（开发模式使用相对路径，通过 Vite proxy 代理）
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (
+  import.meta.env.DEV ? '' : 'http://localhost:8000'
+)
 
-// WebSocket基础URL配置
-export const WS_BASE_URL = import.meta.env.VITE_WS_BASE_URL || 'ws://localhost:8000'
+// WebSocket基础URL配置（开发模式动态获取当前 host）
+export const WS_BASE_URL = import.meta.env.VITE_WS_BASE_URL || (
+  import.meta.env.DEV 
+    ? `ws://${window.location.hostname}:8000`
+    : 'ws://localhost:8000'
+)
 
 // WebSocket端点
 export const WS_ENDPOINTS = {

@@ -171,7 +171,7 @@
               >
                 <template #label>
                   <div class="tab-label">
-                    <n-icon :component="SettingsOutlineIcon" />
+                    <n-icon :component="SettingsOutline" />
                     <span>P3 工艺优化</span>
                   </div>
                 </template>
@@ -234,7 +234,9 @@ import {
   ArrowForwardOutline,
   ExpandOutline,
   ContractOutline,
-  CheckmarkCircle
+  CheckmarkCircle,
+  BuildOutline,
+  SettingsOutline
 } from '@vicons/ionicons5'
 import { useWorkflowStore } from '../stores/workflow'
 import ProcessCard from './ProcessCard.vue'
