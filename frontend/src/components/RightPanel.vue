@@ -109,7 +109,7 @@
           
           <!-- 加载时间序列中 -->
           <div v-else-if="isTimeSeries && loadingTimeSeries" class="loading-timeseries">
-            <el-icon class="is-loading" :size="40"><Loading /></el-icon>
+            <n-icon class="is-loading" :component="ReloadOutline" size="40" />
             <span>加载时间序列数据...</span>
           </div>
         </div>
@@ -305,7 +305,7 @@
         <div class="workorder-actions">
           <n-button type="primary" size="small" @click.stop="downloadWorkorder">
             <template #icon>
-              <n-icon><DownloadIcon /></n-icon>
+              <n-icon :component="DownloadOutline" />
             </template>
             下载完整工单
           </n-button>
@@ -335,9 +335,9 @@
 import { ref, computed, watch, nextTick } from 'vue'
 import { useMessage } from 'naive-ui'
 import { ElMessage } from 'element-plus'
-import { Download, CircleCheck, Loading } from '@element-plus/icons-vue'
 import { NButton, NIcon } from 'naive-ui'
 import {
+  DownloadOutline,
   CheckmarkCircleOutline,
   CloseCircleOutline,
   FlaskOutline,
@@ -345,11 +345,11 @@ import {
   BarChartOutline,
   BulbOutline,
   DocumentTextOutline,
-  Download as DownloadIcon,
   BuildOutline,
   LayersOutline,
   SettingsOutline,
-  RocketOutline
+  RocketOutline,
+  ReloadOutline
 } from '@vicons/ionicons5'
 import { useWorkflowStore } from '../stores/workflow'
 import { getConfidenceColor, getConfidenceBadge } from '../utils/markdown'
@@ -792,8 +792,8 @@ watch(
 
 <style scoped>
 .right-panel {
-  min-width: 400px;
-  max-width: 800px;
+  min-width: 600px;
+  max-width: 1000px;
   background: var(--bg-secondary);
   padding: 20px;
   overflow-y: auto;

@@ -11,7 +11,7 @@
           secondary
         >
           <template #icon>
-            <n-icon><VideoPlay /></n-icon>
+            <n-icon :component="PlayOutline" />
           </template>
           加载示例
         </n-button>
@@ -21,7 +21,7 @@
           secondary
         >
           <template #icon>
-            <n-icon><RefreshLeft /></n-icon>
+            <n-icon :component="RefreshOutline" />
           </template>
           清空
         </n-button>
@@ -42,7 +42,7 @@
           <el-collapse-item name="composition">
             <template #title>
               <div class="collapse-title">
-                <el-icon class="title-icon"><Operation /></el-icon>
+                <n-icon class="title-icon" :component="ConstructOutline" />
                 <span class="title-text">涂层成分</span>
                 <el-tag v-if="compositionSum > 0" size="small" type="info">
                   {{ compositionSum.toFixed(1) }}%
@@ -131,7 +131,7 @@
                 dashed
               >
                 <template #icon>
-                  <n-icon><Plus /></n-icon>
+                  <n-icon :component="AddOutline" />
                 </template>
                 添加元素
               </n-button>
@@ -142,7 +142,7 @@
           <el-collapse-item name="process">
             <template #title>
               <div class="collapse-title">
-                <el-icon class="title-icon"><Setting /></el-icon>
+                <n-icon class="title-icon" :component="SettingsOutline" />
                 <span class="title-text">工艺参数</span>
               </div>
             </template>
@@ -239,7 +239,7 @@
                 dashed
               >
                 <template #icon>
-                  <n-icon><Plus /></n-icon>
+                  <n-icon :component="AddOutline" />
                 </template>
                 添加气体
               </n-button>
@@ -250,7 +250,7 @@
           <el-collapse-item name="structure">
             <template #title>
               <div class="collapse-title">
-                <el-icon class="title-icon"><Tools /></el-icon>
+                <n-icon class="title-icon" :component="BuildOutline" />
                 <span class="title-text">结构设计</span>
                 <el-tag v-if="formData.structure_type" size="small" type="info">
                   {{ formData.structure_type === 'multi' ? '多层' : '单层' }}
@@ -300,7 +300,7 @@
                 dashed
               >
                 <template #icon>
-                  <n-icon><Plus /></n-icon>
+                  <n-icon :component="AddOutline" />
                 </template>
                 添加层
               </n-button>
@@ -325,7 +325,7 @@
           <el-collapse-item name="performance">
             <template #title>
               <div class="collapse-title">
-                <el-icon class="title-icon"><Odometer /></el-icon>
+                <n-icon class="title-icon" :component="SpeedometerOutline" />
                 <span class="title-text">性能需求</span>
               </div>
             </template>
@@ -434,16 +434,17 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { NIcon } from 'naive-ui'
 import { 
-  Operation,
-  Setting,
-  Tools,
-  Odometer,
-  Plus,
-  Delete,
-  RefreshLeft,
-  VideoPlay
-} from '@element-plus/icons-vue'
+  ConstructOutline,
+  SettingsOutline,
+  BuildOutline,
+  SpeedometerOutline,
+  AddOutline,
+  TrashOutline,
+  RefreshOutline,
+  PlayOutline
+} from '@vicons/ionicons5'
 import { useWorkflowStore } from '../stores/workflow'
 
 const workflowStore = useWorkflowStore()

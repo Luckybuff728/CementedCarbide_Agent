@@ -51,6 +51,6 @@ frontend/.vite/
 .DS_Store
 Thumbs.db
 
-*.vtk
+# *.vtk
 
-涂层-调幅分解
+# 涂层-调幅分解

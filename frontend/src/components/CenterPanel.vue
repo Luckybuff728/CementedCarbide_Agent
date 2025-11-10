@@ -4,20 +4,20 @@
       <div class="header-left">
         <h3>分析过程</h3>
         <el-tag v-if="workflowStore.isProcessing" type="warning" size="small">
-          <el-icon class="is-loading"><Loading /></el-icon>
+          <n-icon class="is-loading" :component="ReloadOutline" />
           正在处理...
         </el-tag>
       </div>
       <div class="actions">
         <n-button text size="small" @click="expandAll">
           <template #icon>
-            <n-icon><Expand /></n-icon>
+            <n-icon :component="ExpandOutline" />
           </template>
           全部展开
         </n-button>
         <n-button text size="small" @click="collapseAll">
           <template #icon>
-            <n-icon><Contract /></n-icon>
+            <n-icon :component="ContractOutline" />
           </template>
           全部收起
         </n-button>
@@ -131,9 +131,7 @@
             <el-tag type="success" size="small">已完成</el-tag>
           </div>
           <div class="header-right">
-            <el-icon class="toggle-icon">
-              <component :is="optimizationCollapsed ? 'ArrowDown' : 'ArrowUp'" />
-            </el-icon>
+            <n-icon class="toggle-icon" :component="optimizationCollapsed ? ChevronDownOutline : ChevronUpOutline" />
           </div>
         </div>
         <transition name="collapse">
@@ -186,7 +184,7 @@
             <!-- 底部操作栏 -->
             <div class="card-footer">
               <el-button text size="small" @click="copyOptimizationContent">
-                <el-icon><DocumentCopy /></el-icon>
+                <n-icon :component="CopyOutline" />
                 复制
               </el-button>
             </div>
@@ -210,7 +208,7 @@
     <transition name="fade">
       <div v-if="showScrollToBottom" class="scroll-to-bottom" @click="handleScrollToBottomClick">
         <el-button type="primary" circle size="large">
-          <el-icon><ArrowDown /></el-icon>
+          <n-icon :component="ChevronDownOutline" />
         </el-button>
       </div>
     </transition>
@@ -219,23 +217,24 @@
 
 <script setup>
 import { ref, computed, watch, nextTick } from 'vue'
-import { Loading, ArrowDown, ArrowUp, DocumentCopy } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { NButton, NIcon } from 'naive-ui'
 import {
-  DocumentTextOutline,
-  Expand,
-  Contract,
-  BulbOutline,
-  FlaskOutline,
-  BuildOutline,
-  SettingsOutline as SettingsOutlineIcon,
-  CheckmarkCircle,
-  TimeOutline,
+  ReloadOutline,
+  ChevronDownOutline,
+  ChevronUpOutline,
+  CopyOutline,
   CheckmarkCircleOutline,
+  CloseCircleOutline,
+  FlaskOutline,
+  DocumentTextOutline,
+  BulbOutline,
   RadioButtonOnOutline,
   BarChartOutline,
-  ArrowForwardOutline
+  ArrowForwardOutline,
+  ExpandOutline,
+  ContractOutline,
+  CheckmarkCircle
 } from '@vicons/ionicons5'
 import { useWorkflowStore } from '../stores/workflow'
 import ProcessCard from './ProcessCard.vue'

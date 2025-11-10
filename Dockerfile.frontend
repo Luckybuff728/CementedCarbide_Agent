@@ -2,16 +2,24 @@
 # TopMat Agent 前端 Dockerfile (精简版)
 # ============================================
 
-# 第一阶段: 构建
-FROM node:18-alpine as builder
+# 第一阶段: 构建（使用 Debian 而非 Alpine，解决 rolldown 原生绑定问题）
+FROM node:20-slim AS builder
 
 WORKDIR /app
 
-# 复制依赖文件
-COPY frontend/package*.json ./
+# 安装构建工具（用于编译原生模块）
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends python3 make g++ && \
+    rm -rf /var/lib/apt/lists/*
 
-# 安装依赖
-RUN npm ci --only=production
+# 复制依赖文件（不复制 package-lock.json，避免可选依赖问题）
+COPY frontend/package.json ./
+
+# 配置 npm 镜像源（加速构建）
+RUN npm config set registry https://registry.npmmirror.com
+
+# 使用 npm install 而非 npm ci（避免 rolldown 可选依赖bug）
+RUN npm install --legacy-peer-deps
 
 # 复制源代码
 COPY frontend/ .

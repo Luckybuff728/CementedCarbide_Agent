@@ -39,7 +39,9 @@ docker-compose up -d
 # API文档: http://localhost/api/docs
 ```
 
-📖 详细说明: [Docker 部署指南](DOCKER_DEPLOY.md)
+📖 详细说明: 
+- [Docker 部署指南](DOCKER_DEPLOY.md)
+- [VTK数据部署方案](docs/VTK数据部署方案.md) - 包含VTK可视化数据的部署选项
 
 ### 方式二：本地开发部署
 

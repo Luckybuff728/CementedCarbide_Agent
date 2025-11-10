@@ -34,10 +34,16 @@ export default defineConfig(({ mode }) => {
         chunkFileNames: 'js/[name]-[hash].js',
         entryFileNames: 'js/[name]-[hash].js',
         assetFileNames: '[ext]/[name]-[hash].[ext]',
-        // 代码分割
-        manualChunks: {
-          'element-plus': ['element-plus'],
-          'vue-vendor': ['vue', 'pinia']
+        // 代码分割（函数格式，兼容 rolldown）
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('element-plus')) {
+              return 'element-plus'
+            }
+            if (id.includes('vue') || id.includes('pinia')) {
+              return 'vue-vendor'
+            }
+          }
         }
       }
     }

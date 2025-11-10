@@ -44,11 +44,11 @@ export function useLayoutManager() {
     if (resizeDirection === 'left') {
       // 左侧面板：向右拖动增大，向左拖动减小
       const newWidth = startWidth + delta
-      leftWidth.value = Math.max(280, Math.min(600, newWidth))
+      leftWidth.value = Math.max(280, Math.min(400, newWidth))
     } else if (resizeDirection === 'right') {
       // 右侧面板：向左拖动增大，向右拖动减小
       const newWidth = startWidth - delta
-      rightWidth.value = Math.max(400, Math.min(800, newWidth))
+      rightWidth.value = Math.max(800, Math.min(1200, newWidth))
     }
   }
   

@@ -6,13 +6,11 @@
         <span v-else-if="icon" class="icon">{{ icon }}</span>
         <h4>{{ title }}</h4>
         <el-tag v-if="isStreaming" type="warning" size="small">
-          <el-icon class="is-loading"><Loading /></el-icon>
+          <n-icon class="is-loading" :component="ReloadOutline" />
           生成中
         </el-tag>
       </div>
-      <el-icon class="toggle-icon">
-        <component :is="collapsed ? 'ArrowDown' : 'ArrowUp'" />
-      </el-icon>
+      <n-icon class="toggle-icon" :component="collapsed ? ChevronDownOutline : ChevronUpOutline" />
     </div>
     
     <transition name="collapse">
@@ -25,8 +23,8 @@
 
 <script setup>
 import { computed } from 'vue'
-import { Loading, ArrowDown, ArrowUp } from '@element-plus/icons-vue'
 import { NIcon } from 'naive-ui'
+import { ReloadOutline, ChevronDownOutline, ChevronUpOutline } from '@vicons/ionicons5'
 import MarkdownRenderer from './MarkdownRenderer.vue'
 
 const props = defineProps({

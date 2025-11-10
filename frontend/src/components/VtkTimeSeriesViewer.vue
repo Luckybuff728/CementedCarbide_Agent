@@ -6,13 +6,13 @@
       
       <!-- 加载状态 -->
       <div v-if="loading" class="loading-overlay">
-        <el-icon class="is-loading" :size="40"><Loading /></el-icon>
+        <n-icon class="is-loading" :component="ReloadOutline" size="40" />
         <p>{{ loadingText }}</p>
       </div>
       
       <!-- 错误提示 -->
       <div v-if="error" class="error-message">
-        <el-icon :size="40"><CircleClose /></el-icon>
+        <n-icon :component="CloseCircleOutline" size="40" />
         <p>{{ error }}</p>
       </div>
       
@@ -21,17 +21,28 @@
         <div class="control-buttons">
           <el-button-group>
             <!-- 播放/暂停 -->
-            <el-button @click="togglePlayback" :icon="isPlaying ? VideoPause : VideoPlay">
+            <el-button @click="togglePlayback">
+              <n-icon :component="isPlaying ? PauseOutline : PlayOutline" />
               {{ isPlaying ? '暂停' : '播放' }}
             </el-button>
             <!-- 上一帧 -->
-            <el-button @click="previousFrame" :icon="DArrowLeft" :disabled="currentFrameIndex === 0" />
+            <el-button @click="previousFrame" :disabled="currentFrameIndex === 0">
+              <n-icon :component="ChevronBackOutline" />
+            </el-button>
             <!-- 下一帧 -->
-            <el-button @click="nextFrame" :icon="DArrowRight" :disabled="currentFrameIndex === timeSeriesFiles.length - 1" />
+            <el-button @click="nextFrame" :disabled="currentFrameIndex === timeSeriesFiles.length - 1">
+              <n-icon :component="ChevronForwardOutline" />
+            </el-button>
             <!-- 重置视角 -->
-            <el-button @click="resetCamera" :icon="RefreshRight">重置</el-button>
+            <el-button @click="resetCamera">
+              <n-icon :component="RefreshOutline" />
+              重置
+            </el-button>
             <!-- 下载当前帧 -->
-            <el-button @click="downloadCurrentFrame" :icon="Download">下载</el-button>
+            <el-button @click="downloadCurrentFrame">
+              <n-icon :component="DownloadOutline" />
+              下载
+            </el-button>
           </el-button-group>
         </div>
         
@@ -137,16 +148,17 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount, computed, watch, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
+import { NIcon } from 'naive-ui'
 import { 
-  Loading, 
-  CircleClose, 
-  RefreshRight, 
-  Download,
-  VideoPlay,
-  VideoPause,
-  DArrowLeft,
-  DArrowRight
-} from '@element-plus/icons-vue'
+  ReloadOutline,
+  PlayOutline,
+  PauseOutline,
+  ChevronBackOutline,
+  ChevronForwardOutline,
+  RefreshOutline,
+  DownloadOutline,
+  CloseCircleOutline
+} from '@vicons/ionicons5'
 import { API_BASE_URL } from '../config'
 
 // VTK.js 导入

@@ -5,17 +5,13 @@
     
     <!-- 加载状态 -->
     <div v-if="loading" class="loading-overlay">
-      <el-icon class="is-loading" :size="40">
-        <Loading />
-      </el-icon>
+      <n-icon class="is-loading" :component="ReloadOutline" size="40" />
       <p>加载VTK数据中...</p>
     </div>
     
     <!-- 错误提示 -->
     <div v-if="error" class="error-message">
-      <el-icon :size="24" color="#f56c6c">
-        <CircleClose />
-      </el-icon>
+      <n-icon :component="CloseCircleOutline" size="24" color="#f56c6c" />
       <p>{{ error }}</p>
     </div>
     
@@ -23,13 +19,13 @@
     <div v-if="!loading && !error" class="controls">
       <el-button-group size="small">
         <el-button @click="resetCamera" title="重置视角">
-          <el-icon><RefreshRight /></el-icon>
+          <n-icon :component="RefreshOutline" />
         </el-button>
         <el-button @click="toggleWireframe" title="切换线框">
-          <el-icon><Grid /></el-icon>
+          <n-icon :component="GridOutline" />
         </el-button>
         <el-button @click="downloadVTK" title="下载VTK文件">
-          <el-icon><Download /></el-icon>
+          <n-icon :component="DownloadOutline" />
         </el-button>
       </el-button-group>
       
@@ -43,7 +39,8 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Loading, CircleClose, RefreshRight, Grid, Download } from '@element-plus/icons-vue'
+import { NIcon } from 'naive-ui'
+import { ReloadOutline, CloseCircleOutline, RefreshOutline, GridOutline, DownloadOutline } from '@vicons/ionicons5'
 import { API_BASE_URL } from '../config'
 
 // VTK.js 导入
