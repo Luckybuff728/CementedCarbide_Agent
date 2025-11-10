@@ -60,7 +60,7 @@
             <div class="step-info">
               <div class="step-title">
                 <n-icon :component="RadioButtonOnOutline" />
-                <span>AI性能预测</span>
+                <span>ML性能预测</span>
               </div>
               <div class="step-desc">机器学习预测硬度、结合力等性能指标</div>
             </div>

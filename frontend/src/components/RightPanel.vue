@@ -21,7 +21,7 @@
         </div>
         <div class="feature-item">
           <n-icon :component="CheckmarkCircleOutline" color="#10b981" />
-          <span>AI性能预测与历史对比</span>
+          <span>ML性能预测与历史对比</span>
         </div>
         <div class="feature-item">
           <n-icon :component="CheckmarkCircleOutline" color="#10b981" />
