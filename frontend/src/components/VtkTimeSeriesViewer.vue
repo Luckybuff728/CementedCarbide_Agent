@@ -385,7 +385,7 @@ const loadFrame = async (frameIndex, showLoading = true) => {
   error.value = null
   
   try {
-    const vtkUrl = `${props.baseUrl}/api/vtk/files/${fileName}`
+    const vtkUrl = `${API_BASE_URL}/api/vtk/files/${fileName}`
     
     // 使用fetch直接获取VTK文件内容
     const response = await fetch(vtkUrl)
@@ -768,7 +768,7 @@ const resetCamera = () => {
 const downloadCurrentFrame = () => {
   const fileInfo = props.timeSeriesFiles[currentFrameIndex.value]
   if (fileInfo) {
-    const url = `${props.baseUrl}/api/vtk/files/${fileInfo.name}`
+    const url = `${API_BASE_URL}/api/vtk/files/${fileInfo.name}`
     window.open(url, '_blank')
   }
 }

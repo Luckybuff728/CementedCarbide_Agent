@@ -17,7 +17,7 @@
         </div>
         <div class="feature-item">
           <n-icon :component="CheckmarkCircleOutline" color="#10b981" />
-          <span>相场模拟</span>
+          <span>TopPhi相场模拟</span>
         </div>
         <div class="feature-item">
           <n-icon :component="CheckmarkCircleOutline" color="#10b981" />
@@ -285,7 +285,7 @@
       v-if="workflowStore.displayExperimentWorkorder" 
       icon=""
       :icon-component="DocumentTextOutline"
-      title="实验工单"
+      :title="getWorkorderSolutionName()"
       :clickable="true"
       @click="jumpToNode('experiment_workorder')"
     >
@@ -296,7 +296,7 @@
         </div>
         <div class="summary-row">
           <span class="label">实验目标</span>
-          <span class="value">AlTiN涂层性能优化</span>
+          <span class="value">{{ getWorkorderSolutionName() }}</span>
         </div>
         <div class="summary-row">
           <span class="label">优化方案</span>
@@ -353,6 +353,7 @@ import {
 } from '@vicons/ionicons5'
 import { useWorkflowStore } from '../stores/workflow'
 import { getConfidenceColor, getConfidenceBadge } from '../utils/markdown'
+import { generateWorkorderPDF } from '../utils/pdfExporter'
 import { API_BASE_URL } from '../config'
 import SummaryCard from './SummaryCard.vue'
 import MarkdownRenderer from './MarkdownRenderer.vue'
@@ -652,23 +653,79 @@ const getSelectedPlan = () => {
   return '综合方案'
 }
 
-// 下载工单
-const downloadWorkorder = () => {
+// 从优化方案内容中提取方案名称
+const extractSolutionName = (content) => {
+  if (!content) return ''
+  
+  // 匹配 "## 方案名称" 下的内容
+  const match = content.match(/##\s*方案名称\s*[\r\n]+([^\r\n#]+)/)
+  if (match && match[1]) {
+    return match[1].trim()
+  }
+  return ''
+}
+
+// 获取当前工单的方案名称
+const getWorkorderSolutionName = () => {
+  // 根据selectedOptimization获取对应的内容
+  let content = ''
+  let selection = workflowStore.selectedOptimization
+  
+  // 如果没有明确选择，从工单内容推断
+  if (!selection && workflowStore.displayExperimentWorkorder) {
+    const workorderContent = workflowStore.displayExperimentWorkorder
+    if (workorderContent.includes('P1') || workflowStore.displayP1Content) {
+      selection = 'P1'
+    } else if (workorderContent.includes('P2') || workflowStore.displayP2Content) {
+      selection = 'P2'
+    } else if (workorderContent.includes('P3') || workflowStore.displayP3Content) {
+      selection = 'P3'
+    }
+  }
+  
+  if (selection === 'P1') {
+    content = workflowStore.displayP1Content
+  } else if (selection === 'P2') {
+    content = workflowStore.displayP2Content
+  } else if (selection === 'P3') {
+    content = workflowStore.displayP3Content
+  }
+  
+  const name = extractSolutionName(content)
+  return name || 'AlTiN涂层性能优化'
+}
+
+// 下载工单（使用pdfmake，支持中文和智能分页）
+const downloadWorkorder = async () => {
   const content = workflowStore.displayExperimentWorkorder
   if (!content) {
     ElMessage.warning('没有工单内容')
     return
   }
   
-  const blob = new Blob([content], { type: 'text/markdown' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `experiment_workorder_${Date.now()}.md`
-  a.click()
-  URL.revokeObjectURL(url)
+  // 显示加载提示
+  const loadingMsg = ElMessage({
+    message: '正在生成PDF，请稍候...',
+    type: 'info',
+    duration: 0
+  })
   
-  message.success('工单已下载')
+  try {
+    // 获取工单编号和方案名称
+    const workorderNumber = getWorkorderNumber()
+    const solutionName = getWorkorderSolutionName()
+    
+    // 使用新的PDF生成工具
+    await generateWorkorderPDF(content, workorderNumber, solutionName)
+    
+    // 关闭加载提示并显示成功消息
+    loadingMsg.close()
+    ElMessage.success('工单PDF已下载')
+  } catch (error) {
+    console.error('生成PDF失败:', error)
+    loadingMsg.close()
+    ElMessage.error('生成PDF失败，请重试')
+  }
 }
 
 // 获取历史最优数据
@@ -792,8 +849,8 @@ watch(
 
 <style scoped>
 .right-panel {
-  min-width: 600px;
-  max-width: 1000px;
+  min-width: 350px;
+  max-width: 1100px;
   background: var(--bg-secondary);
   padding: 20px;
   overflow-y: auto;

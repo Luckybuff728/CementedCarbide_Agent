@@ -3,16 +3,18 @@
  * 统一管理所有配置项，避免硬编码
  */
 
-// API基础URL配置（开发模式使用相对路径，通过 Vite proxy 代理）
+// API基础URL配置（开发/生产都使用相对路径，通过代理访问后端）
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (
-  import.meta.env.DEV ? '' : 'http://localhost:8000'
+  import.meta.env.DEV 
+    ? '' // 开发模式：通过 Vite proxy 代理到 localhost:8000
+    : ''  // 生产模式：通过 Nginx 代理到后端容器
 )
 
-// WebSocket基础URL配置（开发模式动态获取当前 host）
+// WebSocket基础URL配置（动态获取当前主机）
 export const WS_BASE_URL = import.meta.env.VITE_WS_BASE_URL || (
   import.meta.env.DEV 
-    ? `ws://${window.location.hostname}:8000`
-    : 'ws://localhost:8000'
+    ? `ws://${window.location.hostname}:8000` // 开发模式：直连后端
+    : `ws://${window.location.host}`           // 生产模式：通过 Nginx 代理
 )
 
 // WebSocket端点
