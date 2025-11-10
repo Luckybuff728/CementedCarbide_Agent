@@ -24,7 +24,7 @@ wheels/
 .installed.cfg
 *.egg
 
-# 环境变量
+# 环境变量（保留.env.example作为模板）
 .env
 
 # IDE
@@ -51,6 +51,6 @@ frontend/.vite/
 .DS_Store
 Thumbs.db
 
-# *.vtk
-
-# 涂层-调幅分解
+# VTK文件和模拟数据（根据部署方案选择）
+*.vtk
+涂层-调幅分解

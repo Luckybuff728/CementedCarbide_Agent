@@ -5,8 +5,15 @@ import vue from '@vitejs/plugin-vue'
 export default defineConfig(({ mode }) => {
   // 加载环境变量
   const env = loadEnv(mode, process.cwd() + '/frontend', '')
-  const apiBaseUrl = env.VITE_API_BASE_URL || 'http://localhost:8000'
-  const wsBaseUrl = env.VITE_WS_BASE_URL || 'ws://localhost:8000'
+  
+  // 端口配置（统一从环境变量读取）
+  const backendHost = env.VITE_BACKEND_HOST || 'localhost'
+  const backendPort = env.VITE_BACKEND_PORT || '8000'
+  const devPort = parseInt(env.VITE_DEV_PORT || '5173')
+  
+  // 组装后端URL（支持完整URL覆盖）
+  const apiBaseUrl = env.VITE_API_BASE_URL || `http://${backendHost}:${backendPort}`
+  const wsBaseUrl = env.VITE_WS_BASE_URL || `ws://${backendHost}:${backendPort}`
 
   return {
     plugins: [vue()],
@@ -44,7 +51,7 @@ export default defineConfig(({ mode }) => {
   // 开发服务器配置
   server: {
     host: '0.0.0.0',
-    port: 5173,
+    port: devPort, // 从环境变量读取
     // API代理（开发环境）
     proxy: {
       '/api': {

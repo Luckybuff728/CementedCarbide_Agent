@@ -3,17 +3,25 @@
  * 统一管理所有配置项，避免硬编码
  */
 
-// API基础URL配置（开发/生产都使用相对路径，通过代理访问后端）
+// ==================== 端口配置 ====================
+// 从环境变量读取，提供默认值
+const BACKEND_HOST = import.meta.env.VITE_BACKEND_HOST || 'localhost'
+const BACKEND_PORT = import.meta.env.VITE_BACKEND_PORT || '8000'
+export const DEV_PORT = import.meta.env.VITE_DEV_PORT || '5173'
+
+// ==================== API基础URL配置 ====================
+// 优先使用完整URL配置，否则根据环境自动组装
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (
   import.meta.env.DEV 
     ? '' // 开发模式：通过 Vite proxy 代理到 localhost:8000
     : ''  // 生产模式：通过 Nginx 代理到后端容器
 )
 
-// WebSocket基础URL配置（动态获取当前主机）
+// ==================== WebSocket基础URL配置 ====================
+// 优先使用完整URL配置，否则根据环境自动组装
 export const WS_BASE_URL = import.meta.env.VITE_WS_BASE_URL || (
   import.meta.env.DEV 
-    ? `ws://${window.location.hostname}:8000` // 开发模式：直连后端
+    ? `ws://${window.location.hostname}:${BACKEND_PORT}` // 开发模式：直连后端
     : `ws://${window.location.host}`           // 生产模式：通过 Nginx 代理
 )
 
