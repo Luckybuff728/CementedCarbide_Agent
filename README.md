@@ -32,6 +32,10 @@ cp .env.example .env
 
 # 2. 构建并启动
 docker-compose build
+#或单独构建
+docker build --file .\Dockerfile.frontend -t topmat_agent-frontend .
+docker build --file .\Dockerfile.backend -t topmat_agent-backend .
+# 启动
 docker-compose up -d
 
 # 3. 访问应用
