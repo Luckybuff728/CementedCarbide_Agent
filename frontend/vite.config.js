@@ -28,7 +28,6 @@ export default defineConfig(({ mode }) => {
         chunkFileNames: 'js/[name]-[hash].js',
         entryFileNames: 'js/[name]-[hash].js',
         assetFileNames: '[ext]/[name]-[hash].[ext]',
-<<<<<<< HEAD
         // 代码分割
          manualChunks(id) {
           if (id.includes('element-plus')) {
