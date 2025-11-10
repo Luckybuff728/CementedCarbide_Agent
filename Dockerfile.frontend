@@ -1,17 +1,20 @@
-# ============================================
-# TopMat Agent 前端 Dockerfile (精简版)
-# ============================================
+# TopMat Agent 前端生产环境镜像
+# 多阶段构建，最小化镜像大小
 
-# 第一阶段: 构建
-FROM node:18-alpine as builder
+# ==================== 构建阶段 ====================
+FROM node:20-alpine as builder
 
+# 设置工作目录
 WORKDIR /app
 
-# 复制依赖文件
+# 安装构建工具和Python
+RUN apk add --no-cache python3 make g++
+
+# 复制package文件
 COPY frontend/package*.json ./
 
 # 安装依赖
-RUN npm ci --only=production
+RUN npm install --ignore-scripts
 
 # 复制源代码
 COPY frontend/ .
@@ -19,31 +22,35 @@ COPY frontend/ .
 # 构建生产版本
 RUN npm run build
 
-# ============================================
-# 第二阶段: Nginx服务
-FROM nginx:alpine
+# ==================== 运行阶段 ====================
+FROM nginx:1.25-alpine
 
-# 复制自定义nginx配置
-COPY nginx.conf /etc/nginx/nginx.conf
+# 创建非root用户
+RUN addgroup -g 1001 -S appuser && \
+    adduser -S -D -H -u 1001 -h /var/cache/nginx -s /sbin/nologin -G appuser appuser
+
+# 复制主nginx配置
+COPY nginx-main.conf /etc/nginx/nginx.conf
+
+# 复制站点配置
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # 从构建阶段复制构建产物
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# 创建非root用户
-RUN addgroup -g 1000 topmat && \
-    adduser -D -u 1000 -G topmat topmat && \
-    chown -R topmat:topmat /usr/share/nginx/html && \
-    chown -R topmat:topmat /var/cache/nginx && \
-    chown -R topmat:topmat /var/log/nginx && \
+# 调整权限
+RUN chown -R appuser:appuser /usr/share/nginx/html && \
+    chown -R appuser:appuser /var/cache/nginx && \
+    chown -R appuser:appuser /var/log/nginx && \
     touch /var/run/nginx.pid && \
-    chown -R topmat:topmat /var/run/nginx.pid
+    chown -R appuser:appuser /var/run/nginx.pid
 
 # 切换到非root用户
-USER topmat
+USER appuser
 
 # 健康检查
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD wget --quiet --tries=1 --spider http://localhost/ || exit 1
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:80/ || exit 1
 
 # 暴露端口
 EXPOSE 80

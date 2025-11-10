@@ -18,13 +18,7 @@ export default defineConfig(({ mode }) => {
     // 启用CSS代码分割
     cssCodeSplit: true,
     // 构建优化
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: true, // 移除console
-        drop_debugger: true
-      }
-    },
+    minify: true,
     // chunk大小警告限制
     chunkSizeWarningLimit: 1000,
     // rollup配置
@@ -35,9 +29,13 @@ export default defineConfig(({ mode }) => {
         entryFileNames: 'js/[name]-[hash].js',
         assetFileNames: '[ext]/[name]-[hash].[ext]',
         // 代码分割
-        manualChunks: {
-          'element-plus': ['element-plus'],
-          'vue-vendor': ['vue', 'pinia']
+         manualChunks(id) {
+          if (id.includes('element-plus')) {
+            return 'element-plus'
+          }
+          if (id.includes('vue') || id.includes('pinia')) {
+            return 'vue-vendor'
+          }
         }
       }
     }
