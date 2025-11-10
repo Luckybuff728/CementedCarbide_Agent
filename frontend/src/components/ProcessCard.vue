@@ -10,9 +10,7 @@
       </div>
       <div class="header-right">
         <span v-if="step.timestamp" class="timestamp">{{ formatTime(step.timestamp) }}</span>
-        <el-icon class="toggle-icon">
-          <component :is="collapsed ? 'ArrowDown' : 'ArrowUp'" />
-        </el-icon>
+        <n-icon class="toggle-icon" :component="collapsed ? ChevronDownOutline : ChevronUpOutline" />
       </div>
     </div>
     <transition name="collapse">
@@ -22,7 +20,7 @@
         <!-- 底部操作栏 -->
         <div class="card-footer">
           <el-button text size="small" @click="copyContent">
-            <el-icon><DocumentCopy /></el-icon>
+            <n-icon :component="CopyOutline" />
             复制
           </el-button>
         </div>
@@ -34,9 +32,12 @@
 <script setup>
 import { ref, computed, watch, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
-import { ArrowDown, ArrowUp, DocumentCopy, Loading } from '@element-plus/icons-vue'
 import { NIcon } from 'naive-ui'
 import {
+  ChevronDownOutline,
+  ChevronUpOutline,
+  CopyOutline,
+  ReloadOutline,
   HourglassOutline,
   Settings,
   CheckmarkCircle,

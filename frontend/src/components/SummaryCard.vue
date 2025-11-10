@@ -10,9 +10,7 @@
         <el-tag v-if="badge" :type="badge.type" size="small">
           {{ badge.text }}
         </el-tag>
-        <el-icon v-if="clickable" class="click-icon">
-          <ArrowRight />
-        </el-icon>
+        <n-icon v-if="clickable" class="click-icon" :component="ArrowForwardOutline" />
       </div>
     </div>
     <div class="card-body">
@@ -22,8 +20,8 @@
 </template>
 
 <script setup>
-import { ArrowRight } from '@element-plus/icons-vue'
 import { NIcon } from 'naive-ui'
+import { ArrowForwardOutline } from '@vicons/ionicons5'
 
 defineProps({
   icon: {

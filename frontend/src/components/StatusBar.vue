@@ -50,7 +50,7 @@
           type="warning"
         >
           <template #icon>
-            <n-icon><ArrowBackOutline /></n-icon>
+            <n-icon :component="ArrowBackOutline" />
           </template>
           返回当前 (第{{ workflowStore.currentIteration }}轮)
         </n-button>
@@ -64,7 +64,7 @@
             secondary
           >
             <template #icon>
-              <n-icon><Download /></n-icon>
+              <n-icon :component="DownloadOutline" />
             </template>
             导出
           </n-button>
@@ -75,7 +75,7 @@
             secondary
           >
             <template #icon>
-              <n-icon><Trash /></n-icon>
+              <n-icon :component="TrashOutline" />
             </template>
             清空
           </n-button>
@@ -94,8 +94,8 @@ import {
   HourglassOutline, 
   EllipseOutline,
   Settings,
-  Download,
-  Trash,
+  DownloadOutline,
+  TrashOutline,
   ArrowBackOutline
 } from '@vicons/ionicons5'
 import { useWorkflowStore } from '../stores/workflow'
