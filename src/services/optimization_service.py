@@ -5,7 +5,7 @@ from typing import Dict, List, Any, Optional
 from enum import Enum
 import logging
 import re
-from ..llm.llm_config import get_material_expert_llm, MATERIAL_EXPERT_PROMPT
+from ..llm import get_llm_service, MATERIAL_EXPERT_PROMPT
 from langchain_core.messages import SystemMessage, HumanMessage
 
 logger = logging.getLogger(__name__)
@@ -22,14 +22,15 @@ class OptimizationService:
     """优化建议生成服务"""
     
     def __init__(self):
-        self.llm = get_material_expert_llm()
+        self.llm_service = get_llm_service()
+        logger.info("[优化服务] 初始化完成 - 使用统一优化方法")
         
     def generate_optimization_suggestion(
         self,
         optimization_type: OptimizationType,
         state: Dict[str, Any],
         stream_callback: Optional[callable] = None
-    ) -> str:
+    ) -> Dict[str, Any]:
         """
         统一的优化建议生成方法 - 简化版，只返回原始内容
         
@@ -39,7 +40,7 @@ class OptimizationService:
             stream_callback: 流式输出回调
             
         Returns:
-            优化建议的原始文本内容
+            优化建议结果（统一结构字典）
         """
         logger.info(f"[{optimization_type.value}] 开始生成优化建议")
         
@@ -61,26 +62,48 @@ class OptimizationService:
         )
         
         # LLM流式生成
-        content = ""
         try:
             logger.info(f"[{optimization_type.value}] 开始LLM流式生成...")
-            for chunk in self.llm.stream([
-                SystemMessage(content=MATERIAL_EXPERT_PROMPT),
-                HumanMessage(content=prompt)
-            ]):
-                if hasattr(chunk, 'content') and chunk.content:
-                    content += chunk.content
-                    # 发送流式输出
-                    if stream_callback:
-                        stream_callback(optimization_type.name.lower(), chunk.content)
+            
+            def _callback(chunk_content):
+                if stream_callback:
+                    stream_callback(optimization_type.name.lower(), chunk_content)
+            
+            content = self.llm_service.generate_stream(
+                prompt=prompt,
+                stream_callback=_callback
+            )
             
             logger.info(f"[{optimization_type.value}] 建议生成完成，长度: {len(content)}")
             
+            data = {
+                "content": content
+            }
+            
+            return {
+                "status": "success",
+                "data": data,
+                "message": f"{optimization_type.value}建议生成完成",
+                "error": None,
+                "meta": {
+                    "optimization_type": optimization_type.name
+                }
+            }
+            
         except Exception as e:
             logger.error(f"[{optimization_type.value}] 生成失败: {str(e)}")
-            content = f"{optimization_type.value}建议生成失败，请稍后重试"
-        
-        return content
+            return {
+                "status": "error",
+                "data": {},
+                "message": f"{optimization_type.value}建议生成失败，请稍后重试",
+                "error": {
+                    "type": "llm_error",
+                    "details": str(e)
+                },
+                "meta": {
+                    "optimization_type": optimization_type.name
+                }
+            }
     
     def _create_optimization_prompt(
         self,
@@ -147,9 +170,10 @@ class OptimizationService:
 {structure_str}
 
 ### 4. 当前性能预测
-- 预测硬度: {current_performance.get('hardness', 0)} GPa
-- 结合力等级: {current_performance.get('adhesion_level', 'N/A')}
-- 氧化温度: {current_performance.get('oxidation_temperature', 0)}°C
+- 预测纳米硬度: {current_performance.get('hardness', 0)} GPa
+- 弹性模量: {current_performance.get('elastic_modulus', 0)} GPa
+- 磨损率: {current_performance.get('wear_rate', 0)} mm³/(N·m)
+- 结合力: {current_performance.get('adhesion_strength', 0)} N
 
 ### 5. 目标需求
 {target_str}
@@ -187,6 +211,7 @@ class OptimizationService:
 - [关键注意点3]
 
 要求：
+- 100字
 - **必须严格遵循上述Markdown格式结构**
 - 紧密结合当前参数数据进行分析
 - 提供具有材料学依据的优化方案

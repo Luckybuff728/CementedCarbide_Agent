@@ -149,7 +149,9 @@ class TopPhiService:
                 "data_type": vtk_metadata.get("data_type"),
                 "scalar_name": vtk_metadata.get("scalar_name"),
                 # 提供相对路径供前端访问
-                "relative_path": vtk_file_path.name
+                "relative_path": vtk_file_path.name,
+                # 前端VTK组件需要的file字段（API路径）
+                "file": f"/api/vtk/files/{vtk_file_path.name}"
             }
             
             logger.info(f"[VTK] 解析完成 - 维度: {vtk_metadata.get('dimensions')}, 点数: {vtk_metadata.get('point_count')}")
@@ -230,5 +232,6 @@ class TopPhiService:
             "point_count": 0,
             "data_type": None,
             "scalar_name": None,
-            "relative_path": None
+            "relative_path": None,
+            "file": None  # 前端VTK组件需要的file字段
         }

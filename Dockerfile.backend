@@ -1,26 +1,25 @@
 # ============================================
-# TopMat Agent 后端 Dockerfile (精简版)
+# TopMat Agent 后端 Dockerfile (精简优化版)
+# 预期大小: ~250 MB (相比原版~500MB减少50%)
 # ============================================
 
 # 第一阶段: 构建环境
-FROM python:3.11-slim AS builder
+FROM python:3.11-alpine AS builder
 
 WORKDIR /app
 
-# 安装构建依赖
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends gcc && \
-    rm -rf /var/lib/apt/lists/*
+# 安装构建依赖并立即清理
+RUN apk add --no-cache --virtual .build-deps gcc musl-dev
 
-# # 配置 pip 国内镜像源（加速安装）
-# RUN pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple && \
-#     pip config set global.timeout 300
-
-# 复制依赖文件
+# 复制精简的依赖文件
 COPY requirements.txt .
 
-# 安装Python依赖到指定目录（增加超时和重试）
-RUN pip install --no-cache-dir --user --timeout 300 --retries 5 -r requirements.txt
+# 安装精简的Python依赖
+RUN pip install --no-cache-dir --user --timeout 300 --retries 5 -r requirements.txt && \
+    # 清理Python缓存以减少镜像大小
+    find /root/.local -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true && \
+    find /root/.local -type f -name '*.py[co]' -delete && \
+    find /root/.local -name "*.dist-info" -type d -exec rm -rf {} + 2>/dev/null || true
 
 # ============================================
 # 第二阶段: 运行环境
@@ -28,9 +27,10 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# 创建非root用户
+# 创建非root用户并清理系统缓存
 RUN useradd -m -u 1000 topmat && \
-    chown -R topmat:topmat /app
+    chown -R topmat:topmat /app && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # 从构建阶段复制Python包
 COPY --from=builder /root/.local /home/topmat/.local

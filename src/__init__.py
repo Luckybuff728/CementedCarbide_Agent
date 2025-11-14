@@ -13,9 +13,7 @@ from .models.coating_models import (
     ProcessParameters,
     StructureDesign,
     TargetRequirements,
-    CoatingInput,
-    PerformancePrediction,
-    OptimizationSuggestion
+    CoatingInput
 )
 
 __all__ = [
@@ -24,7 +22,5 @@ __all__ = [
     "ProcessParameters",
     "StructureDesign",
     "TargetRequirements",
-    "CoatingInput",
-    "PerformancePrediction",
-    "OptimizationSuggestion"
+    "CoatingInput"
 ]

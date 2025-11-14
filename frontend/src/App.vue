@@ -7,11 +7,11 @@ import { useWorkflowHandler } from './composables/useWorkflowHandler'
 import { useLayoutManager } from './composables/useLayoutManager'
 import { WS_ENDPOINTS } from './config'
 
-import ErrorBoundary from './components/ErrorBoundary.vue'
-import StatusBar from './components/StatusBar.vue'
-import LeftPanel from './components/LeftPanel.vue'
-import CenterPanel from './components/CenterPanel.vue'
-import RightPanel from './components/RightPanel.vue'
+import ErrorBoundary from './components/layout/ErrorBoundary.vue'
+import StatusBar from './components/layout/StatusBar.vue'
+import LeftPanel from './components/layout/LeftPanel.vue'
+import CenterPanel from './components/layout/CenterPanel.vue'
+import RightPanel from './components/layout/RightPanel.vue'
 
 // ==================== 初始化 ====================
 const workflowStore = useWorkflowStore()

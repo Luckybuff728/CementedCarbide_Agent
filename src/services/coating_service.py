@@ -5,6 +5,7 @@ from typing import Dict, List, Any, Optional
 import logging
 import json
 import time
+from datetime import datetime
 from .validation_service import ValidationService
 from .optimization_service import OptimizationService, OptimizationType
 from .topphi_service import TopPhiService
@@ -25,6 +26,16 @@ class CoatingService:
         self.ml_service = MLPredictionService()
         self.historical_service = HistoricalDataService()
     
+    def _wrap_success(self, data: Dict[str, Any], message: str = "", meta: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """统一封装成功结果 - 提供status/data/message/meta结构"""
+        return {
+            "status": "success",
+            "data": data,
+            "message": message,
+            "error": None,
+            "meta": meta or {}
+        }
+    
     def validate_input(self, state: Dict[str, Any], stream_callback=None) -> Dict[str, Any]:
         """
         验证输入参数
@@ -44,36 +55,27 @@ class CoatingService:
         structure = state.get("structure_design", {})
         target_requirements = state.get("target_requirements", {})
         
-        # 使用统一验证函数（支持流式输出）
-        all_errors, validation_analysis = self.validation_service.validate_all_parameters(
+        # 使用简化的验证函数
+        validation_result = self.validation_service.validate_all_parameters(
             composition, params, structure, target_requirements, stream_callback
         )
         
         # 归一化成分数据
         normalized_composition = self.validation_service.normalize_composition(composition)
         
-        # 预处理数据（供前端显示使用）
-        preprocessed_data = {
-            "coating_composition": normalized_composition,  # 使用归一化后的成分
-            "process_params": params,
-            "structure_design": structure,
-            "target_requirements": target_requirements
-        }
-        
-        # 构建结果（包含原始参数、验证后的数据和LLM分析内容）
+        # 构建简化的结果（作为业务数据部分）
         result = {
-            "input_validated": len(all_errors) == 0,
-            "validation_errors": all_errors,
-            "validation_analysis": validation_analysis,  # LLM流式分析内容
-            "preprocessed_data": preprocessed_data,  # 供前端显示
+            "input_validated": validation_result["input_validated"],
+            "validation_errors": validation_result["validation_errors"],
+            "validation_content": validation_result["validation_content"],
             # 保存到state供后续节点使用
             "coating_composition": normalized_composition,
             "process_params": params,
             "structure_design": structure,
             "target_requirements": target_requirements,
             "current_step": "validation_complete",
-            "next_step": "performance_prediction" if len(all_errors) == 0 else "error",
-            "workflow_status": "validated" if len(all_errors) == 0 else "validation_failed"
+            "next_step": "performance_prediction" if validation_result["input_validated"] else "error",
+            "workflow_status": "validated" if validation_result["input_validated"] else "validation_failed"
         }
         
         # 记录完整的JSON参数（带单位）
@@ -94,13 +96,14 @@ class CoatingService:
         )
         
         logger.info(f"[参数验证完成] 验证结果: {result['input_validated']}")
-        logger.info(f"[完整参数JSON记录-不带单位]\n{json.dumps(full_params_json, ensure_ascii=False, indent=2)}")
-        logger.info(f"[完整参数JSON记录-带单位]\n{json.dumps(formatted_params, ensure_ascii=False, indent=2)}")
+        logger.debug(f"[完整参数JSON记录-不带单位]\n{json.dumps(full_params_json, ensure_ascii=False, indent=2)}")
+        logger.debug(f"[完整参数JSON记录-带单位]\n{json.dumps(formatted_params, ensure_ascii=False, indent=2)}")
         
-        if all_errors:
-            logger.error(f"验证错误: {all_errors}")
+        if not validation_result["input_validated"]:
+            logger.error(f"验证错误: {validation_result['validation_errors']}")
         
-        return result
+        # 使用统一封装格式返回
+        return self._wrap_success(result, message="输入参数验证完成")
     
     def simulate_topphi(self, state: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -114,10 +117,12 @@ class CoatingService:
         # ✅ 使用拆分后的TopPhiService
         topphi_result = self.topphi_service.simulate_deposition(composition, params)
         
-        return {
+        data = {
             "topphi_simulation": topphi_result,
             "current_step": "topphi_complete"
         }
+        
+        return self._wrap_success(data, message="[TopPhi模拟] 完成")
     
     def predict_ml_performance(self, state: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -132,10 +137,23 @@ class CoatingService:
         # ✅ 使用拆分后的MLPredictionService
         ml_prediction = self.ml_service.predict_performance(composition, params, structure)
         
-        return {
+        # 构建统一的性能预测视图，便于前端和后续节点使用
+        # 统一为4个核心性能指标：硬度、弹性模量、磨损率、结合力
+        performance_prediction = {
+            "hardness": ml_prediction.get("hardness"),
+            "elastic_modulus": ml_prediction.get("elastic_modulus"),
+            "wear_rate": ml_prediction.get("wear_rate"),
+            "adhesion_strength": ml_prediction.get("adhesion_strength"),
+            "model_confidence": ml_prediction.get("model_confidence"),
+        }
+        
+        data = {
             "ml_prediction": ml_prediction,
+            "performance_prediction": performance_prediction,
             "current_step": "ml_complete"
         }
+        
+        return self._wrap_success(data, message="[ML模型预测] 完成")
     
     def compare_historical_data(self, state: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -149,10 +167,12 @@ class CoatingService:
         # ✅ 使用拆分后的HistoricalDataService
         historical_comparison = self.historical_service.retrieve_similar_cases(composition, params)
         
-        return {
+        data = {
             "historical_comparison": historical_comparison,
             "current_step": "historical_complete"
         }
+        
+        return self._wrap_success(data, message="[历史数据比对] 完成")
     
     def integrate_analysis(self, state: Dict[str, Any], stream_callback=None) -> Dict[str, Any]:
         """
@@ -171,41 +191,29 @@ class CoatingService:
             state, composition, params, ml_pred, topphi, historical, stream_callback
         )
         
-        # 整合性能预测结果
-        performance_prediction = {
-            "hardness": ml_pred.get("hardness_gpa", 0),
-            "hardness_std": ml_pred.get("hardness_std", 0),
-            "adhesion_level": ml_pred.get("adhesion_level", "N/A"),
-            "wear_rate": ml_pred.get("wear_rate", 0),
-            "oxidation_temperature": ml_pred.get("oxidation_temp_c", 0),
-            "deposition_structure": {
-                "grain_size": f"{topphi.get('grain_size_nm', 0)} nm",
-                "preferred_orientation": topphi.get("preferred_orientation", "N/A"),
-                "residual_stress": f"{topphi.get('residual_stress_gpa', 0)} GPa"
-            },
-            "confidence_score": (ml_pred.get("model_confidence", 0) + topphi.get("confidence", 0)) / 2,
-            "data_sources": ["TopPhi模拟", "ML模型预测", "历史数据比对"]
-        }
+        # 从LLM分析文本中提取关键信息
+        analysis_summary = self._extract_analysis_summary(root_cause_analysis)
         
-        # 构建综合分析报告
-        integrated_analysis = {
+        logger.info(f"[根因分析] 提取的摘要: {analysis_summary.get('summary', '')[:100]}")
+        logger.info(f"[根因分析] 关键发现数量: {len(analysis_summary.get('key_findings', []))}")
+        
+        # 直接返回结构化的根因分析结果（作为业务数据）
+        integrated = {
+            "summary": analysis_summary.get("summary", ""),
+            "key_findings": analysis_summary.get("key_findings", []),
+            "recommendations": analysis_summary.get("recommendations", []),
             "root_cause_analysis": root_cause_analysis,
-            "performance_summary": {
-                "predicted_hardness": performance_prediction["hardness"],
-                "confidence": performance_prediction["confidence_score"],
-                "key_findings": self._extract_key_findings(ml_pred, topphi, historical)
-            },
-            "recommendation": self._generate_recommendation(performance_prediction, historical)
+            "analysis_timestamp": datetime.now().isoformat()
         }
         
+        logger.info(f"[根因分析] 返回结果类型: {type(integrated)}, 键: {list(integrated.keys())}")
         logger.info(f"[根因分析] 分析完成")
         
-        return {
-            "performance_prediction": performance_prediction,
-            "integrated_analysis": integrated_analysis,  # 新增：结构化的综合分析
-            "prediction_confidence": performance_prediction["confidence_score"],
-            "current_step": "prediction_complete"
+        data = {
+            "integrated_analysis": integrated
         }
+        
+        return self._wrap_success(data, message="[根因分析] 完成")
     
     def generate_p1_optimization(self, state: Dict[str, Any], stream_callback=None) -> Dict[str, Any]:
         """生成P1成分优化建议"""
@@ -214,10 +222,7 @@ class CoatingService:
             state,
             stream_callback
         )
-        return {
-            "p1_suggestions": result["suggestions"],
-            "p1_content": result["content"]
-        }
+        return result
     
     def generate_p2_optimization(self, state: Dict[str, Any], stream_callback=None) -> Dict[str, Any]:
         """生成P2结构优化建议"""
@@ -226,10 +231,7 @@ class CoatingService:
             state,
             stream_callback
         )
-        return {
-            "p2_suggestions": result["suggestions"],
-            "p2_content": result["content"]
-        }
+        return result
     
     def generate_p3_optimization(self, state: Dict[str, Any], stream_callback=None) -> Dict[str, Any]:
         """生成P3工艺优化建议"""
@@ -238,10 +240,7 @@ class CoatingService:
             state,
             stream_callback
         )
-        return {
-            "p3_suggestions": result["suggestions"],
-            "p3_content": result["content"]
-        }
+        return result
     
     def _generate_llm_root_cause_analysis(
         self, state: Dict, composition: Dict, params: Dict, ml_pred: Dict, topphi: Dict, historical: Dict, stream_callback=None
@@ -300,11 +299,10 @@ class CoatingService:
 - 晶格常数: {topphi.get('lattice_constant', 'N/A')} Å
 
 ## 5. ML性能预测
-- 预测硬度: {ml_pred.get('hardness_gpa', 0)} GPa
-- 杨氏模量: {ml_pred.get('elastic_modulus_gpa', 0)} GPa
-- 泊松比: {ml_pred.get('poisson_ratio', 0)}
-- 结合力等级: {ml_pred.get('adhesion_level', 'N/A')}
-- 氧化温度: {ml_pred.get('oxidation_temp_c', 0)}°C
+- 预测纳米硬度: {ml_pred.get('hardness', 0)} GPa
+- 弹性模量: {ml_pred.get('elastic_modulus', 0)} GPa
+- 磨损率: {ml_pred.get('wear_rate', 0)} mm³/Nm
+- 结合力: {ml_pred.get('adhesion_strength', 0)} N
 - 预测置信度: {(ml_pred.get('model_confidence', 0) * 100):.1f}%
 
 ## 6. 历史案例对比
@@ -322,30 +320,26 @@ class CoatingService:
 
 ---
 
-**分析任务：**
-请结合上述所有数据，进行系统的根因分析，回答以下问题：
+**分析任务**：请基于上述数据进行根因分析，回答：
 
-1. **成分配比分析**（2-3条）
-   - Al/Ti/N比例如何影响晶体结构和性能？
-   - 当前成分配比的优势和不足是什么？
+1. **成分与性能关系**（2条）
+   - 当前Al/Ti/N比例对硅度和耐磨性的影响
+   - 成分配比的优缺点
 
-2. **工艺参数影响**（2-3条）
-   - 沉积温度、偏压等关键工艺参数如何影响涂层质量？
-   - 气体流量配比对成分和结构的影响？
+2. **工艺参数影响**（2条）
+   - 温度/偏压对涂层结构的影响
+   - 气体流量对成分控制的作用
 
-3. **微观结构与性能关系**（1-2条）
-   - 晶粒尺寸、取向、应力如何决定宏观性能？
+3. **性能预测与历史对比**（1条）
+   - ML预测结果与历史数据的对比分析
 
-4. **历史案例对比洞察**（1-2条）
-   - 与历史成功/失败案例的关键差异是什么？
-   - 可以从历史数据中获得什么启示？
+4. **综合评价**（1条）
+   - 当前配方整体评价和主要改进方向
 
-5. **综合评价与建议**（1条）
-   - 当前配方的整体评价和主要改进方向
-
-要求：
-- 每条分析要具体引用上述数据中的数值
-- 使用专业术语，但表述清晰易懂
+**要求**：
+- 简洁明了，不超过100字
+- 引用具体数值
+- 专业语言，清晰表述
 - 重点突出影响性能的关键因素
 - 用中文输出，使用Markdown格式
 """
@@ -355,10 +349,10 @@ class CoatingService:
         content = ""
         try:
             from langchain_core.messages import SystemMessage, HumanMessage
-            from ..llm.llm_config import MATERIAL_EXPERT_PROMPT
+            from ..llm import MATERIAL_EXPERT_PROMPT
             
             # 使用流式生成
-            for chunk in self.optimization_service.llm.stream([
+            for chunk in self.optimization_service.llm_service.llm.stream([
                 SystemMessage(content=MATERIAL_EXPERT_PROMPT),
                 HumanMessage(content=prompt)
             ]):
@@ -373,80 +367,12 @@ class CoatingService:
             
         except Exception as e:
             logger.error(f"[根因分析] LLM生成失败: {e}")
+            error_msg = "❌ **根因分析生成失败**\n\n请点击重试按钮，或检查网络连接。"
             if stream_callback:
-                stream_callback("integrated_analysis", f"\n❌ **分析过程出错**: {str(e)}\n")
-            # 降级到简单分析
-            return self._simple_root_cause_analysis(composition, params, ml_pred)
+                stream_callback("integrated_analysis", error_msg)
+            raise RuntimeError(f"根因分析失败: {e}")
     
-    def _simple_root_cause_analysis(self, composition: Dict, params: Dict, prediction: Dict) -> str:
-        """简单的根因分析（降级方案）"""
-        analysis = []
-        
-        # 成分分析
-        al_content = composition.get("al_content", 0)
-        ti_content = composition.get("ti_content", 0)
-        
-        if al_content > 35:
-            analysis.append("**成分优势**：高Al含量（{:.1f}%）有助于形成稳定的Al₂O₃氧化层，显著提高硬度和抗氧化性能。".format(al_content))
-        elif al_content > 30:
-            analysis.append("**成分特点**：Al含量（{:.1f}%）适中，有利于平衡硬度和韧性。".format(al_content))
-        
-        if ti_content > 25:
-            analysis.append("**结构稳定**：Ti含量（{:.1f}%）促进形成稳定的fcc-TiAlN结构，提供良好的基础性能。".format(ti_content))
-        
-        # 工艺分析  
-        bias_voltage = params.get("bias_voltage", 0)
-        if bias_voltage > 80:
-            analysis.append("**工艺优化**：高偏压（{:.0f}V）促进离子轰击，增强涂层致密化和界面结合力。".format(bias_voltage))
-        
-        deposition_temp = params.get("deposition_temperature", 0)
-        if deposition_temp > 500:
-            analysis.append("**温度控制**：适宜的沉积温度（{:.0f}°C）有利于晶粒细化和应力释放。".format(deposition_temp))
-        
-        # 性能预测
-        hardness = prediction.get("hardness_gpa", 0)
-        analysis.append("**预测结果**：当前参数组合预计硬度为{:.1f} GPa，属于{}性能水平。".format(
-            hardness, "优秀" if hardness > 30 else "良好" if hardness > 25 else "中等"
-        ))
-        
-        return "\n\n".join(analysis) if analysis else "性能主要由成分和工艺共同决定。"
-    
-    def _extract_key_findings(self, ml_pred: Dict, topphi: Dict, historical: Dict) -> list:
-        """提取关键发现"""
-        findings = []
-        
-        hardness = ml_pred.get("hardness_gpa", 0)
-        if hardness > 30:
-            findings.append(f"硬度预测达到{hardness:.1f} GPa，超过目标要求")
-        elif hardness > 25:
-            findings.append(f"硬度预测为{hardness:.1f} GPa，满足基本要求")
-        else:
-            findings.append(f"硬度预测仅{hardness:.1f} GPa，需要优化")
-        
-        grain_size = topphi.get("grain_size_nm", 0)
-        if grain_size < 10:
-            findings.append(f"纳米晶粒结构({grain_size:.1f} nm)有助于强化")
-        
-        avg_similarity = historical.get("average_similarity", 0)
-        if avg_similarity > 0.8:
-            findings.append(f"历史案例相似度高({avg_similarity:.2f})，预测可靠")
-        
-        return findings
-    
-    def _generate_recommendation(self, performance: Dict, historical: Dict) -> str:
-        """生成优化建议"""
-        hardness = performance.get("hardness", 0)
-        confidence = performance.get("confidence_score", 0)
-        highest_historical = historical.get("highest_hardness", 0)
-        
-        if hardness >= highest_historical:
-            return "当前参数配置已达到历史最优水平，建议进入实验验证阶段。"
-        elif hardness > 28:
-            return f"性能预测良好，但仍有提升空间（历史最高{highest_historical:.1f} GPa）。建议优化成分配比或工艺参数。"
-        else:
-            return "预测性能未达预期，强烈建议参考优化方案进行调整。"
-    
-    def generate_optimization_summary(self, state: Dict[str, Any], stream_callback=None) -> str:
+    def generate_optimization_summary(self, state: Dict[str, Any], stream_callback=None) -> Dict[str, Any]:
         """使用LLM生成优化方案综合建议
         
         Args:
@@ -456,7 +382,7 @@ class CoatingService:
         Returns:
             综合建议文本
         """
-        from ..llm.llm_config import get_material_expert_llm, MATERIAL_EXPERT_PROMPT
+        from ..llm import get_llm_service, MATERIAL_EXPERT_PROMPT
         from langchain_core.messages import SystemMessage, HumanMessage
         
         logger.info("[优化汇总] 开始LLM生成综合建议...")
@@ -481,54 +407,133 @@ class CoatingService:
 
 ---
 
-**请提供简短的综合建议（2-3句话）：**
+**请提供简短的综合建议并突出推荐方案：**
 
 1. 简要对比三个方案的主要特点
-2. 给出推荐的方案选择建议及理由
+2. **明确推荐具体方案**（P1/P2/P3）及核心理由
 3. 提示关键注意事项
 
-**要求：**
-- 简洁明了，不超过150字
-- 重点突出推荐方案
-- 不要使用Markdown格式，只输出纯文本
+**格式要求：**
+- 使用醒目的Markdown格式
+- **推荐方案**必须使用以下格式高亮显示：
+  ```markdown
+  > ### 推荐方案：P[X] - [方案名称]
+  > **推荐理由**：[一句话说明为什么推荐]
+  ```
+- 简洁明了，不超过100字
 """
         
-        # 使用LLM流式生成
-        llm = get_material_expert_llm()
-        comprehensive_content = ""
+        # 使用LLM服务生成
+        llm_service = get_llm_service()
         
         try:
-            for chunk in llm.stream([
-                SystemMessage(content=MATERIAL_EXPERT_PROMPT),
-                HumanMessage(content=prompt)
-            ]):
-                if hasattr(chunk, 'content') and chunk.content:
-                    comprehensive_content += chunk.content
-                    if stream_callback:
-                        stream_callback('optimization_summary', chunk.content)
+            def _callback(content):
+                if stream_callback:
+                    stream_callback('optimization_summary', content)
+            
+            comprehensive_content = llm_service.generate_stream(
+                prompt=prompt,
+                stream_callback=_callback
+            )
             
             logger.info(f"[优化汇总] LLM生成完成，长度: {len(comprehensive_content)}")
-            return comprehensive_content
+            data = {
+                "comprehensive_recommendation": comprehensive_content
+            }
+            return {
+                "status": "success",
+                "data": data,
+                "message": "[优化汇总] 完成",
+                "error": None,
+                "meta": {}
+            }
             
         except Exception as e:
             logger.error(f"[优化汇总] LLM生成失败: {str(e)}", exc_info=True)
-            # 降级到简单汇总
-            return self._generate_simple_summary(p1_content, p2_content, p3_content)
+            error_msg = "❌ **优化汇总生成失败**\n\n请稍后重试。"
+            if stream_callback:
+                stream_callback("optimization_summary", error_msg)
+            raise RuntimeError(f"优化汇总生成失败: {e}")
     
-    def _generate_simple_summary(self, p1_content: str, p2_content: str, p3_content: str) -> str:
-        """生成简单的汇总（降级方案）"""
-        recommendations = []
+    def _extract_analysis_summary(self, analysis_text: str) -> Dict[str, Any]:
+        """优化的内容提取，更灵活地处理LLM输出格式"""
+        if not analysis_text:
+            return {"summary": "", "key_findings": [], "recommendations": []}
         
-        if p1_content:
-            recommendations.append("**成分优化方案（P1）**：调整Al/Ti比例，优化合金元素添加")
+        lines = analysis_text.split('\n')
+        summary = ""
+        key_findings = []
+        current_section = None
+        summary_lines = []  # 收集综合评价的所有行
         
-        if p2_content:
-            recommendations.append("**结构优化方案（P2）**：考虑多层或梯度结构设计")
+        for i, line in enumerate(lines):
+            line = line.strip()
+            if not line:
+                continue
+            
+            # 更灵活的section匹配
+            if "成分与性能" in line or "成分配比" in line or line.startswith("1."):
+                current_section = "composition"
+                continue
+            elif "工艺参数" in line or line.startswith("2."):
+                current_section = "process"
+                continue
+            elif "性能预测" in line or "历史对比" in line or line.startswith("3."):
+                current_section = "performance"
+                continue
+            elif "综合评价" in line or line.startswith("4."):
+                current_section = "summary"
+                continue
+            
+            # 提取关键发现（带有具体数据的行）
+            if current_section in ["composition", "process", "performance"]:
+                # 移除列表标记
+                clean_line = line.lstrip("-*•123456789. ").strip()
+                if len(clean_line) > 15:
+                    # 提取带有材料学关键词的内容
+                    if any(kw in clean_line for kw in ["Al", "Ti", "%", "GPa", "°C", "温度", 
+                                                         "硬度", "结合力", "晶粒", "应力", "模量",
+                                                         "氧化", "耐磨", "韧性", "沉积"]):
+                        key_findings.append(clean_line)
+            
+            # 提取综合评价（收集所有非标题行）
+            elif current_section == "summary":
+                # 跳过标题行和空行
+                if not line.startswith("#") and not line.startswith("**") and len(line) > 20:
+                    clean_line = line.lstrip("-*•123456789. ").strip()
+                    if clean_line:
+                        summary_lines.append(clean_line)
         
-        if p3_content:
-            recommendations.append("**工艺优化方案（P3）**：优化沉积参数，提升涂层质量")
+        # 组合综合评价：优先取“综合评价”小节的第一行，避免内容过长
+        if summary_lines:
+            # 只取第一条作为综合评价，避免把4个小节全部拼接
+            summary = summary_lines[0][:200]
         
-        if not recommendations:
-            return "系统正在生成优化建议，请稍候..."
+        # 如果没找到summary，尝试从整个文本中提取最后一段有意义的内容
+        if not summary:
+            # 从后往前找，找到最后一个有实质内容的段落
+            for line in reversed(lines):
+                clean_line = line.strip().lstrip("-*•123456789. ")
+                if len(clean_line) > 40 and not clean_line.startswith("#"):
+                    # 检查是否包含评价性关键词
+                    if any(kw in clean_line for kw in ["配方", "建议", "优化", "改进", "适合", "推荐", "综合"]):
+                        summary = clean_line[:200]
+                        break
         
-        return "\n\n".join(recommendations) + "\n\n**建议优先顺序**：建议优先考虑实施难度较低、预期效果明显的方案。可以从P3工艺优化开始，然后尝试P1成分调整，最后考虑P2结构改进。"
+        # 最后的fallback：使用第一段有意义的文本
+        if not summary:
+            for line in lines[:20]:
+                clean_line = line.strip().lstrip("-*•123456789. ")
+                if len(clean_line) > 40 and not clean_line.startswith("#"):
+                    summary = clean_line[:200]
+                    break
+        
+        logger.info(f"[提取摘要] 找到 {len(key_findings)} 条关键发现")
+        logger.info(f"[提取摘要] 综合评价长度: {len(summary)}")
+        logger.info(f"[提取摘要] 综合评价内容: {summary[:100]}...")
+        
+        return {
+            "summary": summary.strip(),
+            "key_findings": key_findings[:5],  # 最多5条
+            "recommendations": []  # 简化：不单独提取建议
+        }

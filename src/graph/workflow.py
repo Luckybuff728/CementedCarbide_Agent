@@ -189,7 +189,7 @@ class CoatingWorkflowManager:
                 "current_iteration": 1,  # 初始化为第1轮
                 "max_iterations": 5,
                 "iteration_history": [],  # 迭代历史
-                "experimental_results": {},  # 实验结果
+                "experiment_results": {},  # 实验结果
                 "continue_iteration": False,  # 继续迭代标志
                 "convergence_achieved": False,  # 收敛标志
                 "selected_optimization_name": None,  # 选择的优化方案名称

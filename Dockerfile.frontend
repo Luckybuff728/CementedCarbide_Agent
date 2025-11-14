@@ -2,7 +2,7 @@
 # 多阶段构建，最小化镜像大小
 
 # ==================== 构建阶段 ====================
-FROM node:20-alpine as builder
+FROM node:20-alpine AS builder
 
 # 设置工作目录
 WORKDIR /app

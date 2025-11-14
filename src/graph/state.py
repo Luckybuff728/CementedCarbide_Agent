@@ -29,25 +29,22 @@ class CoatingWorkflowState(TypedDict):
     ml_prediction: Dict[str, Any]  # ML模型预测结果
     historical_comparison: List[Dict[str, Any]]  # 历史数据对比
     performance_prediction: Dict[str, Any]  # 综合性能预测结果
-    root_cause_analysis: str  # 根因分析
+    integrated_analysis: Optional[Dict[str, Any]]  # 根因分析结果（结构化数据）
+    root_cause_analysis: str  # 根因分析（废弃，保留兼容性）
     prediction_confidence: float  # 预测置信度
     
-    # 优化建议 - 拆分为P1/P2/P3
-    p1_suggestions: List[Dict[str, Any]]  # P1成分优化建议
-    p1_content: str  # P1优化建议内容
-    p2_suggestions: List[Dict[str, Any]]  # P2结构优化建议
-    p2_content: str  # P2优化建议内容
-    p3_suggestions: List[Dict[str, Any]]  # P3工艺优化建议
-    p3_content: str  # P3优化建议内容
-    optimization_suggestions: Dict[str, List[Dict]]  # 各类优化建议汇总
-    selected_optimization_type: Optional[str]  # 选择的优化类型
-    selected_optimization_name: Optional[str]  # 选择的优化方案名称
-    selected_optimization_plan: Optional[Dict]  # 选择的具体方案
-    experiment_workorder: Optional[str]  # 实验工单内容
+    # 优化建议 - P1/P2/P3分别生成完整文本内容
+    p1_content: str  # P1成分优化建议内容（LLM生成的完整文本）
+    p2_content: str  # P2结构优化建议内容（LLM生成的完整文本）
+    p3_content: str  # P3工艺优化建议内容（LLM生成的完整文本）
+    selected_optimization_type: Optional[str]  # 用户选择的优化类型（P1/P2/P3）
+    selected_optimization_name: Optional[str]  # 用户选择的优化方案名称
+    selected_optimization_plan: Optional[Dict]  # 用户选择的具体优化方案
+    experiment_workorder: Optional[Dict[str, Any]]  # 生成的实验工单（结构化数据）
     
     # 迭代优化
     iteration_history: List[Dict[str, Any]]  # 迭代历史
-    experimental_results: Dict[str, Any]  # 实验结果
+    experiment_results: Dict[str, Any]  # 实验结果
     current_iteration: int  # 当前迭代次数
     max_iterations: int  # 最大迭代次数
     convergence_achieved: bool  # 是否达到收敛

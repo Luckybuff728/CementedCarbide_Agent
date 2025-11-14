@@ -45,22 +45,27 @@ class MLPredictionService:
         # })
         
         # 当前使用示例数据模拟
+        # 注意：核心性能指标与实验数据录入保持一致，便于前端统一展示
+        predicted_hardness = self._predict_hardness(composition, params)
+        predicted_elastic_modulus = self._predict_elastic_modulus(predicted_hardness)
+        predicted_oxidation = self._predict_oxidation_temp(composition)
+        
         ml_prediction = {
-            "hardness_gpa": self._predict_hardness(composition, params),
-            "hardness_std": 1.2,
-            "adhesion_level": self._predict_adhesion(composition, structure),
+            # 4 个核心性能指标
+            "hardness": predicted_hardness,
+            "elastic_modulus": predicted_elastic_modulus,
             "wear_rate": self._predict_wear_rate(composition),
-            "oxidation_temp_c": self._predict_oxidation_temp(composition),
-            "model_confidence": 0.85,
-            "feature_importance": {
-                "al_content": 0.35,
-                "deposition_temp": 0.28,
-                "bias_voltage": 0.22,
-                "ti_content": 0.15
-            }
+            "adhesion_strength": self._predict_adhesion_strength(composition, structure),
+            
+            # 可选附加指标（不纳入统一对比结构）
+            "oxidation_temperature": predicted_oxidation,
+            "surface_roughness": self._predict_surface_roughness(params),
+            
+            # 模型元数据
+            "model_confidence": 0.85
         }
         
-        logger.info(f"[ML预测] 完成 - 硬度: {ml_prediction['hardness_gpa']} GPa")
+        logger.info(f"[ML预测] 完成 - 硬度: {predicted_hardness} GPa, 弹性模量: {predicted_elastic_modulus} GPa")
         
         return ml_prediction
     
@@ -77,10 +82,15 @@ class MLPredictionService:
         temp_factor = 1.0 + (temp - 500) / 1000 * 0.1
         
         return round(base_hardness * al_factor * temp_factor, 1)
+
+    def _predict_elastic_modulus(self, hardness: float) -> float:
+        """预测弹性模量（GPa） - 简化模型，与硬度相关联"""
+        # 经验比值：弹性模量通常是硬度的若干倍
+        base_ratio = 15.0
+        return round(hardness * base_ratio, 1)
     
-    def _predict_adhesion(self, composition: Dict, structure: Dict) -> str:
-        """预测结合力等级"""
-        # 简化：基于总厚度判断
+    def _predict_adhesion_level(self, composition: Dict, structure: Dict) -> str:
+        """预测结合力等级（保留旧方法名）"""
         thickness = structure.get('total_thickness', 0)
         
         if thickness < 2:
@@ -89,6 +99,31 @@ class MLPredictionService:
             return "HF2"
         else:
             return "HF3"
+    
+    def _predict_adhesion_strength(self, composition: Dict, structure: Dict) -> float:
+        """预测结合力数值（N）- 与实验数据字段统一
+        
+        TODO: 接入真实ML模型预测结合力
+        """
+        # 简化模型：基于Al含量和总厚度
+        al_content = composition.get('al_content', 30)
+        thickness = structure.get('total_thickness', 3)
+        
+        # 基础结合力
+        base_adhesion = 45.0
+        
+        # Al含量影响（Al含量越高，结合力越好）
+        al_factor = 1.0 + (al_content - 30) / 100 * 0.3
+        
+        # 厚度影响（厚度适中最好）
+        if thickness < 2:
+            thickness_factor = 0.9
+        elif thickness > 5:
+            thickness_factor = 0.95
+        else:
+            thickness_factor = 1.1
+        
+        return round(base_adhesion * al_factor * thickness_factor, 1)
     
     def _predict_wear_rate(self, composition: Dict) -> float:
         """预测磨损率"""
@@ -99,9 +134,34 @@ class MLPredictionService:
         return round(base_rate * (1 - al_content / 200), 8)
     
     def _predict_oxidation_temp(self, composition: Dict) -> float:
-        """预测抗氧化温度"""
+        """预测抗氧化温度（℃）
+        
+        TODO: 接入真实ML模型预测抗氧化温度
+        """
         # 简化：Al含量越高，抗氧化性越好
         al_content = composition.get('al_content', 0)
         base_temp = 700
         
         return round(base_temp + al_content * 3, 0)
+    
+    def _predict_surface_roughness(self, params: Dict) -> float:
+        """预测表面粗糙度（μm）- 与实验数据字段统一
+        
+        TODO: 接入真实ML模型预测表面粗糙度
+        """
+        # 简化模型：基于沉积温度和偏压
+        temp = params.get('deposition_temperature', 500)
+        bias = abs(params.get('bias_voltage', -100))
+        
+        # 基础粗糙度
+        base_roughness = 0.2
+        
+        # 温度影响（温度越高，粗糙度越低）
+        temp_factor = 1.0 - (temp - 400) / 1000 * 0.3
+        
+        # 偏压影响（偏压越大，粗糙度越低）
+        bias_factor = 1.0 - (bias - 50) / 200 * 0.2
+        
+        roughness = base_roughness * temp_factor * bias_factor
+        
+        return round(max(0.05, roughness), 2)

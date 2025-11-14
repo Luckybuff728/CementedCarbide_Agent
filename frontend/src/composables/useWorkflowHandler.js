@@ -27,7 +27,7 @@ export function useWorkflowHandler(setLongTaskStatus = null) {
   const generateStructuredContent = (nodeId, data) => {
     // TopPhi相场模拟结果
     if (nodeId === 'topphi_simulation') {
-      const topphi = data.topphi_simulation || data
+      const topphi = data.topphi_simulation
       return `模拟计算完成，数据已就绪。`
 //       ## TopPhi相场模拟结果
 
@@ -47,30 +47,25 @@ export function useWorkflowHandler(setLongTaskStatus = null) {
     
     // ML模型预测结果
     if (nodeId === 'ml_prediction') {
-      const mlData = data.performance_prediction || data.ml_prediction || data
+      const mlData = data.performance_prediction || {}
       return `## ML模型性能预测结果
 
 ### 预测性能指标
-- **硬度**: ${mlData.hardness || mlData.hardness_gpa || 'N/A'} GPa
-- **结合力等级**: ${mlData.adhesion_level || 'N/A'}
-- **磨损率**: ${mlData.wear_rate || 'N/A'}
-- **氧化温度**: ${mlData.oxidation_temperature || mlData.oxidation_temp_c || 'N/A'}°C
-
-### 沉积结构预测
-- **晶粒尺寸**: ${mlData.deposition_structure?.grain_size || 'N/A'}
-- **择优取向**: ${mlData.deposition_structure?.preferred_orientation || 'N/A'}
-- **残余应力**: ${mlData.deposition_structure?.residual_stress || 'N/A'}
+- **纳米硬度**: ${mlData.hardness ?? 'N/A'} GPa
+- **弹性模量**: ${mlData.elastic_modulus ?? 'N/A'} GPa
+- **磨损率**: ${mlData.wear_rate ?? 'N/A'} mm³/(N·m)
+- **结合力**: ${mlData.adhesion_strength ?? 'N/A'} N
 
 ### 模型置信度
-- **综合置信度**: ${((mlData.confidence_score || 0) * 100).toFixed(1)}%
-- **数据来源**: ${mlData.data_sources?.join(', ') || 'ML模型预测'}
+- **综合置信度**: ${((mlData.model_confidence || 0) * 100).toFixed(1)}%
+- **数据来源**: ML模型预测
 
 性能预测完成，建议参考上述数据进行优化。`
     }
     
     // 历史数据比对结果
     if (nodeId === 'historical_comparison') {
-      const histData = data.historical_comparison || data
+      const histData = data.historical_comparison
       return `## 历史数据比对结果
 
 ### 匹配案例统计
@@ -95,17 +90,12 @@ ${histData.similar_cases ? histData.similar_cases.slice(0, 3).map((c, i) =>
    * @param {object} data - 节点输出数据
    */
   const handleNodeOutput = (data) => {
-    console.log('[📥 node_output] 处理节点输出:', Object.keys(data))
-    
     // 检查是否为长时间任务节点完成，如果是则退出长任务模式
     const completedNodes = Object.keys(data)
     const hasLongTaskCompleted = completedNodes.some(node => LONG_TASK_NODES.includes(node))
     if (hasLongTaskCompleted && setLongTaskStatus) {
-      console.log('[⏱️ 长时间任务] 检测到长任务节点完成，退出长任务模式')
       setLongTaskStatus(false)
     }
-    console.log('[🔍 前端接收] node_output数据键:', Object.keys(data || {}))
-    
     if (!data || typeof data !== 'object') {
       console.warn('[❌ 状态] node_output数据无效:', data)
       return
@@ -114,21 +104,15 @@ ${histData.similar_cases ? histData.similar_cases.slice(0, 3).map((c, i) =>
     // ✅ 修复：历史查看模式下仍然处理数据，只是不显示
     // ✅ 修复：历史查看模式下仍然处理状态，只是不显示通知
     const isInHistoryMode = workflowStore.viewMode === 'history'
-    if (isInHistoryMode) {
-      console.log('[💾 数据处理] 历史查看模式下仍然处理状态')
-    }
     
     // 遍历chunk中的所有节点
     for (const [nodeId, nodeData] of Object.entries(data)) {
-      console.log(`[📦 处理节点] ${nodeId}, 数据类型: ${typeof nodeData}`)
-      
       const step = workflowStore.processSteps.find(s => s.nodeId === nodeId)
       
       if (step) {
         // 节点已存在（llm_stream创建的），只标记为完成，保留流式内容
         const oldStatus = step.status
         step.status = 'completed'
-        console.log(`[✅ 状态更新] ${nodeId}: ${oldStatus} → completed，内容长度: ${step.content?.length || 0}`)
       } else {
         // 节点不存在（某些节点可能没有llm_stream），直接创建为completed
         const structuredContent = generateStructuredContent(nodeId, nodeData)
@@ -138,14 +122,11 @@ ${histData.similar_cases ? histData.similar_cases.slice(0, 3).map((c, i) =>
           status: 'completed',
           content: structuredContent
         })
-        
-        console.log(`[✅ 状态创建] ${nodeId} → completed (生成结构化内容)`)
       }
       
       // 关键修复：节点完成后，清除currentNode（如果是当前节点）
       if (workflowStore.currentNode === nodeId) {
         workflowStore.currentNode = ''
-        console.log(`[🔄 清除currentNode] ${nodeId}已完成`)
       }
       
       // 存储特定节点的数据到store
@@ -159,22 +140,19 @@ ${histData.similar_cases ? histData.similar_cases.slice(0, 3).map((c, i) =>
    * @param {object} nodeData - 节点数据
    */
   const storeNodeData = (nodeId, nodeData) => {
-    // 输入验证结果
+    // 输入验证结果 - 简化处理
     if (nodeId === 'input_validation') {
-      console.log('[🔍 input_validation] 原始数据:', nodeData)
-      
-      const validationData = {
-        input_validated: nodeData.input_validated !== false,
+      workflowStore.validationResult = {
+        input_validated: nodeData.input_validated === true,
         validation_errors: nodeData.validation_errors || [],
-        workflow_status: nodeData.workflow_status || 'validated'
+        validation_content: nodeData.validation_content || ''
       }
-      workflowStore.validationResult = validationData
-      console.log('[💾 存储] 验证结果:', validationData)
+      console.log('[💾 存储] 验证结果:', workflowStore.validationResult)
     }
     
     // TopPhi相场模拟结果（包含VTK数据）
     if (nodeId === 'topphi_simulation') {
-      const topphiData = nodeData.topphi_simulation || nodeData
+      const topphiData = nodeData.topphi_simulation
       if (topphiData && typeof topphiData === 'object') {
         workflowStore.topphiResult = topphiData
         console.log('[💾 存储] TopPhi相场模拟数据:', topphiData)
@@ -189,22 +167,7 @@ ${histData.similar_cases ? histData.similar_cases.slice(0, 3).map((c, i) =>
     
     // ML预测结果
     if (nodeId === 'ml_prediction') {
-      let predData = nodeData.performance_prediction || nodeData.ml_prediction || nodeData
-      
-      // 如果ml_prediction存在但没有performance_prediction，手动构建
-      if (!nodeData.performance_prediction && nodeData.ml_prediction) {
-        const ml = nodeData.ml_prediction
-        predData = {
-          hardness: ml.hardness_gpa,
-          hardness_gpa: ml.hardness_gpa,
-          adhesion_level: ml.adhesion_level,
-          oxidation_temp_c: ml.oxidation_temp_c,
-          oxidation_temperature: ml.oxidation_temp_c,
-          model_confidence: ml.model_confidence,
-          confidence_score: ml.model_confidence
-        }
-      }
-      
+      const predData = nodeData.performance_prediction
       if (predData && typeof predData === 'object') {
         workflowStore.performancePrediction = predData
         console.log('[存储] ML预测数据:', predData)
@@ -213,28 +176,39 @@ ${histData.similar_cases ? histData.similar_cases.slice(0, 3).map((c, i) =>
     
     // 历史比对结果
     if (nodeId === 'historical_comparison') {
-      const histData = nodeData.historical_comparison || nodeData
+      const histData = nodeData.historical_comparison
       if (histData) {
         workflowStore.historicalComparison = histData
         console.log('[存储] 历史比对数据:', histData)
       }
     }
     
-    // 综合分析结果
+    // 综合分析结果 - 处理可能的双重嵌套
     if (nodeId === 'integrated_analysis') {
-      const analysisData = nodeData.integrated_analysis || nodeData
-      if (analysisData && typeof analysisData === 'object') {
-        workflowStore.integratedAnalysis = analysisData
-        console.log('[存储] 综合分析数据:', analysisData)
+      if (nodeData && typeof nodeData === 'object') {
+        const actualData = nodeData.integrated_analysis
+        workflowStore.integratedAnalysis = actualData
+        console.log('[存储] 综合分析数据:', actualData)
       }
     }
     
-    // 实验工单
+    // 实验工单 - 处理可能的双重嵌套
     if (nodeId === 'experiment_workorder') {
-      const workorderData = nodeData.experiment_workorder || nodeData.workorder || nodeData
-      if (workorderData && typeof workorderData === 'string') {
-        workflowStore.experimentWorkorder = workorderData
-        console.log('[存储] 实验工单数据')
+      if (nodeData && typeof nodeData === 'object') {
+        const actualData = nodeData.experiment_workorder
+        workflowStore.experimentWorkorder = actualData
+        console.log('[存储] 实验工单数据:', actualData)
+      }
+    }
+
+    // 优化汇总结果
+    if (nodeId === 'optimization_summary') {
+      if (nodeData && typeof nodeData === 'object') {
+        const summary = nodeData.comprehensive_recommendation
+        if (typeof summary === 'string') {
+          workflowStore.comprehensiveRecommendation = summary
+          console.log('[存储] 优化汇总数据:', summary)
+        }
       }
     }
   }
@@ -256,14 +230,9 @@ ${histData.similar_cases ? histData.similar_cases.slice(0, 3).map((c, i) =>
       return
     }
     
-    // 只在节点第一次开始流式输出时记录日志
+    // 只在节点第一次开始流式输出时做标记，避免重复处理
     if (!streamingNodes.has(node)) {
       streamingNodes.add(node)
-      console.log(`[📱 流式开始] ${node}`)
-      
-      if (workflowStore.viewMode === 'history') {
-        console.log(`[💾 数据处理] 历史模式下仍然处理: ${node}`)
-      }
     }
     
     // P1/P2/P3使用独立存储
@@ -307,10 +276,9 @@ ${histData.similar_cases ? histData.similar_cases.slice(0, 3).map((c, i) =>
       // 更新当前节点
       workflowStore.currentNode = node
       
-      // 只在第一次创建节点时输出日志
+      // 只在第一次创建节点时做标记
       if (!streamingNodes.has(`${node}_created`)) {
         streamingNodes.add(`${node}_created`)
-        console.log(`[🟡 状态创建] ${node} → processing (首次流式内容)`)
       }
     }
   }
@@ -320,7 +288,6 @@ ${histData.similar_cases ? histData.similar_cases.slice(0, 3).map((c, i) =>
    * @param {object} message - 暂停消息
    */
   const handleWorkflowPaused = (message) => {
-    console.log('[工作流暂停]', message.reason)
     workflowStore.isProcessing = false
     
     // ✅ 关闭之前的消息，避免堆积
@@ -343,7 +310,6 @@ ${histData.similar_cases ? histData.similar_cases.slice(0, 3).map((c, i) =>
           showClose: true  // ✅ 显示关闭按钮
         })
       } else {
-        console.log('[💾 数据处理] 历史模式下不显示选择通知')
       }
     } else if (message.reason === 'await_experiment_results') {
       // 等待用户输入实验数据
@@ -357,7 +323,6 @@ ${histData.similar_cases ? histData.similar_cases.slice(0, 3).map((c, i) =>
           showClose: true  // ✅ 显示关闭按钮
         })
       } else {
-        console.log('[💾 数据处理] 历史模式下不显示实验通知')
       }
     }
   }
@@ -367,11 +332,6 @@ ${histData.similar_cases ? histData.similar_cases.slice(0, 3).map((c, i) =>
    * @param {object} message - WebSocket消息
    */
   const handleWebSocketMessage = (message) => {
-    // 只在非流式消息时输出日志，减少冗余
-    if (message.type !== 'llm_stream') {
-      console.log('[WS消息]', message.type)
-    }
-    
     switch (message.type) {
       case 'node_output':
         handleNodeOutput(message.data)
@@ -381,24 +341,11 @@ ${histData.similar_cases ? histData.similar_cases.slice(0, 3).map((c, i) =>
         handleLLMStream(message)
         break
         
-      case 'workflow_completed':
-        // 旧版兼容：如果收到workflow_completed但没有显示选择框，则显示
-        if (!workflowStore.showOptimizationSelection && !workflowStore.showExperimentInput) {
-          workflowStore.isProcessing = false
-          workflowStore.showOptimizationSelection = true
-          // 只在非历史模式下显示通知
-          if (workflowStore.viewMode !== 'history') {
-            ElMessage.success('优化方案生成完成，请选择')
-          }
-        }
-        break
-        
       case 'workflow_paused':
         handleWorkflowPaused(message)
         break
         
       case 'workflow_resuming':
-        console.log('[流程恢复] 消息:', message.message)
         workflowStore.isProcessing = true
         // 进入长时间任务状态
         if (setLongTaskStatus) {
@@ -440,8 +387,6 @@ ${histData.similar_cases ? histData.similar_cases.slice(0, 3).map((c, i) =>
         break
         
       case 'optimization_completed':
-        console.log('[优化完成] 消息:', message.message)
-        
         // ✅ 关闭旧消息
         if (currentNotificationMessage) {
           currentNotificationMessage.close()

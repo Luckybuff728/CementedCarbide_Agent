@@ -39,7 +39,8 @@ async def execute_workflow_stream(task_id: str, thread_id: str, input_data: Dict
             # 检查是否是interrupt（工作流暂停）
             if event_type == "node_output" and isinstance(event_data, dict) and "__interrupt__" in event_data:
                 interrupt_data = event_data["__interrupt__"]
-                logger.info(f"[工作流暂停] 检测到interrupt: {interrupt_data}")
+                # 完整interrupt内容仅在debug级别记录，避免INFO日志过长
+                logger.debug(f"[工作流暂停] 检测到interrupt详细数据: {interrupt_data}")
                 
                 # 解析interrupt数据
                 interrupt_info = None
@@ -65,7 +66,7 @@ async def execute_workflow_stream(task_id: str, thread_id: str, input_data: Dict
                     # interrupt后停止发送，等待用户响应
                     continue
             
-            # 清理数据，移除不可序列化的对象
+            # 清理数据，移除不可序列化的对象（详细内容仅在debug级别记录）
             cleaned_data = clean_data_for_json(event_data)
             
             # ✅ 检测新迭代开始或完成
@@ -94,13 +95,13 @@ async def execute_workflow_stream(task_id: str, thread_id: str, input_data: Dict
                             }, client_id)
                             logger.info(f"[优化完成] 已发送optimization_completed消息")
             
-            # 详细日志
+            # 发送前的摘要日志（详细字段在debug级别记录）
             logger.info(f"[WS发送] type={event_type}, data键={list(cleaned_data.keys()) if isinstance(cleaned_data, dict) else 'N/A'}")
             if event_type == "node_output" and isinstance(cleaned_data, dict):
                 for node_name, node_data in cleaned_data.items():
-                    logger.info(f"[WS发送] 节点={node_name}, 数据类型={type(node_data)}")
+                    logger.debug(f"[WS发送] 节点={node_name}, 数据类型={type(node_data)}")
                     if isinstance(node_data, dict):
-                        logger.info(f"[WS发送] 节点={node_name}, 数据键={list(node_data.keys())[:10]}")
+                        logger.debug(f"[WS发送] 节点={node_name}, 数据键={list(node_data.keys())[:10]}")
             
             # 发送节点输出数据
             await manager.send_json({
@@ -175,21 +176,34 @@ async def execute_workorder_generation(task_id: str, selected_option: str, task_
                 sync_stream_callback
             )
         
-        if result.get("success"):
+        # 兼容统一的 {status,data,message,error,meta} 返回结构
+        if not isinstance(result, dict):
+            raise Exception("工单生成服务返回格式错误")
+
+        status = result.get("status")
+        data = result.get("data", {}) if isinstance(result.get("data"), dict) else {}
+
+        if status == "success":
             # 工单生成成功
             await manager.send_json({
                 "type": "workorder_generated",
                 "data": {
-                    "experiment_workorder": result.get("experiment_workorder"),
-                    "selected_optimization": result.get("selected_optimization"),
-                    "selected_optimization_name": result.get("selected_optimization_name")
+                    # 完整的工单数据
+                    "experiment_workorder": data,
+                    # 兼容旧字段，便于前端直接使用
+                    "selected_optimization": data.get("selected_optimization"),
+                    "selected_optimization_name": data.get("solution_name") or data.get("optimization_name")
                 },
-                "message": "实验工单生成完成"
+                "message": result.get("message", "实验工单生成完成")
             }, client_id)
             logger.info(f"[工单生成] 完成，任务: {task_id}")
         else:
             # 工单生成失败
-            raise Exception(result.get("error", "未知错误"))
+            error_msg = None
+            if isinstance(result.get("error"), dict):
+                error_msg = result["error"].get("message") or result["error"].get("details")
+            error_msg = error_msg or result.get("message") or "未知错误"
+            raise Exception(error_msg)
     
     except Exception as e:
         logger.error(f"[工单生成] 失败: {str(e)}")

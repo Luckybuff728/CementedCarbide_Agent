@@ -5,8 +5,8 @@ from typing import Dict, List, Any, Optional
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from .state import CoatingWorkflowState
 from ..services import CoatingService
-from ..llm.llm_config import get_material_expert_llm, MATERIAL_EXPERT_PROMPT
-from ..utils import ErrorHandler
+from ..llm import get_llm_service, MATERIAL_EXPERT_PROMPT
+# 错误处理已简化，不再需要单独的ErrorHandler模块
 from .stream_callback import send_stream_chunk_sync
 import json
 import logging
@@ -16,22 +16,33 @@ logger = logging.getLogger(__name__)
 
 # 初始化服务
 coating_service = CoatingService()
-error_handler = ErrorHandler()
 
 
 # ==================== 错误处理节点 ====================
 
 def error_handler_node(state: CoatingWorkflowState) -> Dict:
-    """错误处理节点"""
+    """错误处理节点 - 处理验证失败情况"""
     errors = state.get("validation_errors", [])
+    task_id = state.get("task_id")
     
-    logger.error(f"工作流错误处理: {errors}")
+    logger.error(f"[验证失败] 任务 {task_id}: {errors}")
     
-    return error_handler.handle_validation_error(errors, {
-        "task_id": state.get("task_id"),
-        "current_step": state.get("current_step"),
-        "workflow_status": state.get("workflow_status")
-    })
+    # 构造错误响应
+    error_message = "输入验证失败:\n" + "\n".join(errors)
+    
+    return {
+        "error_type": "ValidationError",
+        "error_message": error_message,
+        "validation_errors": errors,
+        "workflow_status": "validation_failed",
+        "current_step": "error",
+        "next_step": None,
+        "recovery_suggestions": [
+            "检查输入参数的格式和范围",
+            "确保所有必需字段都已填写",
+            "验证数值的合理性"
+        ]
+    }
 
 
 # ==================== 基础节点（已完成） ====================
@@ -45,30 +56,95 @@ def input_validation_node(state: CoatingWorkflowState) -> Dict:
     
     result = coating_service.validate_input(state, stream_callback)
     
-    # 详细日志：返回值
-    logger.info(f"[参数验证] 返回数据类型: {type(result)}")
-    logger.info(f"[参数验证] 返回数据键: {list(result.keys()) if isinstance(result, dict) else 'N/A'}")
-    logger.info(f"[参数验证] input_validated={result.get('input_validated')}")
-    logger.info(f"[参数验证] workflow_status={result.get('workflow_status')}")
-    if result.get('validation_errors'):
-        logger.info(f"[参数验证] validation_errors={result.get('validation_errors')}")
+    # 统一解析服务返回结构
+    if not isinstance(result, dict):
+        logger.error(f"[参数验证] 服务返回类型异常: {type(result)}")
+        return {
+            "input_validated": False,
+            "workflow_status": "validation_failed",
+            "error_message": "参数验证失败：服务返回格式错误"
+        }
     
-    return result
+    status = result.get("status")
+    data = result.get("data", {}) if isinstance(result.get("data"), dict) else {}
+    
+    # 详细日志：返回值
+    logger.info(f"[参数验证] 返回状态: {status}")
+    logger.info(f"[参数验证] data键: {list(data.keys())}")
+    logger.info(f"[参数验证] input_validated={data.get('input_validated')}")
+    logger.info(f"[参数验证] workflow_status={data.get('workflow_status')}")
+    if data.get('validation_errors'):
+        logger.info(f"[参数验证] validation_errors={data.get('validation_errors')}")
+    
+    # 如果服务标记失败，则统一返回错误状态
+    if status and status != "success":
+        return {
+            "input_validated": False,
+            "workflow_status": "validation_failed",
+            "error_message": result.get("message", "参数验证失败")
+        }
+    
+    return data
 
 
 def topphi_simulation_node(state: CoatingWorkflowState) -> Dict:
     """TopPhi模拟节点 - 沉积过程结构预测"""
-    return coating_service.simulate_topphi(state)
+    result = coating_service.simulate_topphi(state)
+    if not isinstance(result, dict):
+        logger.error(f"[TopPhi模拟] 服务返回类型异常: {type(result)}")
+        return {
+            "workflow_status": "error",
+            "error_message": "TopPhi模拟失败：服务返回格式错误"
+        }
+    status = result.get("status")
+    data = result.get("data", {}) if isinstance(result.get("data"), dict) else {}
+    if status and status != "success":
+        logger.error(f"[TopPhi模拟] 失败: {result.get('message')}")
+        return {
+            "workflow_status": "error",
+            "error_message": result.get("message", "TopPhi模拟失败")
+        }
+    return data
 
 
 def ml_model_prediction_node(state: CoatingWorkflowState) -> Dict:
     """ML模型预测节点 - 性能预测"""
-    return coating_service.predict_ml_performance(state)
+    result = coating_service.predict_ml_performance(state)
+    if not isinstance(result, dict):
+        logger.error(f"[ML模型预测] 服务返回类型异常: {type(result)}")
+        return {
+            "workflow_status": "error",
+            "error_message": "ML模型预测失败：服务返回格式错误"
+        }
+    status = result.get("status")
+    data = result.get("data", {}) if isinstance(result.get("data"), dict) else {}
+    if status and status != "success":
+        logger.error(f"[ML模型预测] 失败: {result.get('message')}")
+        return {
+            "workflow_status": "error",
+            "error_message": result.get("message", "ML模型预测失败")
+        }
+    return data
 
 
 def historical_comparison_node(state: CoatingWorkflowState) -> Dict:
     """历史数据比对节点"""
-    return coating_service.compare_historical_data(state)
+    result = coating_service.compare_historical_data(state)
+    if not isinstance(result, dict):
+        logger.error(f"[历史数据比对] 服务返回类型异常: {type(result)}")
+        return {
+            "workflow_status": "error",
+            "error_message": "历史数据比对失败：服务返回格式错误"
+        }
+    status = result.get("status")
+    data = result.get("data", {}) if isinstance(result.get("data"), dict) else {}
+    if status and status != "success":
+        logger.error(f"[历史数据比对] 失败: {result.get('message')}")
+        return {
+            "workflow_status": "error",
+            "error_message": result.get("message", "历史数据比对失败")
+        }
+    return data
 
 
 def integrated_analysis_node(state: CoatingWorkflowState) -> Dict:
@@ -78,7 +154,27 @@ def integrated_analysis_node(state: CoatingWorkflowState) -> Dict:
     def stream_callback(node: str, content: str):
         send_stream_chunk_sync("integrated_analysis", content)
     
-    return coating_service.integrate_analysis(state, stream_callback)
+    result = coating_service.integrate_analysis(state, stream_callback)
+    if not isinstance(result, dict):
+        logger.error(f"[根因分析节点] 服务返回类型异常: {type(result)}")
+        return {
+            "workflow_status": "error",
+            "error_message": "根因分析失败：服务返回格式错误"
+        }
+    status = result.get("status")
+    data = result.get("data", {}) if isinstance(result.get("data"), dict) else {}
+    logger.info(f"[根因分析节点] service返回状态: {status}, data键: {list(data.keys())}")
+    
+    if status and status != "success":
+        logger.error(f"[根因分析节点] 失败: {result.get('message')}")
+        return {
+            "workflow_status": "error",
+            "error_message": result.get("message", "根因分析失败")
+        }
+    
+    # 直接返回data，其中已经包含integrated_analysis字段
+    logger.info(f"[根因分析节点] integrated_analysis值类型: {type(data.get('integrated_analysis'))}")
+    return data
 
 
 def p1_composition_optimization_node(state: CoatingWorkflowState) -> Dict:
@@ -92,12 +188,29 @@ def p1_composition_optimization_node(state: CoatingWorkflowState) -> Dict:
         send_stream_chunk_sync("p1_composition_optimization", content)
     
     opt_service = OptimizationService()
-    content = opt_service.generate_optimization_suggestion(
+    result = opt_service.generate_optimization_suggestion(
         OptimizationType.P1_COMPOSITION,
         state,
         stream_callback
     )
     
+    if not isinstance(result, dict):
+        logger.error(f"[P1成分优化] 服务返回类型异常: {type(result)}")
+        return {
+            "workflow_status": "error",
+            "error_message": "P1成分优化失败：服务返回格式错误"
+        }
+    
+    status = result.get("status")
+    data = result.get("data", {}) if isinstance(result.get("data"), dict) else {}
+    if status and status != "success":
+        logger.error(f"[P1成分优化] 生成失败: {result.get('message')}")
+        return {
+            "workflow_status": "error",
+            "error_message": result.get("message", "P1成分优化失败")
+        }
+    
+    content = data.get("content", "") or ""
     logger.info(f"[P1成分优化] 完成，内容长度: {len(content)}")
     
     return {
@@ -116,12 +229,29 @@ def p2_structure_optimization_node(state: CoatingWorkflowState) -> Dict:
         send_stream_chunk_sync("p2_structure_optimization", content)
     
     opt_service = OptimizationService()
-    content = opt_service.generate_optimization_suggestion(
+    result = opt_service.generate_optimization_suggestion(
         OptimizationType.P2_STRUCTURE,
         state,
         stream_callback
     )
     
+    if not isinstance(result, dict):
+        logger.error(f"[P2结构优化] 服务返回类型异常: {type(result)}")
+        return {
+            "workflow_status": "error",
+            "error_message": "P2结构优化失败：服务返回格式错误"
+        }
+    
+    status = result.get("status")
+    data = result.get("data", {}) if isinstance(result.get("data"), dict) else {}
+    if status and status != "success":
+        logger.error(f"[P2结构优化] 生成失败: {result.get('message')}")
+        return {
+            "workflow_status": "error",
+            "error_message": result.get("message", "P2结构优化失败")
+        }
+    
+    content = data.get("content", "") or ""
     logger.info(f"[P2结构优化] 完成，内容长度: {len(content)}")
     
     return {
@@ -140,12 +270,29 @@ def p3_process_optimization_node(state: CoatingWorkflowState) -> Dict:
         send_stream_chunk_sync("p3_process_optimization", content)
     
     opt_service = OptimizationService()
-    content = opt_service.generate_optimization_suggestion(
+    result = opt_service.generate_optimization_suggestion(
         OptimizationType.P3_PROCESS,
         state,
         stream_callback
     )
     
+    if not isinstance(result, dict):
+        logger.error(f"[P3工艺优化] 服务返回类型异常: {type(result)}")
+        return {
+            "workflow_status": "error",
+            "error_message": "P3工艺优化失败：服务返回格式错误"
+        }
+    
+    status = result.get("status")
+    data = result.get("data", {}) if isinstance(result.get("data"), dict) else {}
+    if status and status != "success":
+        logger.error(f"[P3工艺优化] 生成失败: {result.get('message')}")
+        return {
+            "workflow_status": "error",
+            "error_message": result.get("message", "P3工艺优化失败")
+        }
+    
+    content = data.get("content", "") or ""
     logger.info(f"[P3工艺优化] 完成，内容长度: {len(content)}")
     
     return {
@@ -166,10 +313,27 @@ def optimization_summary_node(state: CoatingWorkflowState) -> Dict:
     def stream_callback(node: str, content: str):
         send_stream_chunk_sync("optimization_summary", content)
     
-    comprehensive_recommendation = coating_service.generate_optimization_summary(
+    result = coating_service.generate_optimization_summary(
         state, stream_callback
     )
     
+    if not isinstance(result, dict):
+        logger.error(f"[优化汇总] 服务返回类型异常: {type(result)}")
+        return {
+            "workflow_status": "error",
+            "error_message": "优化汇总失败：服务返回格式错误"
+        }
+    
+    status = result.get("status")
+    data = result.get("data", {}) if isinstance(result.get("data"), dict) else {}
+    if status and status != "success":
+        logger.error(f"[优化汇总] 生成失败: {result.get('message')}")
+        return {
+            "workflow_status": "error",
+            "error_message": result.get("message", "优化汇总失败")
+        }
+    
+    comprehensive_recommendation = data.get("comprehensive_recommendation", "") or ""
     logger.info(f"[优化汇总] 完成，综合建议长度: {len(comprehensive_recommendation)}")
     
     return {
@@ -244,23 +408,42 @@ def experiment_workorder_node(state: CoatingWorkflowState) -> Dict:
             stream_callback=stream_callback
         )
         
-        if not result.get("success"):
-            logger.error(f"[工单生成] 失败: {result.get('error')}")
+        logger.info(f"[工单节点] service返回类型: {type(result)}, 键: {list(result.keys()) if isinstance(result, dict) else 'Not a dict'}")
+        
+        # 如果服务返回错误信息，统一转换为工作流错误状态
+        if not isinstance(result, dict):
+            logger.error("[工单节点] 工单服务返回非字典类型结果")
             return {
-                "error_message": result.get("error"),
-                "workflow_status": "error"
+                "workflow_status": "error",
+                "error_message": "工单生成失败：服务返回格式错误"
             }
         
+        # 兼容后续可能引入的标准返回格式：包含status/data/message
+        status = result.get("status")
+        if status and status != "success":
+            logger.error(f"[工单节点] 工单生成失败: {result.get('message')}")
+            return {
+                "workflow_status": "error",
+                "error_message": result.get("message", "工单生成失败")
+            }
+        
+        # 如果包含data字段，则优先使用其中的数据作为工单内容
+        workorder_data = result.get("data") if "data" in result else result
+        
+        # 直接返回，用experiment_workorder包装（与graph state字段对应）
+        node_result = {"experiment_workorder": workorder_data}
+        
+        logger.info(f"[工单节点] 返回类型: {type(node_result)}, 键: {list(node_result.keys())}")
         logger.info(f"[工单生成] 完成")
         
-        return {
-            "experiment_workorder": result.get("experiment_workorder"),
-            "selected_optimization_name": result.get("selected_optimization_name"),
-            "current_step": "workorder_generated"
-        }
+        return node_result
     
     except Exception as e:
-        return error_handler.handle_workflow_error(e, "experiment_workorder", state)
+        logger.error(f"[工单节点] 工单生成异常: {e}")
+        return {
+            "workflow_status": "error",
+            "error_message": f"工单生成异常: {e}"
+        }
 
 
 def await_experiment_results_node(state: CoatingWorkflowState) -> Dict:
@@ -277,10 +460,9 @@ def await_experiment_results_node(state: CoatingWorkflowState) -> Dict:
         "workorder": state.get("experiment_workorder", ""),
         "expected_fields": {
             "hardness": "硬度 (GPa)",
-            "adhesion_strength": "结合力 (N)",
-            "oxidation_temperature": "抗氧化温度 (℃)",
+            "elastic_modulus": "弹性模量 (GPa)",
             "wear_rate": "磨损率 (mm³/Nm)",
-            "surface_roughness": "表面粗糙度 (μm)",
+            "adhesion_strength": "结合力 (N)",
             "notes": "备注",
             "continue_iteration": "是否继续迭代 (boolean)"
         }
@@ -311,7 +493,7 @@ def await_experiment_results_node(state: CoatingWorkflowState) -> Dict:
     next_iteration = state.get("current_iteration", 1) + 1 if continue_iteration else state.get("current_iteration", 1)
     
     return {
-        "experimental_results": experiment_data,
+        "experiment_results": experiment_data,
         "continue_iteration": continue_iteration,
         "iteration_history": iteration_history,
         "current_iteration": next_iteration,

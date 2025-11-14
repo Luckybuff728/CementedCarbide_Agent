@@ -1,0 +1,368 @@
+/* 优化后的控制栏样式 - 避免遮挡 */
+.controls-overlay {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  z-index: 100;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  pointer-events: none;
+}
+
+.controls-left,
+.controls-right {
+  pointer-events: all;
+}
+
+.playback-controls,
+.view-controls {
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  border-radius: 8px;
+  padding: 4px;
+}
+
+.playback-controls :deep(.el-button-group) {
+  box-shadow: none;
+}
+
+.playback-controls :deep(.el-button) {
+  border: none;
+  background: transparent;
+  color: white;
+}
+
+.playback-controls :deep(.el-button--primary) {
+  background: var(--el-color-primary);
+  color: white;
+}
+
+.playback-controls :deep(.el-button:hover) {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* 时间信息浮层 */
+.time-info-overlay {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(8px);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-family: 'Roboto Mono', monospace;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: flex-end;
+}
+
+.time-step {
+  font-weight: 600;
+  color: var(--el-color-primary);
+}
+
+.physical-time {
+  color: #00d4aa;
+}
+
+.file-size {
+  color: #888;
+}
+
+/* 时间轴面板 */
+.timeline-panel {
+  background: white;
+  border-radius: 12px;
+  padding: 16px;
+  border: 1px solid var(--el-border-color-light);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.timeline-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.timeline-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+}
+
+.title-icon {
+  color: var(--el-color-primary);
+  font-size: 18px;
+}
+
+.timeline-settings {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.loop-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.timeline-slider-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.timeline-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+}
+
+.current-step {
+  font-weight: 600;
+  color: var(--el-color-primary);
+}
+
+.physical-time {
+  color: #00d4aa;
+  font-family: 'Roboto Mono', monospace;
+}
+
+.time-slider :deep(.el-slider__runway) {
+  height: 6px;
+  background: var(--el-color-info-light-8);
+}
+
+.time-slider :deep(.el-slider__bar) {
+  background: linear-gradient(90deg, var(--el-color-primary), var(--el-color-success));
+  height: 6px;
+}
+
+.timeline-marks {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  margin-top: 4px;
+}
+
+/* 色标面板 */
+.colorbar-panel {
+  background: white;
+  border-radius: 12px;
+  padding: 16px;
+  border: 1px solid var(--el-border-color-light);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.colorbar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.colorbar-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+}
+
+.stats-toggle {
+  color: var(--el-color-primary);
+}
+
+.colorbar-container {
+  position: relative;
+  margin: 16px 0;
+}
+
+.colorbar-gradient {
+  height: 20px;
+  border-radius: 10px;
+  background: linear-gradient(90deg, 
+    rgb(0, 0, 255) 0%, 
+    rgb(0, 255, 255) 25%, 
+    rgb(0, 255, 0) 50%, 
+    rgb(255, 255, 0) 75%, 
+    rgb(255, 0, 0) 100%
+  );
+  margin-bottom: 12px;
+}
+
+.colorbar-labels {
+  display: flex;
+  justify-content: space-between;
+}
+
+.colorbar-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.colorbar-label.center {
+  justify-content: center;
+}
+
+.color-indicator {
+  width: 12px;
+  height: 12px;
+  border-radius: 6px;
+  border: 2px solid white;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.3);
+}
+
+.color-indicator.blue { background: rgb(0, 0, 255); }
+.color-indicator.green { background: rgb(0, 255, 0); }
+.color-indicator.red { background: rgb(255, 0, 0); }
+
+.value-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.value {
+  font-weight: 600;
+  font-family: 'Roboto Mono', monospace;
+  color: var(--el-text-color-primary);
+}
+
+.phase-label {
+  font-size: 11px;
+  color: var(--el-text-color-secondary);
+  background: var(--el-color-info-light-8);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+/* 统计信息面板 */
+.stats-panel {
+  margin-top: 16px;
+  padding: 16px;
+  background: var(--el-color-info-light-9);
+  border-radius: 8px;
+  border: 1px solid var(--el-border-color-lighter);
+}
+
+.stats-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+}
+
+.stats-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.stat-row {
+  display: flex;
+  gap: 16px;
+}
+
+.stat-item {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid var(--el-border-color-lighter);
+}
+
+.stat-item.primary {
+  border-color: var(--el-color-primary);
+  background: var(--el-color-primary-light-9);
+}
+
+.stat-icon {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--el-color-primary-light-8);
+  border-radius: 6px;
+  color: var(--el-color-primary);
+}
+
+.stat-item.primary .stat-icon {
+  background: var(--el-color-primary);
+  color: white;
+}
+
+.stat-data {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.stat-value {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+  font-family: 'Roboto Mono', monospace;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+
+/* 动画效果 */
+.slide-down-enter-active,
+.slide-down-leave-active {
+  transition: all 0.3s ease;
+  transform-origin: top;
+}
+
+.slide-down-enter-from,
+.slide-down-leave-to {
+  opacity: 0;
+  transform: scaleY(0);
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .controls-overlay {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .timeline-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  
+  .stat-row {
+    flex-direction: column;
+  }
+  
+  .colorbar-labels {
+    flex-direction: column;
+    gap: 8px;
+  }
+}

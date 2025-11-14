@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 import logging
 from datetime import datetime
 
-from .routes import coating_router, vtk_router, setup_websocket_routes
+from .routes import vtk_router, setup_websocket_routes
 
 # 配置日志
 logging.basicConfig(level=logging.INFO)
@@ -31,7 +31,6 @@ app.add_middleware(
 )
 
 # 注册路由
-app.include_router(coating_router)
 app.include_router(vtk_router)
 
 # 设置WebSocket路由
