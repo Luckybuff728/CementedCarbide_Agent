@@ -48,8 +48,7 @@ export function useWorkflowHandler(setLongTaskStatus = null) {
     // ML模型预测结果
     if (nodeId === 'ml_prediction') {
       const mlData = data.performance_prediction || {}
-      return `## ML模型性能预测结果
-
+      return `
 ### 预测性能指标
 - **纳米硬度**: ${mlData.hardness ?? 'N/A'} GPa
 - **弹性模量**: ${mlData.elastic_modulus ?? 'N/A'} GPa
@@ -58,7 +57,6 @@ export function useWorkflowHandler(setLongTaskStatus = null) {
 
 ### 模型置信度
 - **综合置信度**: ${((mlData.model_confidence || 0) * 100).toFixed(1)}%
-- **数据来源**: ML模型预测
 
 性能预测完成，建议参考上述数据进行优化。`
     }
@@ -66,8 +64,7 @@ export function useWorkflowHandler(setLongTaskStatus = null) {
     // 历史数据比对结果
     if (nodeId === 'historical_comparison') {
       const histData = data.historical_comparison
-      return `## 历史数据比对结果
-
+      return `
 ### 匹配案例统计
 - **相似案例数**: ${histData.total_cases || histData.length || 0} 个
 - **最高硬度**: ${histData.highest_hardness || 'N/A'} GPa
@@ -410,7 +407,30 @@ ${histData.similar_cases ? histData.similar_cases.slice(0, 3).map((c, i) =>
       case 'workorder_generated':
         workflowStore.isProcessing = false
         workflowStore.experimentWorkorder = message.data?.experiment_workorder
-        // 只在非历史模式下显示通知
+
+        {
+          const nodeId = 'experiment_workorder'
+          const step = workflowStore.processSteps.find(s => s.nodeId === nodeId)
+          const summaryContent = '## 实验工单生成完成\n\n系统已生成完整实验工单，可在右侧下载或导出。'
+
+          if (step) {
+            step.status = 'completed'
+            if (!step.content || step.content.trim().length === 0) {
+              step.content = summaryContent
+            }
+          } else {
+            workflowStore.addProcessStep({
+              nodeId,
+              status: 'completed',
+              content: summaryContent
+            })
+          }
+
+          if (workflowStore.currentNode === nodeId) {
+            workflowStore.currentNode = ''
+          }
+        }
+
         if (workflowStore.viewMode !== 'history') {
           ElMessage.success('实验工单生成完成')
         }

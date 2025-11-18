@@ -118,79 +118,18 @@
       />
       
       <!-- 优化建议（Tab卡片，整合P1/P2/P3） -->
-      <div 
-        v-if="showOptimizationCards" 
-        ref="optimizationCardRef"
-        :class="['process-card', 'completed', { collapsed: optimizationCollapsed }]"
-      >
-        <div class="card-header" @click="toggleOptimizationCollapse">
-          <div class="header-left">
-            <n-icon class="status-icon completed" :component="CheckmarkCircle" />
-            <n-icon class="title-icon" :component="BulbOutline" />
-            <h4>优化建议</h4>
-            <el-tag type="success" size="small">已完成</el-tag>
-          </div>
-          <div class="header-right">
-            <n-icon class="toggle-icon" :component="optimizationCollapsed ? ChevronDownOutline : ChevronUpOutline" />
-          </div>
-        </div>
-        <transition name="collapse">
-          <div v-show="!optimizationCollapsed" class="card-content">
-            <el-tabs v-model="activeOptimizationTab" class="optimization-tabs">
-              <el-tab-pane 
-                v-if="workflowStore.displayP1Content" 
-                name="p1"
-              >
-                <template #label>
-                  <div class="tab-label">
-                    <n-icon :component="FlaskOutline" />
-                    <span>P1 成分优化</span>
-                  </div>
-                </template>
-                <div ref="p1TabContent" class="tab-content-wrapper">
-                  <MarkdownRenderer :content="workflowStore.displayP1Content" :streaming="workflowStore.isProcessing && workflowStore.currentNode === 'p1_composition_optimization'" />
-                </div>
-              </el-tab-pane>
-              <el-tab-pane 
-                v-if="workflowStore.displayP2Content" 
-                name="p2"
-              >
-                <template #label>
-                  <div class="tab-label">
-                    <n-icon :component="BuildOutline" />
-                    <span>P2 结构优化</span>
-                  </div>
-                </template>
-                <div ref="p2TabContent" class="tab-content-wrapper">
-                  <MarkdownRenderer :content="workflowStore.displayP2Content" :streaming="workflowStore.isProcessing && workflowStore.currentNode === 'p2_structure_optimization'" />
-                </div>
-              </el-tab-pane>
-              <el-tab-pane 
-                v-if="workflowStore.displayP3Content" 
-                name="p3"
-              >
-                <template #label>
-                  <div class="tab-label">
-                    <n-icon :component="SettingsOutline" />
-                    <span>P3 工艺优化</span>
-                  </div>
-                </template>
-                <div ref="p3TabContent" class="tab-content-wrapper">
-                  <MarkdownRenderer :content="workflowStore.displayP3Content" :streaming="workflowStore.isProcessing && workflowStore.currentNode === 'p3_process_optimization'" />
-                </div>
-              </el-tab-pane>
-            </el-tabs>
-            
-            <!-- 底部操作栏 -->
-            <div class="card-footer">
-              <el-button text size="small" @click="copyOptimizationContent">
-                <n-icon :component="CopyOutline" />
-                复制
-              </el-button>
-            </div>
-          </div>
-        </transition>
-      </div>
+      <OptimizationPanelCard
+        v-if="showOptimizationCards"
+        :ref="el => setCardRef('optimization', el)"
+        :p1-content="workflowStore.displayP1Content"
+        :p2-content="workflowStore.displayP2Content"
+        :p3-content="workflowStore.displayP3Content"
+        :process-steps="workflowStore.displayProcessSteps"
+        :is-processing="workflowStore.isProcessing"
+        :current-node="workflowStore.currentNode"
+        :collapsed="optimizationCollapsed"
+        @update:collapsed="optimizationCollapsed = $event"
+      />
       
       <!-- 后续卡片（优化方案汇总等） -->
       <ProcessCard
@@ -217,7 +156,6 @@
 
 <script setup>
 import { ref, computed, watch, nextTick } from 'vue'
-import { ElMessage } from 'element-plus'
 import { NButton, NIcon } from 'naive-ui'
 import {
   ReloadOutline,
@@ -240,27 +178,17 @@ import {
 } from '@vicons/ionicons5'
 import { useWorkflowStore } from '../../stores/workflow'
 import ProcessCard from './ProcessCard.vue'
-import MarkdownRenderer from '../common/MarkdownRenderer.vue'
+import OptimizationPanelCard from './OptimizationPanelCard.vue'
 
 const workflowStore = useWorkflowStore()
 const scrollContainer = ref(null)
 const cardRefs = ref({})
-const optimizationCardRef = ref(null)
-const p1TabContent = ref(null)
-const p2TabContent = ref(null)
-const p3TabContent = ref(null)
-
-// 当前激活的优化方案Tab
-const activeOptimizationTab = ref('p1')
-
-// 优化建议卡片折叠状态
 const optimizationCollapsed = ref(false)
 
 // 自动滚动控制
 const autoScrollEnabled = ref(true)  // 是否启用自动滚动
 const showScrollToBottom = ref(false)  // 是否显示"回到底部"按钮
 const userIsScrolling = ref(false)  // 用户是否正在滚动
-const tabAutoScrollEnabled = ref(true)  // Tab内容自动滚动
 
 // 是否显示优化方案卡片
 const showOptimizationCards = computed(() => {
@@ -284,31 +212,6 @@ const afterOptimizationSteps = computed(() => {
   const afterNodes = ['optimization_summary', 'experiment_workorder']
   return workflowStore.displayProcessSteps.filter(step => afterNodes.includes(step.nodeId))
 })
-
-// 切换优化建议折叠状态
-const toggleOptimizationCollapse = () => {
-  optimizationCollapsed.value = !optimizationCollapsed.value
-}
-
-// 复制优化建议内容
-const copyOptimizationContent = async () => {
-  const currentContent = activeOptimizationTab.value === 'p1' 
-    ? workflowStore.displayP1Content 
-    : activeOptimizationTab.value === 'p2' 
-      ? workflowStore.displayP2Content 
-      : workflowStore.displayP3Content
-  
-  if (currentContent) {
-    try {
-      await navigator.clipboard.writeText(currentContent)
-      ElMessage.success('已复制到剪贴板')
-    } catch (err) {
-      ElMessage.error('复制失败')
-    }
-  }
-}
-
-// ========== 智能自动滚动相关函数 ==========
 
 // 检测是否在底部附近（距离底部小于100px）
 const isNearBottom = () => {
@@ -364,48 +267,6 @@ const smartAutoScroll = () => {
   })
 }
 
-// 检测Tab内容是否在底部附近
-const isTabNearBottom = (tabContentEl) => {
-  if (!tabContentEl) return false
-  const { scrollTop, scrollHeight, clientHeight } = tabContentEl
-  return scrollHeight - scrollTop - clientHeight < 50
-}
-
-// 处理Tab内容滚动事件（支持用户打断）
-const handleTabScroll = (event) => {
-  const tabContentEl = event.target
-  const nearBottom = isTabNearBottom(tabContentEl)
-  
-  // 用户离开底部，暂停Tab自动滚动
-  if (!nearBottom) {
-    tabAutoScrollEnabled.value = false
-  } else {
-    // 用户滚动到底部附近，恢复Tab自动滚动
-    tabAutoScrollEnabled.value = true
-  }
-}
-
-// Tab内容自动滚动到底部
-const scrollTabContentToBottom = () => {
-  if (!tabAutoScrollEnabled.value) return
-  if (!workflowStore.isProcessing) return
-  
-  nextTick(() => {
-    let tabContentEl = null
-    if (activeOptimizationTab.value === 'p1') {
-      tabContentEl = p1TabContent.value
-    } else if (activeOptimizationTab.value === 'p2') {
-      tabContentEl = p2TabContent.value
-    } else if (activeOptimizationTab.value === 'p3') {
-      tabContentEl = p3TabContent.value
-    }
-    
-    if (tabContentEl) {
-      tabContentEl.scrollTop = tabContentEl.scrollHeight
-    }
-  })
-}
-
 // 保存卡片引用
 const setCardRef = (nodeId, el) => {
   if (el) {
@@ -416,17 +277,6 @@ const setCardRef = (nodeId, el) => {
 // 滚动到指定节点
 const scrollToNode = (nodeId) => {
   nextTick(() => {
-    // 特殊处理优化建议卡片
-    if (nodeId === 'optimization') {
-      if (optimizationCardRef.value) {
-        optimizationCardRef.value.scrollIntoView({ behavior: 'smooth', block: 'center' })
-        // 展开优化建议
-        optimizationCollapsed.value = false
-      }
-      return
-    }
-    
-    // 处理普通卡片
     const card = cardRefs.value[nodeId]
     if (card && card.$el) {
       card.$el.scrollIntoView({ behavior: 'smooth', block: 'center' })
@@ -463,23 +313,15 @@ watch(
   ],
   () => {
     smartAutoScroll()
-    scrollTabContentToBottom()  // 同时滚动Tab内容
   },
   { deep: true }
 )
-
-// 监听activeTab切换，恢复自动滚动并显示最新内容
-watch(activeOptimizationTab, () => {
-  tabAutoScrollEnabled.value = true  // 切换Tab时恢复Tab自动滚动
-  scrollTabContentToBottom()
-})
 
 // 监听处理状态，重置滚动控制
 watch(() => workflowStore.isProcessing, (isProcessing) => {
   if (isProcessing) {
     // 开始处理时，启用自动滚动
     autoScrollEnabled.value = true
-    tabAutoScrollEnabled.value = true
     showScrollToBottom.value = false
   }
 })
@@ -500,7 +342,7 @@ defineExpose({
 }
 
 .panel-header {
-  padding: 20px;
+  padding: 12px 20px;
   background: white;
   border-bottom: 1px solid var(--border-color);
   display: flex;
@@ -513,11 +355,43 @@ defineExpose({
   align-items: center;
   gap: 12px;
 }
+/* 正在处理图标 */
+.header-left .is-loading {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
 
 .header-left h3 {
   margin: 0;
   font-size: 18px;
   font-weight: 600;
+}
+
+.header-left h4 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.optimization-availability {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.optimization-availability .value {
+  font-weight: 500;
+  color: var(--primary);
 }
 
 .actions {
@@ -743,6 +617,28 @@ defineExpose({
 
 .status-icon.completed {
   color: var(--success);
+}
+
+.status-icon.processing {
+  color: var(--warning);
+  animation: rotate 2s linear infinite;
+}
+
+.status-icon.error {
+  color: var(--danger);
+}
+
+.status-icon.pending {
+  color: var(--text-tertiary);
+}
+
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .title-icon {

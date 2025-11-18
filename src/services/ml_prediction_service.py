@@ -4,6 +4,7 @@ ML模型预测服务 - 基于机器学习模型的性能预测
 from typing import Dict, Any
 import logging
 import time
+import httpx
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +47,13 @@ class MLPredictionService:
         
         # 当前使用示例数据模拟
         # 注意：核心性能指标与实验数据录入保持一致，便于前端统一展示
-        predicted_hardness = self._predict_hardness(composition, params)
+        predicted_hardness = None
+        try:
+            predicted_hardness = self._predict_hardness_via_onnx(composition, params)
+        except Exception as e:
+            logger.error(f"[ML预测] 硬度ONNX接口调用异常: {str(e)}")
+        if predicted_hardness is None:
+            predicted_hardness = self._predict_hardness(composition, params)
         predicted_elastic_modulus = self._predict_elastic_modulus(predicted_hardness)
         predicted_oxidation = self._predict_oxidation_temp(composition)
         
@@ -82,6 +89,65 @@ class MLPredictionService:
         temp_factor = 1.0 + (temp - 500) / 1000 * 0.1
         
         return round(base_hardness * al_factor * temp_factor, 1)
+
+    def _predict_hardness_via_onnx(self, composition: Dict, params: Dict) -> float | None:
+        """通过ONNX推理服务预测硬度"""
+        al_content = (composition.get('al_content', 0) or 0) / 100.0
+        ti_content = (composition.get('ti_content', 0) or 0) / 100.0
+        n_content = (composition.get('n_content', 0) or 0) / 100.0
+
+        # time_value = float(params.get('deposition_time', 100.0) or 100.0)
+        # temperature = float(params.get('deposition_temperature', 500.0) or 500.0)
+        time_value = 150.0
+        temperature = 900.0
+
+        # time_value = max(0.0, min(time_value, 500.0))
+        # temperature = max(0.0, min(temperature, 1200.0))
+        logger.info(f"[ML预测参数]  Al: {al_content} , Ti: {ti_content} , N: {n_content}, 处理时间: {time_value} , 温度: {temperature} ")
+        url = "http://111.22.21.99:10002/models/70470382-7108-4f92-ad86-69b971f820cb/inference"
+        payload = {
+            "inputs": {
+                "ti": ti_content,
+                "al": al_content,
+                "N": n_content,
+                "time": time_value,
+                "temperature": temperature,
+            }
+        }
+
+        logger.info(f"[ML预测] 调用ONNX硬度预测服务: url={url}, payload={payload}")
+
+        try:
+            response = httpx.post(url, json=payload, timeout=5.0)
+        except Exception as e:
+            logger.error(f"[ML预测] ONNX服务请求失败: {str(e)}")
+            return None
+
+        if response.status_code != 200:
+            logger.error(f"[ML预测] ONNX服务返回错误状态码: {response.status_code}")
+            return None
+
+        try:
+            data = response.json()
+            outputs = data.get("outputs", {})
+            hardness_obj = outputs.get("hardness", {})
+            hardness_value = hardness_obj.get("value")
+        except Exception as e:
+            logger.error(f"[ML预测] 解析ONNX服务响应失败: {str(e)}")
+            return None
+
+        if hardness_value is None:
+            logger.error("[ML预测] ONNX服务响应中缺少硬度值")
+            return None
+
+        try:
+            hardness = float(hardness_value)
+        except (TypeError, ValueError) as e:
+            logger.error(f"[ML预测] 硬度值转换失败: {str(e)}")
+            return None
+
+        logger.info(f"[ML预测] ONNX硬度预测结果: {hardness}")
+        return hardness
 
     def _predict_elastic_modulus(self, hardness: float) -> float:
         """预测弹性模量（GPa） - 简化模型，与硬度相关联"""

@@ -353,7 +353,7 @@ const handleSubmit = () => {
 }
 
 .panel-header {
-  padding: 20px;
+  padding: 12px 20px;/*顶部*/
   border-bottom: 1px solid var(--border-color);
   display: flex;
   justify-content: space-between;

@@ -29,7 +29,6 @@
               :precision="1"
               :step="0.1"
               placeholder="请输入实测硬度"
-              style="width: 200px"
             />
             <span class="unit">GPa</span>
           </div>
@@ -43,7 +42,6 @@
               :max="100"
               :precision="1"
               placeholder="请输入结合力"
-              style="width: 200px"
             />
             <span class="unit">N</span>
           </div>
@@ -58,7 +56,6 @@
               :precision="1"
               :step="1"
               placeholder="请输入弹性模量"
-              style="width: 200px"
             />
             <span class="unit">GPa</span>
           </div>
@@ -73,7 +70,6 @@
               :precision="3"
               :step="0.001"
               placeholder="请输入磨损率"
-              style="width: 200px"
             />
             <span class="unit">mm³/Nm</span>
           </div>
@@ -85,7 +81,6 @@
             type="textarea"
             :rows="3"
             placeholder="请输入实验备注（可选）"
-            style="width: 400px"
           />
         </el-form-item>
       </div>
@@ -306,13 +301,15 @@ const handleCancel = () => {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 .unit {
   font-size: 14px;
   font-weight: 500;
   color: var(--text-secondary);
-  min-width: 80px;
+  min-width: 56px;
+  white-space: nowrap;
 }
 
 .reference-section {
@@ -432,6 +429,11 @@ const handleCancel = () => {
   box-sizing: border-box;
 }
 
+.decision-radio :deep(.el-radio__label) {
+  width: 100%;
+  white-space: normal;
+}
+
 .decision-radio :deep(.el-radio.is-bordered:hover) {
   border-color: var(--primary);
   box-shadow: var(--shadow-md);
@@ -481,6 +483,7 @@ const handleCancel = () => {
   line-height: 1.5;
   margin-left: 36px;
   margin-top: 4px;
+  word-break: break-word;
 }
 
 .actions {
@@ -506,8 +509,10 @@ const handleCancel = () => {
   font-size: 14px;
 }
 
-.form-section :deep(.el-input-number) {
-  width: 240px;
+.form-section :deep(.el-input-number),
+.form-section :deep(.el-input),
+.form-section :deep(.el-textarea) {
+  width: 100%;
 }
 
 .form-section :deep(.el-textarea__inner) {

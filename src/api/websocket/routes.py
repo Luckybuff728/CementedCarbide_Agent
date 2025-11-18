@@ -6,6 +6,7 @@ import uuid
 from fastapi import WebSocket, WebSocketDisconnect
 from .manager import manager
 from .handlers import handle_websocket_message
+from ..security import decode_token
 
 logger = logging.getLogger(__name__)
 
@@ -20,16 +21,16 @@ def setup_websocket_routes(app):
     
     @app.websocket("/ws/coating")
     async def websocket_endpoint(websocket: WebSocket):
-        """
-        主WebSocket端点 - 实时通信
-        
-        连接流程：
-        1. 客户端连接
-        2. 发送连接确认
-        3. 循环接收消息并路由处理
-        4. 断开时清理资源
-        """
-        client_id = f"CLIENT_{uuid.uuid4().hex[:8]}"
+        """主WebSocket端点 - 实时通信，要求客户端提供JWT token"""
+        token = websocket.query_params.get("token")
+        payload = decode_token(token) if token else None
+        if not payload or "sub" not in payload:
+            logger.warning("[WebSocket] 未授权的连接请求，缺少或无效的token")
+            await websocket.close(code=1008)
+            return
+
+        user_id = payload["sub"]
+        client_id = f"CLIENT_{uuid.uuid4().hex[:8]}_U{user_id}"
         await manager.connect(websocket, client_id)
         current_task_id = None
         

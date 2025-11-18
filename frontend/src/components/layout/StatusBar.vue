@@ -80,6 +80,15 @@
             清空
           </n-button>
         </template>
+
+        <!-- 用户信息与退出 -->
+        <div class="user-info" v-if="authUser">
+          <span class="user-name">{{ authUser.display_name || authUser.username }}</span>
+          <n-button size="small" text @click="handleLogout">退出</n-button>
+        </div>
+        <div class="user-info" v-else>
+          <span class="user-name muted">未登录</span>
+        </div>
       </div>
     </div>
   </div>
@@ -99,8 +108,10 @@ import {
   ArrowBackOutline
 } from '@vicons/ionicons5'
 import { useWorkflowStore } from '../../stores/workflow'
+import { useAuthStore } from '../../stores/auth'
 
 const workflowStore = useWorkflowStore()
+const authStore = useAuthStore()
 const emit = defineEmits(['jump-to-node', 'export', 'clear'])
 
 // 获取WebSocket连接状态（从App.vue注入）
@@ -119,6 +130,8 @@ const connectionStateClass = computed(() => {
       return 'disconnected'
   }
 })
+
+const authUser = computed(() => authStore.user)
 
 const connectionStateText = computed(() => {
   switch (connectionState.value) {
@@ -213,16 +226,20 @@ function handleClear() {
     emit('clear')
   }).catch(() => {})
 }
+
+function handleLogout() {
+  authStore.logout()
+}
 </script>
 
 <style scoped>
 .status-bar {
-  height: 60px;
+  min-height: 60px;
   background: white;
   border-bottom: 1px solid var(--border-color);
   display: flex;
   align-items: center;
-  padding: 0 24px;
+  padding: 8px 24px;
   box-shadow: 0 2px 4px rgba(0,0,0,0.04);
   position: relative;
   z-index: 10;
@@ -238,21 +255,22 @@ function handleClear() {
 .left-section {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
   flex: 1;
+  flex-wrap: wrap;
   overflow-x: auto;
 }
 
 .title-section {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  white-space: nowrap;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
 }
 
 .app-title {
   margin: 0;
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 600;
   color: var(--primary);
   line-height: 1.5;
@@ -260,15 +278,16 @@ function handleClear() {
 
 .app-subtitle {
   margin: 0;
-  font-size: 15px;
+  font-size: 12px;
   color: var(--text-secondary);
-  line-height: 1.5;
+  line-height: 1.4;
 }
 
 .progress-nodes {
   display: flex;
   align-items: center;
   gap: 0;
+  flex-wrap: wrap;
 }
 
 .node-step {
@@ -357,6 +376,21 @@ function handleClear() {
   display: flex;
   gap: 12px;
   align-items: center;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.user-name {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.user-name.muted {
+  color: var(--text-tertiary);
 }
 
 /* Naive UI按钮自定义样式 */

@@ -16,9 +16,10 @@
           <n-icon class="opt-icon" :component="opt.iconComponent" />
           <h5>{{ opt.title }}</h5>
         </div>
+        <p v-if="opt.planName" class="opt-plan-name">{{ opt.planName }}</p>
         <p class="opt-desc">{{ opt.description }}</p>
-        <div v-if="opt.summary" class="opt-summary">
-          {{ opt.summary }}
+        <div v-if="opt.overview" class="opt-summary">
+          {{ opt.overview }}
         </div>
       </div>
     </div>
@@ -73,40 +74,91 @@ const props = defineProps({
 
 const emit = defineEmits(['select'])
 
-// 选中的方案
 const selectedOpt = ref(null)
 
-// 从内容中提取摘要
 const getSummaryFromContent = (content) => {
   if (!content) return ''
   const text = content.replace(/[#*`\n]/g, '').trim()
   return text.length > 80 ? text.substring(0, 80) + '...' : text
 }
 
-// 优化方案配置
-const options = computed(() => [
-  {
-    id: 'P1',
-    title: 'P1 成分优化',
-    iconComponent: FlaskOutline,
-    description: '调整Al/Ti/N比例及合金元素',
-    summary: getSummaryFromContent(props.p1Content)
-  },
-  {
-    id: 'P2',
-    title: 'P2 结构优化',
-    iconComponent: BuildOutline,
-    description: '多层/梯度结构设计',
-    summary: getSummaryFromContent(props.p2Content)
-  },
-  {
-    id: 'P3',
-    title: 'P3 工艺优化',
-    iconComponent: SettingsOutline,
-    description: '沉积温度/偏压/气氛优化',
-    summary: getSummaryFromContent(props.p3Content)
+const stripMarkdownInline = (text) => {
+  if (!text) return ''
+  return text
+    .replace(/[`*_#>\-]/g, '')
+    .replace(/\[(.*?)\]\((.*?)\)/g, '$1')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+const extractPlanMeta = (content) => {
+  if (!content) return { name: '', overview: '' }
+  const lines = content.split('\n')
+  let name = ''
+  let overview = ''
+  let inName = false
+  let inOverview = false
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim()
+    if (!name && (/^##\s*方案名称/.test(line) || /^##方案名称/.test(line))) {
+      inName = true
+      continue
+    }
+    if (inName && !name && line && !line.startsWith('#')) {
+      name = stripMarkdownInline(line.replace(/^\[/, '').replace(/]$/, ''))
+      inName = false
+      continue
+    }
+    if (!overview && (/^###\s*方案概述/.test(line) || /^###方案概述/.test(line))) {
+      inOverview = true
+      continue
+    }
+    if (inOverview && !overview && line && !line.startsWith('#')) {
+      overview = stripMarkdownInline(line.replace(/^\[/, '').replace(/]$/, ''))
+      inOverview = false
+      continue
+    }
   }
-])
+
+  return { name, overview }
+}
+
+const options = computed(() => {
+  const p1Meta = extractPlanMeta(props.p1Content)
+  const p2Meta = extractPlanMeta(props.p2Content)
+  const p3Meta = extractPlanMeta(props.p3Content)
+
+  return [
+    {
+      id: 'P1',
+      title: 'P1 成分优化',
+      iconComponent: FlaskOutline,
+      description: '调整Al/Ti/N比例及合金元素',
+      planName: p1Meta.name,
+      overview: p1Meta.overview || getSummaryFromContent(props.p1Content),
+      summary: getSummaryFromContent(props.p1Content)
+    },
+    {
+      id: 'P2',
+      title: 'P2 结构优化',
+      iconComponent: BuildOutline,
+      description: '多层/梯度结构设计',
+      planName: p2Meta.name,
+      overview: p2Meta.overview || getSummaryFromContent(props.p2Content),
+      summary: getSummaryFromContent(props.p2Content)
+    },
+    {
+      id: 'P3',
+      title: 'P3 工艺优化',
+      iconComponent: SettingsOutline,
+      description: '沉积温度/偏压/气氛优化',
+      planName: p3Meta.name,
+      overview: p3Meta.overview || getSummaryFromContent(props.p3Content),
+      summary: getSummaryFromContent(props.p3Content)
+    }
+  ]
+})
 
 // 处理选择
 const handleSelect = () => {
@@ -193,6 +245,13 @@ const handleSelect = () => {
   margin: 0 0 8px 0;
   font-size: 13px;
   color: var(--text-secondary);
+}
+
+.opt-plan-name {
+  margin: 0 0 4px 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
 }
 
 .opt-summary {

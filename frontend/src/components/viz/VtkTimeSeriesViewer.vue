@@ -309,6 +309,7 @@ const currentTimeStep = computed(() => {
 })
 const currentFileSize = computed(() => {
   if (props.timeSeriesFiles.length > 0 && currentFrameIndex.value < props.timeSeriesFiles.length) {
+    // 直接使用后端 timeseries 接口返回的 size 字段，避免在前端写入 computed
     return props.timeSeriesFiles[currentFrameIndex.value]?.size || 0
   }
   return 0
@@ -475,7 +476,6 @@ const loadFrame = async (frameIndex, showLoading = true) => {
     }
     
     const vtkText = await response.text()
-    currentFileSize.value = vtkText.length
     
     // 解析VTK Legacy格式
     const source = parseLegacyVTK(vtkText)

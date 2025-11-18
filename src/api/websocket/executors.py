@@ -22,6 +22,10 @@ async def execute_workflow_stream(task_id: str, thread_id: str, input_data: Dict
         client_id: 客户端ID
     """
     try:
+        # 状态标记：是否发生过交互中断，以及是否已发送"优化完成"事件
+        optimization_completed_sent = False
+        has_interrupt = False
+
         # 设置流式输出回调
         async def stream_callback(node: str, content: str):
             await manager.send_json({
@@ -61,6 +65,8 @@ async def execute_workflow_stream(task_id: str, thread_id: str, input_data: Dict
                         "reason": reason,
                         "data": interrupt_info
                     }, client_id)
+                    # 记录发生过一次交互中断
+                    has_interrupt = True
                     
                     logger.info(f"[工作流暂停] 已发送workflow_paused消息，停止当前流")
                     # interrupt后停止发送，等待用户响应
@@ -88,11 +94,12 @@ async def execute_workflow_stream(task_id: str, thread_id: str, input_data: Dict
                             }, client_id)
                         elif not continue_iteration:
                             logger.info(f"[优化完成] 用户选择完成，工作流即将结束 (continue_iteration={continue_iteration})")
-                            # 发送 optimization_completed 消息
+                            # 发送 optimization_completed 消息（此处视为优化流程的正式结束）
                             await manager.send_json({
                                 "type": "optimization_completed",
                                 "message": "优化流程已完成"
                             }, client_id)
+                            optimization_completed_sent = True
                             logger.info(f"[优化完成] 已发送optimization_completed消息")
             
             # 发送前的摘要日志（详细字段在debug级别记录）
@@ -112,12 +119,21 @@ async def execute_workflow_stream(task_id: str, thread_id: str, input_data: Dict
             # 添加小延迟避免消息过快
             await asyncio.sleep(0.01)
         
-        # ✅ 工作流正常结束（没有interrupt）
+        # ✅ 工作流正常结束
         logger.info(f"[工作流完成] 任务 {task_id} 正常结束")
-        await manager.send_json({
-            "type": "optimization_completed",
-            "message": "优化流程已完成"
-        }, client_id)
+
+        # 方案A：
+        # - 如果流程中从未发生交互中断（has_interrupt=False），视为一次性自动优化流程，
+        #   在此统一发送 optimization_completed
+        # - 如果流程中发生过交互中断（await_user_selection / await_experiment_results 等），
+        #   则只在 await_experiment_results 的 continue_iteration=False 分支发送一次
+        #   optimization_completed，避免例如“选择优化方案并生成工单”这种交互场景结束时
+        #   再次弹出“优化流程已完成”。
+        if not has_interrupt and not optimization_completed_sent:
+            await manager.send_json({
+                "type": "optimization_completed",
+                "message": "优化流程已完成"
+            }, client_id)
     
     except Exception as e:
         logger.error(f"工作流执行出错: {str(e)}")

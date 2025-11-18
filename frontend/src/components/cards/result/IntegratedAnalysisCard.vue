@@ -14,7 +14,7 @@
           <span class="section-title">综合评价</span>
         </div>
         <div class="summary-text">
-          {{ summary }}
+          <MarkdownRenderer :content="summary" />
         </div>
       </div>
 
@@ -31,7 +31,9 @@
             class="finding-item"
           >
             <n-icon :component="ChevronForwardOutline" class="bullet" />
-            <span>{{ finding }}</span>
+            <div class="finding-text">
+              <MarkdownRenderer :content="finding" />
+            </div>
           </div>
         </div>
       </div>
@@ -56,6 +58,7 @@ import {
   DocumentTextOutline
 } from '@vicons/ionicons5'
 import SummaryCard from '../../common/SummaryCard.vue'
+import MarkdownRenderer from '../../common/MarkdownRenderer.vue'
 
 // 定义props和emits
 const props = defineProps({
@@ -67,20 +70,31 @@ const props = defineProps({
 
 const emit = defineEmits(['jump-to-node'])
 
+// 清洗分析文本中的 Markdown 星号，避免不成对的 ** 裸露显示
+const sanitizeAnalysisText = (text) => {
+  if (!text) return ''
+  return String(text)
+    // 去掉可能出现在行首的列表符号，如 "- ", "* ", "• "
+    .replace(/^\s*[-*•]\s+/gm, '')
+    // 去掉剩余的星号/圆点（包含全角变体），避免残留
+    .replace(/[\*•＊﹡]/g, '')
+}
+
 // 判断是否有内容（简化：只检查对象类型）
 const hasContent = computed(() => {
   return props.analysis && typeof props.analysis === 'object'
 })
 
-// 直接访问数据字段（简化：不做复杂处理）
+// 访问数据字段并做轻量清洗，去掉不成对的 Markdown 星号
 const summary = computed(() => {
   if (!hasContent.value) return ''
-  return props.analysis.summary || ''
+  return sanitizeAnalysisText(props.analysis.summary || '')
 })
 
 const keyFindings = computed(() => {
   if (!hasContent.value) return []
-  return props.analysis.key_findings || []
+  const list = props.analysis.key_findings || []
+  return list.map(item => sanitizeAnalysisText(item || ''))
 })
 
 const recommendations = computed(() => {
@@ -134,6 +148,12 @@ const rootCauseAnalysis = computed(() => {
   border-left: 3px solid var(--success);
 }
 
+.summary-text :deep(.markdown-content) {
+  font-size: 13px;
+  line-height: 1.6;
+  margin: 0;
+}
+
 .findings-list {
   display: flex;
   flex-direction: column;
@@ -150,6 +170,16 @@ const rootCauseAnalysis = computed(() => {
   font-size: 12px;
   color: var(--text-primary);
   line-height: 1.5;
+}
+
+.finding-text {
+  flex: 1;
+}
+
+.finding-item :deep(.markdown-content) {
+  font-size: 12px;
+  line-height: 1.5;
+  margin: 0;
 }
 
 .finding-item .bullet {

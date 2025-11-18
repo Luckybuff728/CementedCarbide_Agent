@@ -14,6 +14,7 @@
     <TopPhiResultCard
       v-if="hasTopPhiResult"
       :topphi-result="workflowStore.displayTopphiResult"
+      @jump-to-node="handleJumpToNode"
     />
     
     <!-- ML性能预测 -->
@@ -34,17 +35,6 @@
     <IntegratedAnalysisCard
       v-if="hasIntegratedAnalysis"
       :analysis="workflowStore.displayIntegratedAnalysis"
-      @jump-to-node="handleJumpToNode"
-    />
-    
-    <!-- 优化建议摘要 -->
-    <OptimizationSuggestionsCard
-      v-if="hasOptimizationSuggestions"
-      :suggestions="{
-        p1: workflowStore.displayP1Content,
-        p2: workflowStore.displayP2Content,
-        p3: workflowStore.displayP3Content
-      }"
       @jump-to-node="handleJumpToNode"
     />
     
@@ -96,7 +86,6 @@ import TopPhiResultCard from '../cards/TopPhiResultCard.vue'
 import PerformancePredictionCard from '../cards/PerformancePredictionCard.vue'
 import HistoricalComparisonCard from '../cards/result/HistoricalComparisonCard.vue'
 import IntegratedAnalysisCard from '../cards/result/IntegratedAnalysisCard.vue'
-import OptimizationSuggestionsCard from '../cards/result/OptimizationSuggestionsCard.vue'
 import OptimizationSelector from '../cards/OptimizationSelector.vue'
 import WorkorderSummaryCard from '../cards/result/WorkorderSummaryCard.vue'
 import ExperimentInputCard from '../experiment/ExperimentInputCard.vue'
@@ -117,7 +106,6 @@ const hasAnyContent = computed(() => {
          workflowStore.displayPerformancePrediction ||
          workflowStore.displayHistoricalComparison ||
          workflowStore.displayIntegratedAnalysis ||
-         hasOptimizationSuggestions.value ||
          workflowStore.showOptimizationSelection ||
          workflowStore.displayExperimentWorkorder ||
          workflowStore.showExperimentInput ||
@@ -151,16 +139,13 @@ const hasIntegratedAnalysis = computed(() => {
   return workflowStore.displayIntegratedAnalysis !== null
 })
 
-// 是否有优化建议
-const hasOptimizationSuggestions = computed(() => {
-  return workflowStore.displayP1Content || 
-         workflowStore.displayP2Content || 
-         workflowStore.displayP3Content
-})
-
 // 是否有工单
 const hasWorkorder = computed(() => {
-  return workflowStore.displayExperimentWorkorder !== null
+  const workorder = workflowStore.displayExperimentWorkorder
+  const step = workflowStore.displayProcessSteps.find(s => s.nodeId === 'experiment_workorder')
+  const hasFinalData = workorder && typeof workorder === 'object'
+  const isCompleted = step && step.status === 'completed'
+  return hasFinalData && isCompleted
 })
 
 // ==================== 事件处理 ====================

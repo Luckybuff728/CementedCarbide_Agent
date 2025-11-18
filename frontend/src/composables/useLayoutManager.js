@@ -6,8 +6,25 @@ import { ref } from 'vue'
 
 export function useLayoutManager() {
   // 面板宽度（左侧、右侧）
-  const leftWidth = ref(400)
-  const rightWidth = ref(800)
+  const leftWidth = ref(360)
+  const rightWidth = ref(520)
+  
+  /**
+   * 根据整体可用宽度，按比例更新左右面板宽度
+   * 在 App.vue 中通过 window.innerWidth 调用，实现基础响应式
+   */
+  const applyResponsiveWidth = (totalWidth) => {
+    if (!totalWidth || Number.isNaN(totalWidth)) return
+    
+    // 预留一定空间给中间面板和拖动条
+    const available = Math.max(totalWidth, 1024)
+    const baseLeft = available * 0.22 // 左侧约占 22%
+    const baseRight = available * 0.28 // 右侧约占 28%
+    
+    // 与拖拽时一致的安全范围
+    leftWidth.value = Math.max(280, Math.min(420, baseLeft))
+    rightWidth.value = Math.max(360, Math.min(720, baseRight))
+  }
   
   // 拖动状态
   let isResizing = false
@@ -44,11 +61,11 @@ export function useLayoutManager() {
     if (resizeDirection === 'left') {
       // 左侧面板：向右拖动增大，向左拖动减小
       const newWidth = startWidth + delta
-      leftWidth.value = Math.max(280, Math.min(400, newWidth))
+      leftWidth.value = Math.max(280, Math.min(420, newWidth))
     } else if (resizeDirection === 'right') {
       // 右侧面板：向左拖动增大，向右拖动减小
       const newWidth = startWidth - delta
-      rightWidth.value = Math.max(800, Math.min(1200, newWidth))
+      rightWidth.value = Math.max(360, Math.min(720, newWidth))
     }
   }
   
@@ -68,6 +85,7 @@ export function useLayoutManager() {
   return {
     leftWidth,
     rightWidth,
-    startResize
+    startResize,
+    applyResponsiveWidth
   }
 }

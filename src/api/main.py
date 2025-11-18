@@ -8,7 +8,9 @@ from fastapi.responses import JSONResponse
 import logging
 from datetime import datetime
 
-from .routes import vtk_router, setup_websocket_routes
+from .routes import vtk_router, auth_router, setup_websocket_routes
+from ..db.session import engine, Base
+from ..models import user as user_model
 
 # 配置日志
 logging.basicConfig(level=logging.INFO)
@@ -30,8 +32,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.on_event("startup")
+def on_startup():
+	Base.metadata.create_all(bind=engine)
+
 # 注册路由
 app.include_router(vtk_router)
+app.include_router(auth_router)
 
 # 设置WebSocket路由
 setup_websocket_routes(app)

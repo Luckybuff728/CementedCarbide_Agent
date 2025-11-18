@@ -34,6 +34,7 @@ export const WS_ENDPOINTS = {
 export const API_ENDPOINTS = {
   vtk: `${API_BASE_URL}/api/vtk`,
   coating: `${API_BASE_URL}/api/coating`,
+  auth: `${API_BASE_URL}/api/auth`,
   health: `${API_BASE_URL}/health`
 }
 

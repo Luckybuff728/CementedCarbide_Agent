@@ -6,15 +6,18 @@ import { useWebSocket } from './composables/useWebSocket'
 import { useWorkflowHandler } from './composables/useWorkflowHandler'
 import { useLayoutManager } from './composables/useLayoutManager'
 import { WS_ENDPOINTS } from './config'
+import { useAuthStore } from './stores/auth'
 
 import ErrorBoundary from './components/layout/ErrorBoundary.vue'
 import StatusBar from './components/layout/StatusBar.vue'
 import LeftPanel from './components/layout/LeftPanel.vue'
 import CenterPanel from './components/layout/CenterPanel.vue'
 import RightPanel from './components/layout/RightPanel.vue'
+import LoginPanel from './components/auth/LoginPanel.vue'
 
 // ==================== 初始化 ====================
 const workflowStore = useWorkflowStore()
+const authStore = useAuthStore()
 
 // WebSocket管理
 const { 
@@ -31,8 +34,8 @@ const {
 // 工作流消息处理
 const { handleWebSocketMessage } = useWorkflowHandler(setLongTaskStatus)
 
-// 布局管理
-const { leftWidth, rightWidth, startResize } = useLayoutManager()
+// 布局管理（支持基础响应式 + 拖拽调整）
+const { leftWidth, rightWidth, startResize, applyResponsiveWidth } = useLayoutManager()
 
 // 向子组件provide连接状态
 provide('connectionState', connectionState)
@@ -46,6 +49,20 @@ const centerPanelRef = ref(null)
 watch(isConnected, (connected) => {
   workflowStore.isConnected = connected
 })
+
+// WebSocket 与登录状态联动
+watch(
+  () => authStore.isAuthenticated,
+  (authed) => {
+    if (authed) {
+      const url = `${WS_ENDPOINTS.coating}?token=${authStore.token}`
+      connect(url, handleWebSocketMessage)
+    } else {
+      disconnect()
+    }
+  },
+  { immediate: true }
+)
 
 // ==================== 事件处理器 ====================
 
@@ -188,18 +205,33 @@ const handleExport = () => {
 const handleClear = () => {}
 
 // ==================== 生命周期 ====================
+
+// 窗口尺寸变化时，按比例更新左右面板宽度
+const handleWindowResize = () => {
+  if (typeof window === 'undefined') return
+  applyResponsiveWidth(window.innerWidth)
+}
+
 onMounted(() => {
-  connect(WS_ENDPOINTS.coating, handleWebSocketMessage)
+  authStore.init()
+  handleWindowResize()
+  if (typeof window !== 'undefined') {
+    window.addEventListener('resize', handleWindowResize)
+  }
 })
 
 onUnmounted(() => {
   disconnect()
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('resize', handleWindowResize)
+  }
 })
 </script>
 
 <template>
   <ErrorBoundary>
-    <div class="app-container">
+    <LoginPanel v-if="!authStore.isAuthenticated" />
+    <div v-else class="app-container">
       <!-- 顶部状态栏 -->
       <StatusBar 
         @jump-to-node="handleJumpToNode"
