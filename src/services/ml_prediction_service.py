@@ -69,10 +69,10 @@ class MLPredictionService:
             "surface_roughness": self._predict_surface_roughness(params),
             
             # 模型元数据
-            "model_confidence": 0.85
+            "model_confidence": 0.8500
         }
         
-        logger.info(f"[ML预测] 完成 - 硬度: {predicted_hardness} GPa, 弹性模量: {predicted_elastic_modulus} GPa")
+        logger.info(f"[ML预测] 完成 - 硬度: {predicted_hardness:.4f} GPa, 弹性模量: {predicted_elastic_modulus:.4f} GPa")
         
         return ml_prediction
     
@@ -88,7 +88,7 @@ class MLPredictionService:
         temp = params.get('deposition_temperature', 500)
         temp_factor = 1.0 + (temp - 500) / 1000 * 0.1
         
-        return round(base_hardness * al_factor * temp_factor, 1)
+        return round(base_hardness * al_factor * temp_factor, 4)
 
     def _predict_hardness_via_onnx(self, composition: Dict, params: Dict) -> float | None:
         """通过ONNX推理服务预测硬度"""
@@ -146,14 +146,15 @@ class MLPredictionService:
             logger.error(f"[ML预测] 硬度值转换失败: {str(e)}")
             return None
 
-        logger.info(f"[ML预测] ONNX硬度预测结果: {hardness}")
+        hardness = round(hardness, 4)
+        logger.info(f"[ML预测] ONNX硬度预测结果: {hardness:.4f}")
         return hardness
 
     def _predict_elastic_modulus(self, hardness: float) -> float:
         """预测弹性模量（GPa） - 简化模型，与硬度相关联"""
         # 经验比值：弹性模量通常是硬度的若干倍
         base_ratio = 15.0
-        return round(hardness * base_ratio, 1)
+        return round(hardness * base_ratio, 4)
     
     def _predict_adhesion_level(self, composition: Dict, structure: Dict) -> str:
         """预测结合力等级（保留旧方法名）"""
@@ -189,7 +190,7 @@ class MLPredictionService:
         else:
             thickness_factor = 1.1
         
-        return round(base_adhesion * al_factor * thickness_factor, 1)
+        return round(base_adhesion * al_factor * thickness_factor, 4)
     
     def _predict_wear_rate(self, composition: Dict) -> float:
         """预测磨损率"""
@@ -197,7 +198,7 @@ class MLPredictionService:
         al_content = composition.get('al_content', 0)
         base_rate = 2.0e-6
         
-        return round(base_rate * (1 - al_content / 200), 8)
+        return round(base_rate * (1 - al_content / 200), 4)
     
     def _predict_oxidation_temp(self, composition: Dict) -> float:
         """预测抗氧化温度（℃）
@@ -208,7 +209,7 @@ class MLPredictionService:
         al_content = composition.get('al_content', 0)
         base_temp = 700
         
-        return round(base_temp + al_content * 3, 0)
+        return round(base_temp + al_content * 3, 4)
     
     def _predict_surface_roughness(self, params: Dict) -> float:
         """预测表面粗糙度（μm）- 与实验数据字段统一
@@ -230,4 +231,4 @@ class MLPredictionService:
         
         roughness = base_roughness * temp_factor * bias_factor
         
-        return round(max(0.05, roughness), 2)
+        return round(max(0.05, roughness), 4)
