@@ -1,76 +1,86 @@
 <template>
-  <div class="right-panel" ref="rightPanelRef" @scroll="handlePanelScroll">
-    <!-- 空状态展示 -->
-    <EmptyStateCard v-if="!hasAnyContent" />
-    
-    <!-- 参数验证摘要 -->
-    <ValidationSummaryCard
-      v-if="hasValidationResult"
-      :validation-result="workflowStore.displayValidationResult"
-      @jump-to-node="handleJumpToNode"
-    />
-    
-    <!-- TopPhi相场模拟 -->
-    <TopPhiResultCard
-      v-if="hasTopPhiResult"
-      :topphi-result="workflowStore.displayTopphiResult"
-      @jump-to-node="handleJumpToNode"
-    />
-    
-    <!-- ML性能预测 -->
-    <PerformancePredictionCard
-      v-if="hasMlPrediction"
-      :prediction="workflowStore.displayPerformancePrediction"
-      @jump-to-node="handleJumpToNode"
-    />
-    
-    <!-- 历史对比 -->
-    <HistoricalComparisonCard
-      v-if="hasHistoricalComparison"
-      :comparison="workflowStore.displayHistoricalComparison"
-      @jump-to-node="handleJumpToNode"
-    />
-    
-    <!-- 根因分析 -->
-    <IntegratedAnalysisCard
-      v-if="hasIntegratedAnalysis"
-      :analysis="workflowStore.displayIntegratedAnalysis"
-      @jump-to-node="handleJumpToNode"
-    />
-    
-    <!-- 优化方案选择器 -->
-    <OptimizationSelector
-      v-if="workflowStore.showOptimizationSelection"
-      :p1-content="workflowStore.displayP1Content"
-      :p2-content="workflowStore.displayP2Content"
-      :p3-content="workflowStore.displayP3Content"
-      :comprehensive-recommendation="workflowStore.displayComprehensiveRecommendation"
-      @select="handleOptimizationSelect"
-    />
-    
-    <!-- 实验工单摘要 -->
-    <WorkorderSummaryCard
-      v-if="hasWorkorder"
-      :workorder="workflowStore.displayExperimentWorkorder"
-      :selected-optimization="workflowStore.selectedOptimization"
-      @download="downloadWorkorder"
-      @jump-to-node="handleJumpToNode"
-    />
-    
-    <!-- 实验数据输入 -->
-    <ExperimentInputCard
-      v-if="workflowStore.showExperimentInput"
-      :iteration="workflowStore.currentIteration"
-      :historical-best="getHistoricalBest()"
-      @submit="handleExperimentSubmit"
-      @cancel="handleExperimentCancel"
-    />
-    
-    <!-- 迭代历史 -->
-    <IterationHistoryPanel
-      v-if="workflowStore.iterationHistory.length > 0"
-      :history="workflowStore.iterationHistory"
-    />
+  <div class="right-panel">
+    <!-- 顶部标题栏 -->
+    <div class="panel-header">
+      <h3>分析结果</h3>
+      <div class="header-actions">
+        <!-- 预留操作按钮位置 -->
+      </div>
+    </div>
+
+    <div class="panel-content" ref="rightPanelRef" @scroll="handlePanelScroll">
+      <!-- 空状态展示 -->
+      <EmptyStateCard v-if="!hasAnyContent" />
+      
+      <!-- 参数验证摘要 -->
+      <ValidationSummaryCard
+        v-if="hasValidationResult"
+        :validation-result="workflowStore.displayValidationResult"
+        @jump-to-node="handleJumpToNode"
+      />
+      
+      <!-- TopPhi相场模拟 -->
+      <TopPhiResultCard
+        v-if="hasTopPhiResult"
+        :topphi-result="workflowStore.displayTopphiResult"
+        @jump-to-node="handleJumpToNode"
+      />
+      
+      <!-- ML性能预测 -->
+      <PerformancePredictionCard
+        v-if="hasMlPrediction"
+        :prediction="workflowStore.displayPerformancePrediction"
+        @jump-to-node="handleJumpToNode"
+      />
+      
+      <!-- 历史对比 -->
+      <HistoricalComparisonCard
+        v-if="hasHistoricalComparison"
+        :comparison="workflowStore.displayHistoricalComparison"
+        @jump-to-node="handleJumpToNode"
+      />
+      
+      <!-- 根因分析 -->
+      <IntegratedAnalysisCard
+        v-if="hasIntegratedAnalysis"
+        :analysis="workflowStore.displayIntegratedAnalysis"
+        @jump-to-node="handleJumpToNode"
+      />
+      
+      <!-- 优化方案选择器 -->
+      <OptimizationSelector
+        v-if="workflowStore.showOptimizationSelection"
+        :p1-content="workflowStore.displayP1Content"
+        :p2-content="workflowStore.displayP2Content"
+        :p3-content="workflowStore.displayP3Content"
+        :comprehensive-recommendation="workflowStore.displayComprehensiveRecommendation"
+        @select="handleOptimizationSelect"
+      />
+      
+      <!-- 实验工单摘要 -->
+      <WorkorderSummaryCard
+        v-if="hasWorkorder"
+        :workorder="workflowStore.displayExperimentWorkorder"
+        :selected-optimization="workflowStore.selectedOptimization"
+        @download="downloadWorkorder"
+        @jump-to-node="handleJumpToNode"
+      />
+      
+      <!-- 实验数据输入 -->
+      <ExperimentInputCard
+        v-if="workflowStore.showExperimentInput"
+        :iteration="workflowStore.currentIteration"
+        :historical-best="getHistoricalBest()"
+        @submit="handleExperimentSubmit"
+        @cancel="handleExperimentCancel"
+      />
+      
+      <!-- 迭代历史 -->
+      <IterationHistoryPanel
+        v-if="workflowStore.iterationHistory.length > 0"
+        :history="workflowStore.iterationHistory"
+      />
+    </div>
   </div>
 </template>
 
@@ -281,32 +291,36 @@ watch(
 .right-panel {
   min-width: 350px;
   max-width: 1100px;
-  background: var(--bg-secondary);
-  padding: 20px;
-  overflow-y: auto;
+  background: white;
+  display: flex;
+  flex-direction: column;
   border-left: 1px solid var(--border-color);
+}
+
+.panel-header {
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: white;
+  flex-shrink: 0;
+}
+
+.panel-header h3 {
+  margin: 0;
+  font-size: var(--font-xl);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.panel-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
   display: flex;
   flex-direction: column;
   gap: 16px;
-}
-
-/* 滚动条样式 */
-.right-panel::-webkit-scrollbar {
-  width: 8px;
-}
-
-.right-panel::-webkit-scrollbar-track {
-  background: var(--bg-tertiary);
-  border-radius: 4px;
-}
-
-.right-panel::-webkit-scrollbar-thumb {
-  background: var(--border-color);
-  border-radius: 4px;
-  transition: background 0.2s;
-}
-
-.right-panel::-webkit-scrollbar-thumb:hover {
-  background: var(--text-secondary);
+  background: var(--bg-secondary);
 }
 </style>

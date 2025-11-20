@@ -1,6 +1,6 @@
 <template>
   <SummaryCard 
-    icon=""
+
     :icon-component="validationIcon"
     title="参数验证"
     :badge="validationBadge"
@@ -9,7 +9,7 @@
   >
     <div class="validation-summary">
       <div class="validation-status">
-        <n-icon :component="validationIcon" :color="statusColor" />
+        <el-icon :color="statusColor"><component :is="validationIcon" /></el-icon>
         <span :class="statusClass">{{ statusText }}</span>
       </div>
       
@@ -22,7 +22,7 @@
 
 <script setup>
 import { computed } from 'vue'
-import { NIcon } from 'naive-ui'
+import { ElIcon } from 'element-plus'
 import { 
   CheckmarkCircleOutline, 
   CloseCircleOutline 
@@ -86,26 +86,26 @@ const validationBadge = computed(() => {
 .validation-status {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 14px;
+  gap: 10px;
+  font-size: var(--font-base);
 }
 
-.validation-status .n-icon {
-  font-size: 18px;
+.validation-status .el-icon {
+  font-size: var(--icon-md);
 }
 
 .success {
   color: var(--success);
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .error {
   color: var(--danger);
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .validation-hint {
-  font-size: 12px;
+  font-size: var(--font-sm);
   color: var(--text-secondary);
   text-align: center;
 }

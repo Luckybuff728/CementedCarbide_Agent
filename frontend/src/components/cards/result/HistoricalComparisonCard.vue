@@ -1,6 +1,6 @@
 <template>
   <SummaryCard 
-    icon=""
+
     :icon-component="BarChartOutline"
     title="历史对比"
     :badge="getBadge()"
@@ -31,17 +31,17 @@
           class="case-item"
         >
           <div class="case-similarity">
-            <n-tag size="small" :type="getSimilarityType(c.similarity)">
+            <el-tag size="small" :type="getSimilarityType(c.similarity)">
               {{ Math.round(c.similarity * 100) }}% 相似
-            </n-tag>
+            </el-tag>
           </div>
           <div class="case-metrics">
             <span class="metric">
-              <n-icon :component="DiamondOutline" />
+              <el-icon><DiamondOutline /></el-icon>
               {{ c.hardness || 'N/A' }} GPa
             </span>
             <span v-if="c.adhesion_strength" class="metric">
-              <n-icon :component="LinkOutline" />
+              <el-icon><LinkOutline /></el-icon>
               {{ c.adhesion_strength }} N
             </span>
           </div>
@@ -50,7 +50,7 @@
 
       <!-- 无案例提示 -->
       <div v-else class="no-cases">
-        <n-icon :component="InformationCircleOutline" />
+        <el-icon><InformationCircleOutline /></el-icon>
         <span>暂无相似历史案例</span>
       </div>
     </div>
@@ -59,7 +59,7 @@
 
 <script setup>
 import { computed } from 'vue'
-import { NTag, NIcon } from 'naive-ui'
+import { ElTag, ElIcon } from 'element-plus'
 import {
   BarChartOutline,
   DiamondOutline,
@@ -134,12 +134,13 @@ const getSimilarityType = (similarity) => {
 }
 
 .stat-label {
-  font-size: 12px;
+  font-size: var(--font-sm);
   color: var(--text-secondary);
+  font-weight: 500;
 }
 
 .stat-value {
-  font-size: 16px;
+  font-size: var(--font-lg);
   font-weight: 700;
   color: var(--text-primary);
 }
@@ -155,9 +156,9 @@ const getSimilarityType = (similarity) => {
 }
 
 .preview-label {
-  font-size: 12px;
+  font-size: var(--font-sm);
   color: var(--text-secondary);
-  font-weight: 500;
+  font-weight: 600;
   margin-bottom: 4px;
 }
 
@@ -180,18 +181,19 @@ const getSimilarityType = (similarity) => {
   display: flex;
   align-items: center;
   gap: 16px;
-  font-size: 13px;
+  font-size: var(--font-sm);
   color: var(--text-primary);
+  font-weight: 500;
 }
 
 .metric {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
 }
 
-.metric .n-icon {
-  font-size: 14px;
+.metric .el-icon {
+  font-size: var(--icon-sm);
   color: var(--text-secondary);
 }
 
@@ -199,13 +201,14 @@ const getSimilarityType = (similarity) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 10px;
   padding: 20px;
   color: var(--text-secondary);
-  font-size: 13px;
+  font-size: var(--font-base);
+  font-weight: 500;
 }
 
-.no-cases .n-icon {
-  font-size: 18px;
+.no-cases .el-icon {
+  font-size: var(--icon-base);
 }
 </style>

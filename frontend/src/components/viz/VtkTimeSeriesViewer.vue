@@ -1,102 +1,72 @@
 <template>
   <div class="vtk-timeseries-viewer">
-    <!-- 外部控制栏 -->
-    <div v-if="!loading && !error" class="external-controls">
-      <div class="control-group left">
-        <div class="playback-controls">
-          <el-button-group>
-            <el-button @click="togglePlayback" type="primary">
-              <n-icon :component="isPlaying ? PauseOutline : PlayOutline" size="18" />
-            </el-button>
-            <el-button @click="previousFrame" :disabled="currentFrameIndex === 0">
-              <n-icon :component="ChevronBackOutline" size="16" />
-            </el-button>
-            <el-button @click="nextFrame" :disabled="currentFrameIndex === timeSeriesFiles.length - 1">
-              <n-icon :component="ChevronForwardOutline" size="16" />
-            </el-button>
-          </el-button-group>
-        </div>
-      </div>
-      
-      <div class="control-group center">
-        <div class="frame-info">
-          <span class="current-frame">{{ currentFrameIndex + 1 }} / {{ timeSeriesFiles.length }}</span>
-          <span class="physical-time">{{ formatPhysicalTime(currentFrameIndex) }}</span>
-        </div>
-      </div>
-      
-      <div class="control-group right">
-        <div class="view-controls">
-          <el-button @click="resetCamera">
-            <n-icon :component="RefreshOutline" size="16" />
-            重置
-          </el-button>
-          <el-button @click="downloadCurrentFrame">
-            <n-icon :component="DownloadOutline" size="16" />
-            下载
-          </el-button>
-        </div>
-        <div class="file-info">
-          <span class="file-size">{{ formatFileSize(currentFileSize) }}</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- VTK渲染区域 -->
-    <div class="vtk-viewer-container" ref="viewerContainerRef">
+    <!-- 1. 主视图区域 (包含悬浮层) -->
+    <div class="viewer-wrapper" ref="viewerContainerRef">
+      <!-- VTK Canvas -->
       <div ref="vtkContainerRef" class="vtk-canvas"></div>
       
+      <!-- 顶部悬浮层: 文件信息与视图控制 -->
+      <div v-if="!loading && !error" class="viewer-overlay-top">
+        <div class="file-info-badge">
+          <span class="frame-count">{{ currentFrameIndex + 1 }} / {{ timeSeriesFiles.length }}</span>
+          <span class="separator">|</span>
+          <span class="physical-time">{{ formatPhysicalTime(currentFrameIndex) }}</span>
+          <span class="separator">|</span>
+          <span class="file-size">{{ formatFileSize(currentFileSize) }}</span>
+        </div>
+        
+        <div class="view-actions">
+          <el-tooltip content="重置视角" placement="bottom" :show-after="500">
+            <div class="action-btn" @click="resetCamera">
+              <el-icon><RefreshOutline /></el-icon>
+            </div>
+          </el-tooltip>
+          <el-tooltip content="下载当前帧" placement="bottom" :show-after="500">
+            <div class="action-btn" @click="downloadCurrentFrame">
+              <el-icon><DownloadOutline /></el-icon>
+            </div>
+          </el-tooltip>
+        </div>
+      </div>
+      
+      <!-- 统计信息悬浮层 (右上角) -->
+      <transition name="fade">
+        <div v-if="showStats && phaseStats && !loading" class="stats-overlay">
+          <div class="stats-row">
+            <div class="stat-item">
+              <span class="label">浓度范围</span>
+              <span class="value">{{ (currentDataRange?.max - currentDataRange?.min).toFixed(3) }}</span>
+            </div>
+            <div class="stat-item">
+              <span class="label">网格</span>
+              <span class="value">{{ formatGridSize(phaseStats.totalPoints) }}</span>
+            </div>
+          </div>
+        </div>
+      </transition>
+
       <!-- 加载状态 -->
       <div v-if="loading" class="loading-overlay">
-        <n-icon class="is-loading" :component="ReloadOutline" size="40" />
+        <el-icon class="is-loading" size="32"><ReloadOutline /></el-icon>
         <p>{{ loadingText }}</p>
       </div>
       
       <!-- 错误提示 -->
       <div v-if="error" class="error-message">
-        <n-icon :component="CloseCircleOutline" size="40" />
+        <el-icon size="32"><CloseCircleOutline /></el-icon>
         <p>{{ error }}</p>
       </div>
-    </div>
-    
-    <!-- 预加载进度 -->
-    <div v-if="preloading" class="preload-progress">
-      <el-progress 
-        :percentage="Math.round(preloadProgress / preloadTotal * 100)" 
-        :format="() => `缓存中 ${preloadProgress}/${preloadTotal} 帧`"
-      />
-    </div>
-    
-    <!-- 优化的时间轴控制 -->
-    <div v-if="!loading && !error && timeSeriesFiles.length > 0" class="timeline-panel">
-      <div class="timeline-header">
-        <div class="timeline-title">
-          <div class="title-icon-wrapper">
-            <n-icon :component="TimeOutline" size="20" />
-          </div>
-          <span class="title-text">时间演化控制</span>
-        </div>
-        <div class="timeline-settings">
-          <div class="speed-control">
-            <el-radio-group v-model="playbackSpeed" size="default">
-              <el-radio-button :value="0.5">0.5×</el-radio-button>
-              <el-radio-button :value="1">1×</el-radio-button>
-              <el-radio-button :value="2">2×</el-radio-button>
-              <el-radio-button :value="4">4×</el-radio-button>
-            </el-radio-group>
-          </div>
-          <el-checkbox v-model="loopPlayback" class="loop-checkbox">
-            <n-icon :component="RefreshOutline" size="16" />
-            <span class="checkbox-text">循环</span>
-          </el-checkbox>
-        </div>
-      </div>
       
-      <div class="timeline-slider-container">
-        <div class="timeline-info">
-          <span class="current-step">{{ currentFrameIndex + 1 }} / {{ timeSeriesFiles.length }}</span>
-          <span class="physical-time">{{ formatPhysicalTime(currentFrameIndex) }}</span>
-        </div>
+      <!-- 预加载进度条 (底部) -->
+      <div v-if="preloading" class="preload-bar">
+        <div class="bar-inner" :style="{ width: `${(preloadProgress / preloadTotal) * 100}%` }"></div>
+      </div>
+    </div>
+
+    <!-- 2. 统一控制栏 (下方) -->
+    <div v-if="!loading && !error && timeSeriesFiles.length > 0" class="unified-controls">
+      <!-- 时间轴滑块 -->
+      <div class="timeline-slider-section">
         <el-slider 
           v-model="currentFrameIndex" 
           :min="0" 
@@ -104,110 +74,62 @@
           :show-tooltip="true"
           :format-tooltip="formatDetailedTooltipWrapper"
           @change="onFrameChange"
-          class="time-slider"
+          class="compact-slider"
         />
-        <div class="timeline-marks">
-          <span class="mark start">初始</span>
-          <span class="mark middle">演化</span>
-          <span class="mark end">稳态</span>
-        </div>
-      </div>
-    </div>
-    
-    <!-- 优化的色标面板 -->
-    <div v-if="!loading && !error && currentDataRange" class="colorbar-panel">
-      <div class="colorbar-header">
-        <div class="colorbar-title">
-          <div class="title-icon-wrapper colorbar-icon">
-            <n-icon :component="ColorPaletteOutline" size="20" />
-          </div>
-          <span class="title-text">Al组分浓度</span>
-        </div>
-        <el-button text @click="showStats = !showStats" class="stats-toggle">
-          <n-icon :component="showStats ? EyeOffOutline : BarChartOutline" size="16" />
-          <span class="toggle-text">{{ showStats ? '隐藏' : '统计' }}</span>
-        </el-button>
-      </div>
-      <div class="colorbar-container">
-        <div class="colorbar-gradient"></div>
-        <div class="colorbar-labels">
-          <div class="colorbar-label">
-            <div class="color-indicator blue"></div>
-            <div class="value-group">
-              <span class="value">{{ currentDataRange.min.toFixed(3) }}</span>
-              <span class="phase-label">富Ti相</span>
-            </div>
-          </div>
-          <div class="colorbar-label center">
-            <div class="color-indicator green"></div>
-            <div class="value-group">
-              <span class="value">{{ currentDataRange.mid.toFixed(3) }}</span>
-              <span class="phase-label">相界面</span>
-            </div>
-          </div>
-          <div class="colorbar-label">
-            <div class="color-indicator red"></div>
-            <div class="value-group">
-              <span class="value">{{ currentDataRange.max.toFixed(3) }}</span>
-              <span class="phase-label">富Al相</span>
-            </div>
-          </div>
-        </div>
       </div>
       
-      <!-- 统计信息 -->
-      <transition name="slide-down">
-        <div v-if="showStats && phaseStats" class="stats-panel">
-          <div class="stats-header">
-            <div class="stats-icon-wrapper">
-              <n-icon :component="BarChartOutline" size="18" />
-            </div>
-            <span class="stats-title">相场统计信息</span>
+      <!-- 控制行 -->
+      <div class="control-row">
+        <!-- 左侧: 播放控制 -->
+        <div class="playback-section">
+          <div class="icon-btn primary" @click="togglePlayback">
+            <el-icon size="18"><component :is="isPlaying ? PauseOutline : PlayOutline" /></el-icon>
           </div>
-          <div class="stats-content">
-            <div class="stat-row">
-              <div class="stat-item primary">
-                <div class="stat-icon">
-                  <n-icon :component="TrendingUpOutline" size="20" />
-                </div>
-                <div class="stat-data">
-                  <span class="stat-value">{{ (currentDataRange.max - currentDataRange.min).toFixed(4) }}</span>
-                  <span class="stat-label">浓度范围</span>
-                </div>
-              </div>
-              <div class="stat-item">
-                <div class="stat-icon">
-                  <n-icon :component="TimeOutline" size="20" />
-                </div>
-                <div class="stat-data">
-                  <span class="stat-value">{{ formatPhysicalTime(currentFrameIndex) }}</span>
-                  <span class="stat-label">物理时间</span>
-                </div>
-              </div>
-            </div>
-            <div class="stat-row">
-              <div class="stat-item">
-                <div class="stat-icon">
-                  <n-icon :component="GridOutline" size="20" />
-                </div>
-                <div class="stat-data">
-                  <span class="stat-value">{{ formatGridSize(phaseStats.totalPoints) }}</span>
-                  <span class="stat-label">网格尺寸</span>
-                </div>
-              </div>
-              <div class="stat-item">
-                <div class="stat-icon">
-                  <n-icon :component="LayersOutline" size="20" />
-                </div>
-                <div class="stat-data">
-                  <span class="stat-value">{{ calculateDepth(currentFrameIndex) }}</span>
-                  <span class="stat-label">沉积厚度</span>
-                </div>
-              </div>
-            </div>
+          <div class="icon-btn" @click="previousFrame" :class="{ disabled: currentFrameIndex === 0 }">
+            <el-icon size="16"><ChevronBackOutline /></el-icon>
+          </div>
+          <div class="icon-btn" @click="nextFrame" :class="{ disabled: currentFrameIndex === timeSeriesFiles.length - 1 }">
+            <el-icon size="16"><ChevronForwardOutline /></el-icon>
+          </div>
+          
+          <div class="divider"></div>
+          
+          <el-dropdown trigger="click" @command="(val) => playbackSpeed = val">
+            <span class="speed-trigger">
+              {{ playbackSpeed }}×
+            </span>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item :command="0.5">0.5×</el-dropdown-item>
+                <el-dropdown-item :command="1">1.0×</el-dropdown-item>
+                <el-dropdown-item :command="2">2.0×</el-dropdown-item>
+                <el-dropdown-item :command="4">4.0×</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+          
+          <div class="loop-toggle" :class="{ active: loopPlayback }" @click="loopPlayback = !loopPlayback" title="循环播放">
+            <el-icon><RefreshOutline /></el-icon>
           </div>
         </div>
-      </transition>
+        
+        <!-- 右侧: 色标与显示控制 -->
+        <div class="legend-section" v-if="currentDataRange">
+          <div class="colorbar-mini">
+            <div class="gradient-bar"></div>
+            <div class="labels">
+              <span class="label min">{{ currentDataRange.min.toFixed(2) }}</span>
+              <span class="label max">{{ currentDataRange.max.toFixed(2) }}</span>
+            </div>
+          </div>
+          
+          <div class="divider"></div>
+          
+          <div class="icon-btn" :class="{ active: showStats }" @click="showStats = !showStats" title="显示统计">
+            <el-icon size="16"><BarChartOutline /></el-icon>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -215,7 +137,7 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount, computed, watch, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
-import { NIcon } from 'naive-ui'
+import { ElIcon } from 'element-plus'
 import { 
   ReloadOutline,
   PlayOutline,
@@ -932,65 +854,154 @@ onBeforeUnmount(() => {
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 16px;
-}
-
-.vtk-viewer-container {
-  position: relative;
-  width: 100%;
-  height: 500px; /* 默认高度 */
-  min-height: 400px;
-  max-height: 80vh; /* 最大不超过视口的80% */
+  gap: 0;
   border-radius: 8px;
   overflow: hidden;
+  border: 1px solid var(--el-border-color-lighter);
+  background: white;
+}
+
+/* 1. 视图区域 */
+.viewer-wrapper {
+  position: relative;
+  width: 100%;
+  height: 380px; /* 固定高度 */
   background: #1a1a1a;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  resize: vertical; /* 允许垂直方向调整大小 */
-}
-
-/* 调整大小手柄样式 */
-.vtk-viewer-container::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  right: 0;
-  width: 20px;
-  height: 20px;
-  background: linear-gradient(-45deg, 
-    transparent 0%, 
-    transparent 30%, 
-    #666 30%, 
-    #666 35%, 
-    transparent 35%, 
-    transparent 65%,
-    #666 65%,
-    #666 70%,
-    transparent 70%
-  );
-  cursor: ns-resize;
-  opacity: 0.6;
-  transition: opacity 0.2s ease;
-}
-
-.vtk-viewer-container:hover::after {
-  opacity: 1;
+  overflow: hidden;
 }
 
 .vtk-canvas {
   width: 100%;
   height: 100%;
-  position: relative;
-  overflow: hidden;
 }
 
-/* VTK基本样式 */
 .vtk-canvas :deep(canvas) {
   display: block;
   width: 100%;
   height: 100%;
 }
 
-.loading-overlay {
+/* 顶部悬浮层 */
+.viewer-overlay-top {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  z-index: 10;
+  pointer-events: none; /* 让点击穿透到canvas */
+}
+
+.file-info-badge {
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
+  padding: 8px 14px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: rgba(255, 255, 255, 0.95);
+  font-size: 13px;
+  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  pointer-events: auto;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.file-info-badge .separator {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 14px;
+}
+
+.file-info-badge .frame-count {
+  color: #fff;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.file-info-badge .physical-time {
+  color: #4ade80;
+  font-weight: 600;
+}
+
+.file-info-badge .file-size {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.view-actions {
+  display: flex;
+  gap: 8px;
+  pointer-events: auto;
+}
+
+.action-btn {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s;
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.action-btn:hover {
+  background: rgba(255, 255, 255, 0.35);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.action-btn .el-icon {
+  font-size: 18px;
+}
+
+/* 统计悬浮层 */
+.stats-overlay {
+  position: absolute;
+  top: 56px;
+  right: 12px;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(8px);
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  z-index: 9;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.stats-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.stats-overlay .stat-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  font-size: 13px;
+}
+
+.stats-overlay .label {
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 500;
+}
+
+.stats-overlay .value {
+  color: #fff;
+  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+  font-weight: 600;
+}
+
+/* 加载与错误 */
+.loading-overlay, .error-message {
   position: absolute;
   top: 0;
   left: 0;
@@ -1000,762 +1011,231 @@ onBeforeUnmount(() => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(4px);
   color: #fff;
-  z-index: 10;
+  z-index: 20;
 }
 
-.loading-overlay p {
-  margin-top: 12px;
-  font-size: 14px;
+.loading-overlay p, .error-message p {
+  margin-top: 16px;
+  font-size: 15px;
+  font-weight: 500;
 }
 
 .error-message {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
   color: #f56c6c;
-  text-align: center;
-  padding: 20px;
+}
+
+.loading-overlay .el-icon {
+  font-size: 36px;
+}
+
+.error-message .el-icon {
+  font-size: 36px;
+}
+
+/* 预加载条 */
+.preload-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.1);
   z-index: 10;
 }
 
-.error-message p {
-  margin-top: 12px;
-  font-size: 14px;
+.preload-bar .bar-inner {
+  height: 100%;
+  background: #67c23a;
+  transition: width 0.3s;
 }
 
-.controls {
-  position: absolute;
-  bottom: 16px;
-  left: 16px;
-  right: 16px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  z-index: 5;
-}
-
-.time-info {
-  display: flex;
-  gap: 12px;
-  color: #fff;
-  font-size: 12px;
-  background: rgba(0, 0, 0, 0.5);
-  padding: 4px 12px;
-  border-radius: 4px;
-}
-
-.file-size {
-  color: #67c23a;
-}
-
-/* 预加载进度 */
-.preload-progress {
-  margin-top: 16px;
-  padding: 12px 16px;
-  background: linear-gradient(90deg, rgba(103, 194, 58, 0.1) 0%, rgba(103, 194, 58, 0.05) 100%);
-  border-radius: 8px;
-  border: 1px solid rgba(103, 194, 58, 0.3);
-}
-
-.preload-progress :deep(.el-progress__text) {
-  color: #67c23a !important;
-  font-weight: 600;
-}
-
-/* 时间轴控制 */
-.timeline-controls {
-  margin-top: 16px;
-  padding: 16px;
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 8px;
-}
-
-.timeline-slider {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.timeline-label,
-.control-label {
-  color: #fff;
-  font-size: 14px;
-  white-space: nowrap;
-}
-
-.timeline-value {
-  color: #67c23a;
-  font-size: 14px;
-  font-weight: 600;
-  min-width: 40px;
-  text-align: right;
-}
-
-.el-slider {
-  flex: 1;
-}
-
-.playback-controls {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-/* Element Plus 按钮组样式调整 */
-:deep(.el-button-group) {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-}
-
-/* Colorbar面板 */
-.colorbar-panel {
-  margin-top: 16px;
-  padding: 16px;
-  background: linear-gradient(135deg, rgba(26, 26, 26, 0.95) 0%, rgba(40, 40, 40, 0.95) 100%);
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.colorbar-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-}
-
-.colorbar-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: #fff;
-}
-
-.colorbar-container {
+/* 2. 统一控制栏 */
+.unified-controls {
+  padding: 8px 12px;
+  background: #fff;
+  border-top: 1px solid var(--el-border-color-lighter);
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.colorbar-gradient {
-  height: 20px;
-  border-radius: 4px;
-  background: linear-gradient(
-    to right,
-    rgb(0, 0, 255) 0%,
-    rgb(0, 128, 255) 25%,
-    rgb(0, 255, 0) 50%,
-    rgb(255, 128, 0) 75%,
-    rgb(255, 0, 0) 100%
-  );
-  box-shadow: 0 2px 8px rgba(0, 255, 0, 0.3);
+/* 时间轴滑块 */
+.timeline-slider-section {
+  padding: 0 4px;
 }
 
-.colorbar-labels {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+.compact-slider {
+  margin-bottom: 0 !important;
 }
 
-.colorbar-label {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
-  font-size: 12px;
-  color: #e0e0e0;
+.compact-slider :deep(.el-slider__runway) {
+  margin: 8px 0;
+  height: 4px;
 }
 
-.colorbar-label.center {
-  align-items: center;
-}
-
-.colorbar-label:last-child {
-  align-items: flex-end;
-}
-
-.color-dot {
-  display: inline-block;
+.compact-slider :deep(.el-slider__button) {
   width: 12px;
   height: 12px;
-  border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
-.color-dot.blue {
-  background: rgb(0, 0, 255);
-}
-
-.color-dot.green {
-  background: rgb(0, 255, 0);
-}
-
-.color-dot.red {
-  background: rgb(255, 0, 0);
-}
-
-.phase-label {
-  font-size: 11px;
-  color: #999;
-  margin-top: 2px;
-}
-
-/* 统计面板 */
-.stats-panel {
-  margin-top: 12px;
-  padding: 12px;
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-}
-
-.stat-item {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.stat-label {
-  font-size: 11px;
-  color: #999;
-}
-
-.stat-value {
-  font-size: 14px;
-  font-weight: 600;
-  color: #67c23a;
-}
-
-/* 滑动动画 */
-.slide-down-enter-active,
-.slide-down-leave-active {
-  transition: all 0.3s ease;
-  overflow: hidden;
-}
-
-.slide-down-enter-from,
-.slide-down-leave-to {
-  max-height: 0;
-  opacity: 0;
-  padding-top: 0;
-  padding-bottom: 0;
-  margin-top: 0;
-}
-
-.slide-down-enter-to,
-.slide-down-leave-from {
-  max-height: 200px;
-  opacity: 1;
-}
-
-/* 外部控制栏样式 */
-.external-controls {
+/* 控制行 */
+.control-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 16px;
-  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-  border-radius: 12px;
-  margin-bottom: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  border: 1px solid var(--el-border-color-lighter);
 }
 
-.control-group {
+.playback-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.legend-section {
   display: flex;
   align-items: center;
   gap: 12px;
 }
 
-.control-group.left {
-  flex: 0 0 auto;
-}
-
-.control-group.center {
-  flex: 1;
-  justify-content: center;
-}
-
-.control-group.right {
-  flex: 0 0 auto;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 6px;
-}
-
-.frame-info {
+/* 通用图标按钮 */
+.icon-btn {
+  width: 32px;
+  height: 32px;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 4px;
-}
-
-.current-frame {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--el-color-primary);
-  padding: 4px 12px;
-  background: var(--el-color-primary-light-9);
-  border-radius: 8px;
-  border: 1px solid var(--el-color-primary-light-7);
-}
-
-.frame-info .physical-time {
-  font-size: 14px;
-  color: #00d4aa;
-  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
-  font-weight: 600;
-  padding: 2px 8px;
-  background: rgba(0, 212, 170, 0.1);
+  justify-content: center;
   border-radius: 6px;
-  border: 1px solid rgba(0, 212, 170, 0.3);
+  color: #606266;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid transparent;
 }
 
-.view-controls {
+.icon-btn:hover {
+  background: #f5f7fa;
+  color: var(--el-color-primary);
+  transform: translateY(-1px);
+  border-color: var(--el-color-primary-light-7);
+}
+
+.icon-btn.primary {
+  color: var(--el-color-primary);
+  background: var(--el-color-primary-light-9);
+  font-weight: 600;
+  border-color: var(--el-color-primary-light-7);
+}
+
+.icon-btn.primary:hover {
+  background: var(--el-color-primary-light-8);
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.2);
+}
+
+.icon-btn.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.icon-btn.disabled:hover {
+  transform: none;
+  background: transparent;
+  border-color: transparent;
+}
+
+.icon-btn.active {
+  color: var(--el-color-primary);
+  background: var(--el-color-primary-light-9);
+  border-color: var(--el-color-primary-light-6);
+}
+
+.divider {
+  width: 1px;
+  height: 16px;
+  background: #dcdfe6;
+  margin: 0 4px;
+}
+
+/* 速度控制 */
+.speed-trigger {
+  font-size: 13px;
+  color: #606266;
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-weight: 600;
+  border: 1px solid #e4e7ed;
+  transition: all 0.2s;
+  min-width: 45px;
+  text-align: center;
+}
+
+.speed-trigger:hover {
+  background: #f5f7fa;
+  border-color: var(--el-color-primary-light-7);
+  color: var(--el-color-primary);
+}
+
+/* 循环按钮 */
+.loop-toggle {
+  width: 28px;
+  height: 28px;
   display: flex;
-  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  color: #909399;
+  cursor: pointer;
+  transition: all 0.2s;
 }
 
-.file-info .file-size {
-  font-size: 12px;
-  color: var(--el-text-color-secondary);
-  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+.loop-toggle:hover {
+  color: #606266;
 }
 
-.external-controls .playback-controls,
-.external-controls .view-controls {
-  background: white;
-  border-radius: 8px;
-  padding: 4px;
-  border: 1px solid var(--el-border-color-light);
+.loop-toggle.active {
+  color: var(--el-color-primary);
+}
+
+/* 迷你色标 */
+.colorbar-mini {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 140px;
+}
+
+.gradient-bar {
+  height: 8px;
+  border-radius: 4px;
+  background: linear-gradient(to right, rgb(0, 0, 255), rgb(0, 255, 0), rgb(255, 0, 0));
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-/* 重置按钮组样式 */
-.playback-controls :deep(.el-button-group) {
-  display: flex;
-  border-radius: 6px;
-  overflow: hidden;
-  box-shadow: none;
-  border: none;
-}
-
-.external-controls .playback-controls :deep(.el-button),
-.external-controls .view-controls :deep(.el-button) {
-  min-width: 36px !important;
-  height: 32px !important;
-  padding: 0 8px !important;
-  border: none !important;
-  background: transparent !important;
-  color: var(--el-text-color-primary) !important;
-  border-radius: 6px !important;
-  transition: all 0.2s ease !important;
-  margin: 0 1px !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-}
-
-.external-controls .playback-controls :deep(.el-button:hover),
-.external-controls .view-controls :deep(.el-button:hover) {
-  background: var(--el-color-primary-light-9) !important;
-  transform: translateY(-1px) !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
-}
-
-.playback-controls :deep(.el-button--primary) {
-  background: var(--el-color-primary) !important;
-  color: white !important;
-  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.3) !important;
-}
-
-.playback-controls :deep(.el-button--primary:hover) {
-  background: var(--el-color-primary-light-3) !important;
-  transform: translateY(-1px) !important;
-  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.4) !important;
-}
-
-.playback-controls :deep(.el-button:disabled),
-.view-controls :deep(.el-button:disabled) {
-  opacity: 0.4 !important;
-  cursor: not-allowed !important;
-  transform: none !important;
-}
-
-.playback-controls :deep(.el-button:first-child) {
-  border-top-left-radius: 6px !important;
-  border-bottom-left-radius: 6px !important;
-  margin-left: 0 !important;
-}
-
-.playback-controls :deep(.el-button:last-child) {
-  border-top-right-radius: 6px !important;
-  border-bottom-right-radius: 6px !important;
-  margin-right: 0 !important;
-}
-
-/* 时间信息浮层样式已移动到外部控制栏 */
-
-/* 时间轴面板 */
-.timeline-panel {
-  background: linear-gradient(135deg, #ffffff 0%, #f8f9ff 100%);
-  border-radius: 16px;
-  padding: 20px;
-  border: 1px solid var(--el-border-color-lighter);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-  backdrop-filter: blur(10px);
-}
-
-.timeline-header {
+.colorbar-mini .labels {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--el-border-color-lighter);
-}
-
-.timeline-title {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.title-icon-wrapper {
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, var(--el-color-primary), var(--el-color-primary-light-3));
-  border-radius: 10px;
-  color: white;
-  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.3);
-}
-
-.title-text {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--el-text-color-primary);
-  letter-spacing: 0.5px;
-}
-
-.timeline-settings {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-}
-
-.speed-control :deep(.el-radio-group) {
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-}
-
-.loop-checkbox {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  background: var(--el-color-info-light-9);
-  border-radius: 8px;
-  border: 1px solid var(--el-border-color-lighter);
-}
-
-.checkbox-text {
-  font-weight: 500;
-  color: var(--el-text-color-primary);
-}
-
-.timeline-slider-container {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.timeline-info {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 14px;
-  margin-bottom: 12px;
-}
-
-.current-step {
-  font-weight: 700;
-  color: var(--el-color-primary);
-  font-size: 15px;
-  padding: 4px 8px;
-  background: var(--el-color-primary-light-9);
-  border-radius: 6px;
-  border: 1px solid var(--el-color-primary-light-7);
-}
-
-.physical-time {
-  color: #00d4aa;
+  font-size: 11px;
+  color: #606266;
   font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
   font-weight: 600;
-  font-size: 15px;
-  padding: 4px 8px;
-  background: rgba(0, 212, 170, 0.1);
-  border-radius: 6px;
-  border: 1px solid rgba(0, 212, 170, 0.3);
 }
 
-.time-slider :deep(.el-slider__runway) {
-  height: 6px;
-  background: var(--el-color-info-light-8);
+.colorbar-mini .labels .label {
+  padding: 2px 4px;
+  background: #f5f7fa;
+  border-radius: 3px;
 }
 
-.time-slider :deep(.el-slider__bar) {
-  background: linear-gradient(90deg, var(--el-color-primary), var(--el-color-success));
-  height: 6px;
+/* 动画 */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
 }
 
-.timeline-marks {
-  display: flex;
-  justify-content: space-between;
-  font-size: 12px;
-  color: var(--el-text-color-secondary);
-  margin-top: 4px;
-}
-
-/* 优化色标面板 */
-.colorbar-panel {
-  background: linear-gradient(135deg, #ffffff 0%, #fff8f0 100%);
-  border-radius: 16px;
-  padding: 20px;
-  border: 1px solid var(--el-border-color-lighter);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-  backdrop-filter: blur(10px);
-}
-
-.colorbar-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--el-border-color-lighter);
-}
-
-.colorbar-title {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.colorbar-icon {
-  background: linear-gradient(135deg, #ff6b6b, #ffa500) !important;
-  box-shadow: 0 2px 8px rgba(255, 107, 107, 0.3) !important;
-}
-
-.stats-toggle {
-  color: var(--el-color-primary);
-  padding: 8px 12px;
-  border-radius: 8px;
-  background: var(--el-color-primary-light-9);
-  border: 1px solid var(--el-color-primary-light-7);
-  font-weight: 500;
-  transition: all 0.2s ease;
-}
-
-.stats-toggle:hover {
-  background: var(--el-color-primary-light-8);
-  transform: translateY(-1px);
-}
-
-.toggle-text {
-  margin-left: 6px;
-}
-
-.color-indicator {
-  width: 16px;
-  height: 16px;
-  border-radius: 8px;
-  border: 3px solid white;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2), inset 0 1px 2px rgba(255, 255, 255, 0.3);
-}
-
-.color-indicator.blue { 
-  background: linear-gradient(135deg, rgb(0, 100, 255), rgb(0, 150, 255));
-}
-.color-indicator.green { 
-  background: linear-gradient(135deg, rgb(0, 200, 100), rgb(50, 255, 150));
-}
-.color-indicator.red { 
-  background: linear-gradient(135deg, rgb(255, 80, 80), rgb(255, 120, 120));
-}
-
-.value-group {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-}
-
-.value {
-  font-weight: 700;
-  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
-  color: var(--el-text-color-primary);
-  font-size: 14px;
-}
-
-.phase-label {
-  font-size: 12px;
-  color: var(--el-text-color-regular);
-  background: linear-gradient(135deg, var(--el-color-info-light-8), var(--el-color-info-light-9));
-  padding: 4px 8px;
-  border-radius: 6px;
-  font-weight: 500;
-  border: 1px solid var(--el-border-color-lighter);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-/* 统计信息面板 */
-.stats-panel {
-  margin-top: 20px;
-  padding: 20px;
-  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
-  border-radius: 12px;
-  border: 1px solid var(--el-border-color-lighter);
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
-}
-
-.stats-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 16px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid var(--el-border-color-lighter);
-}
-
-.stats-icon-wrapper {
-  width: 36px;
-  height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, var(--el-color-success), var(--el-color-success-light-3));
-  border-radius: 8px;
-  color: white;
-  box-shadow: 0 2px 6px rgba(103, 194, 58, 0.3);
-}
-
-.stats-title {
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--el-text-color-primary);
-  letter-spacing: 0.3px;
-}
-
-.stats-content {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.stat-row {
-  display: flex;
-  gap: 16px;
-}
-
-.stat-item {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 16px;
-  background: white;
-  border-radius: 12px;
-  border: 1px solid var(--el-border-color-lighter);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-  transition: all 0.2s ease;
-}
-
-.stat-item:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-}
-
-.stat-item.primary {
-  border-color: var(--el-color-primary);
-  background: linear-gradient(135deg, var(--el-color-primary-light-9), #ffffff);
-  box-shadow: 0 2px 12px rgba(64, 158, 255, 0.15);
-}
-
-.stat-icon {
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--el-color-primary-light-8);
-  border-radius: 10px;
-  color: var(--el-color-primary);
-  box-shadow: 0 2px 6px rgba(64, 158, 255, 0.2);
-}
-
-.stat-item.primary .stat-icon {
-  background: linear-gradient(135deg, var(--el-color-primary), var(--el-color-primary-light-3));
-  color: white;
-  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.4);
-}
-
-.stat-data {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  flex: 1;
-}
-
-.stat-value {
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--el-text-color-primary);
-  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
-  line-height: 1.2;
-}
-
-.stat-label {
-  font-size: 13px;
-  color: var(--el-text-color-secondary);
-  font-weight: 500;
-  letter-spacing: 0.3px;
-}
-
-/* 响应式设计 */
-@media (max-width: 768px) {
-  .controls-overlay {
-    flex-direction: column;
-    gap: 8px;
-  }
-  
-  .timeline-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
-  }
-  
-  .stat-row {
-    flex-direction: column;
-  }
-  
-  .colorbar-labels {
-    flex-direction: column;
-    gap: 8px;
-  }
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 </style>

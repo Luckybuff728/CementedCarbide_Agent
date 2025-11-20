@@ -2,15 +2,15 @@
   <div :class="['process-card', step.status, { collapsed, current: isCurrent }]">
     <div class="card-header" @click="$emit('toggle')">
       <div class="header-left">
-        <n-icon :class="['status-icon', step.status]" :component="getStatusIcon(step.status)" />
+        <el-icon :class="['status-icon', step.status]"><component :is="getStatusIcon(step.status)" /></el-icon>
         <h4>{{ getNodeTitle(step.nodeId) }}</h4>
-        <el-tag :type="getStatusType(step.status)" size="small">
+        <el-tag :type="getStatusType(step.status)" size="small" class="status-tag">
           {{ getStatusText(step.status) }}
         </el-tag>
       </div>
       <div class="header-right">
         <span v-if="step.timestamp" class="timestamp">{{ formatTime(step.timestamp) }}</span>
-        <n-icon class="toggle-icon" :component="collapsed ? ChevronDownOutline : ChevronUpOutline" />
+        <el-icon class="toggle-icon"><component :is="collapsed ? ChevronDownOutline : ChevronUpOutline" /></el-icon>
       </div>
     </div>
     <transition name="collapse">
@@ -20,7 +20,7 @@
         <!-- 底部操作栏 -->
         <div class="card-footer">
           <el-button text size="small" @click="copyContent">
-            <n-icon :component="CopyOutline" />
+            <el-icon class="el-icon--left"><CopyOutline /></el-icon>
             复制
           </el-button>
         </div>
@@ -31,8 +31,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { ElMessage } from 'element-plus'
-import { NIcon } from 'naive-ui'
+import { ElMessage, ElButton, ElIcon } from 'element-plus'
 import {
   ChevronDownOutline,
   ChevronUpOutline,
@@ -108,104 +107,49 @@ const copyContent = async () => {
     ElMessage.error('复制失败')
   }
 }
-
-// 注释：移除了滚动相关逻辑，内容现在自适应高度不需要滚动
-/*
-const isCardNearBottom = () => {
-  if (!cardContentRef.value) return false
-  const { scrollTop, scrollHeight, clientHeight } = cardContentRef.value
-  return scrollHeight - scrollTop - clientHeight < 50
-}
-
-const handleCardScroll = () => {
-  if (!cardContentRef.value) return
-  const nearBottom = isCardNearBottom()
-  if (!nearBottom) {
-    autoScrollEnabled.value = false
-  } else {
-    autoScrollEnabled.value = true
-  }
-}
-*/
-
-// 注释：移除了自动滚动逻辑，内容现在自适应高度
-/*
-watch(
-  () => props.step.content,
-  () => {
-    if (props.step.status === 'processing' && !props.collapsed && autoScrollEnabled.value && cardContentRef.value) {
-      nextTick(() => {
-        if (cardContentRef.value) {
-          cardContentRef.value.scrollTop = cardContentRef.value.scrollHeight
-        }
-      })
-    }
-  }
-)
-
-watch(
-  () => props.collapsed,
-  (newVal) => {
-    if (!newVal && props.step.status === 'processing') {
-      autoScrollEnabled.value = true
-      if (cardContentRef.value) {
-        nextTick(() => {
-          cardContentRef.value.scrollTop = cardContentRef.value.scrollHeight
-        })
-      }
-    }
-  }
-)
-
-watch(
-  () => props.step.status,
-  (newStatus) => {
-    if (newStatus === 'processing') {
-      autoScrollEnabled.value = true
-    }
-  }
-)
-*/
 </script>
 
 <style scoped>
 .process-card {
   background: white;
   border-radius: var(--radius-lg);
-  margin-bottom: 16px;
+  margin-bottom: 18px;
   border: 1px solid var(--border-color);
-  border-left: 3px solid var(--border-color);
-  transition: all var(--transition-base);
+  border-left: 4px solid var(--border-color);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow: var(--shadow-sm);
 }
 
 .process-card:hover {
-  box-shadow: var(--shadow-md);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
   transform: translateY(-2px);
   border-color: var(--primary-light);
 }
 
 .process-card.current {
   border-left-color: var(--primary);
-  border-left-width: 4px;
+  border-left-width: 5px;
   border-color: var(--primary-light);
-  box-shadow: var(--shadow-lg);
-  background: linear-gradient(90deg, var(--primary-lighter) 0%, white 10%);
+  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.12);
+  background: linear-gradient(90deg, var(--primary-lighter) 0%, white 8%);
 }
 
 .process-card.processing {
   border-left-color: var(--warning);
-  border-left-width: 4px;
+  border-left-width: 5px;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.1);
 }
 
 .process-card.completed {
   border-left-color: var(--success);
-  border-left-width: 4px;
+  border-left-width: 5px;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.1);
 }
 
 .process-card.error {
   border-left-color: var(--danger);
-  border-left-width: 4px;
+  border-left-width: 5px;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.1);
 }
 
 .process-card.collapsed .card-header {
@@ -213,13 +157,13 @@ watch(
 }
 
 .card-header {
-  padding: 18px 20px;
+  padding: 20px 24px;
   cursor: pointer;
   display: flex;
   justify-content: space-between;
   align-items: center;
   border-bottom: 1px solid var(--border-color);
-  transition: all var(--transition-fast);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .card-header:hover {
@@ -229,19 +173,20 @@ watch(
 .header-left {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
   flex: 1;
 }
 
 .header-left h4 {
   margin: 0;
-  font-size: 15px;
+  font-size: var(--font-lg);
   font-weight: 600;
   color: var(--text-primary);
+  letter-spacing: 0.3px;
 }
 
 .status-icon {
-  font-size: 20px;
+  font-size: var(--icon-lg);
   transition: all var(--transition-base);
 }
 
@@ -278,27 +223,46 @@ watch(
 }
 
 .timestamp {
-  font-size: 12px;
+  font-size: var(--font-sm);
   color: var(--text-tertiary);
+  font-weight: 500;
 }
 
 .toggle-icon {
-  font-size: 16px;
+  font-size: var(--icon-base);
   color: var(--text-secondary);
+  transition: all 0.2s;
+}
+
+.card-header:hover .toggle-icon {
+  color: var(--primary);
+  transform: scale(1.1);
 }
 
 .card-content {
-  padding: 24px;
+  padding: 28px;
   /* 移除固定高度，让内容自适应 */
   overflow-x: hidden;
+  line-height: 1.8;
 }
 
 .card-footer {
-  margin-top: 16px;
-  padding-top: 12px;
+  margin-top: 20px;
+  padding-top: 16px;
   border-top: 1px solid var(--border-light);
   display: flex;
-  gap: 8px;
+  gap: 10px;
+}
+
+.card-footer :deep(.el-button) {
+  font-size: 14px;
+  padding: 8px 16px;
+  font-weight: 500;
+}
+
+.card-footer :deep(.el-button:hover) {
+  color: var(--primary);
+  background: var(--primary-lighter);
 }
 
 /* 折叠动画 */
@@ -319,5 +283,34 @@ watch(
 .collapse-leave-from {
   max-height: 5000px; /* 使用较大值以适应任意长度的内容 */
   opacity: 1;
+}
+
+/* Tag 标签美化 */
+.status-tag {
+  font-weight: 600;
+  font-size: var(--font-sm);
+  padding: 4px 12px;
+  border-radius: 6px;
+  border: none;
+}
+
+.status-tag.el-tag--success {
+  background: var(--success-light);
+  color: var(--success);
+}
+
+.status-tag.el-tag--warning {
+  background: var(--warning-light);
+  color: #d97706;
+}
+
+.status-tag.el-tag--info {
+  background: #e5e7eb;
+  color: #6b7280;
+}
+
+.status-tag.el-tag--danger {
+  background: var(--danger-light);
+  color: var(--danger);
 }
 </style>

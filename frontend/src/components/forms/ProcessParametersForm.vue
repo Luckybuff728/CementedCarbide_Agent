@@ -2,7 +2,7 @@
   <el-collapse-item name="process">
     <template #title>
       <div class="collapse-title">
-        <n-icon class="title-icon" :component="SettingsOutline" />
+        <el-icon class="title-icon"><SettingsOutline /></el-icon>
         <span class="title-text">工艺参数</span>
       </div>
     </template>
@@ -101,26 +101,24 @@
           circle 
           @click="removeGas(index)"
         >
-          <n-icon :component="TrashOutline" />
+          <el-icon><TrashOutline /></el-icon>
         </el-button>
       </div>
-      <n-button 
+      <el-button 
         type="primary" 
         size="small" 
         @click="addGas"
-        dashed
+        style="border-style: dashed"
       >
-        <template #icon>
-          <n-icon :component="AddOutline" />
-        </template>
+        <el-icon class="el-icon--left"><AddOutline /></el-icon>
         添加气体
-      </n-button>
+      </el-button>
     </div>
   </el-collapse-item>
 </template>
 
 <script setup>
-import { NButton, NIcon } from 'naive-ui'
+import { ElButton, ElIcon } from 'element-plus'
 import { SettingsOutline, AddOutline, TrashOutline } from '@vicons/ionicons5'
 
 // 定义props和emits

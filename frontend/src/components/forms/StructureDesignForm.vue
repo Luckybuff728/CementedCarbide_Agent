@@ -2,7 +2,7 @@
   <el-collapse-item name="structure">
     <template #title>
       <div class="collapse-title">
-        <n-icon class="title-icon" :component="BuildOutline" />
+        <el-icon class="title-icon"><BuildOutline /></el-icon>
         <span class="title-text">结构设计</span>
         <el-tag v-if="modelValue.structure_type" size="small" type="info">
           {{ modelValue.structure_type === 'multi' ? '多层' : '单层' }}
@@ -49,20 +49,18 @@
           circle 
           @click="removeLayer(index)"
         >
-          <n-icon :component="TrashOutline" />
+          <el-icon><TrashOutline /></el-icon>
         </el-button>
       </div>
-      <n-button 
+      <el-button 
         type="primary" 
         size="small" 
         @click="addLayer"
-        dashed
+        style="border-style: dashed"
       >
-        <template #icon>
-          <n-icon :component="AddOutline" />
-        </template>
+        <el-icon class="el-icon--left"><AddOutline /></el-icon>
         添加层
-      </n-button>
+      </el-button>
     </div>
 
     <!-- 单层厚度 -->
@@ -83,7 +81,7 @@
 </template>
 
 <script setup>
-import { NButton, NIcon } from 'naive-ui'
+import { ElButton, ElIcon } from 'element-plus'
 import { BuildOutline, AddOutline, TrashOutline } from '@vicons/ionicons5'
 
 // 定义props和emits

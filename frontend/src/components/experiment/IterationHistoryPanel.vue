@@ -2,12 +2,12 @@
   <div class="iteration-history-panel">
     <div class="panel-header">
       <div class="header-left">
-        <n-icon :component="TimeOutline" size="24" color="#6366f1" />
+        <el-icon size="24" color="#6366f1"><TimeOutline /></el-icon>
         <h3>迭代历史</h3>
       </div>
-      <n-tag :type="getStatusType()" size="large">
+      <el-tag :type="getStatusType()" size="large">
         {{ getStatusText() }}
-      </n-tag>
+      </el-tag>
     </div>
     
     <!-- 性能对比图表 -->
@@ -18,8 +18,8 @@
       :historical-best="getHistoricalBest(selectedRecord)"
     />
     
-    <n-timeline class="iteration-timeline">
-      <n-timeline-item
+    <el-timeline class="iteration-timeline">
+      <el-timeline-item
         v-for="(record, index) in history"
         :key="index"
         :timestamp="formatTime(record.timestamp)"
@@ -27,31 +27,31 @@
         :type="getTimelineType(index)"
         :hollow="index !== history.length - 1"
       >
-        <n-card 
+        <el-card 
           shadow="hover" 
           :class="['iteration-card', { 'is-latest': index === history.length - 1, 'is-viewing': isViewing(record.iteration) }]"
           @click="handleViewIteration(record.iteration)"
         >
           <div class="iteration-header">
             <div class="iteration-title">
-              <n-tag type="primary" size="large">第 {{ record.iteration }} 轮</n-tag>
+              <el-tag type="primary" size="large">第 {{ record.iteration }} 轮</el-tag>
               <h4>{{ record.selected_optimization_name || record.selected_optimization }}</h4>
             </div>
             <div class="header-right">
-              <n-tag v-if="isViewing(record.iteration)" type="success" size="small">
-                <n-icon :component="EyeOutline" />
+              <el-tag v-if="isViewing(record.iteration)" type="success" size="small">
+                <el-icon><EyeOutline /></el-icon>
                 查看中
-              </n-tag>
-              <n-tag :type="getIterationStatus(record)" size="small">
+              </el-tag>
+              <el-tag :type="getIterationStatus(record)" size="small">
                 {{ getIterationStatusText(record) }}
-              </n-tag>
+              </el-tag>
             </div>
           </div>
           
           <div class="metrics-grid">
             <div class="metric-item">
               <span class="metric-label">
-                <n-icon :component="DiamondOutline" />
+                <el-icon><DiamondOutline /></el-icon>
                 硬度
               </span>
               <span class="metric-value highlight">
@@ -63,7 +63,7 @@
             </div>
             <div class="metric-item">
               <span class="metric-label">
-                <n-icon :component="FlameOutline" />
+                <el-icon><FlameOutline /></el-icon>
                 弹性模量
               </span>
               <span class="metric-value">
@@ -72,7 +72,7 @@
             </div>
             <div v-if="record.experiment_results.wear_rate" class="metric-item">
               <span class="metric-label">
-                <n-icon :component="EllipseOutline" />
+                <el-icon><EllipseOutline /></el-icon>
                 磨损率
               </span>
               <span class="metric-value">
@@ -81,7 +81,7 @@
             </div>
             <div class="metric-item">
               <span class="metric-label">
-                <n-icon :component="LinkOutline" />
+                <el-icon><LinkOutline /></el-icon>
                 结合力
               </span>
               <span class="metric-value">
@@ -91,7 +91,7 @@
           </div>
           
           <div v-if="record.experiment_results.notes" class="iteration-notes">
-            <n-icon :component="DocumentTextOutline" />
+            <el-icon><DocumentTextOutline /></el-icon>
             <span>{{ record.experiment_results.notes }}</span>
           </div>
           
@@ -103,19 +103,19 @@
               type="primary"
               @click.stop="toggleRecordSelection(record)"
             >
-              <n-icon :component="selectedRecord?.iteration === record.iteration ? EyeOffOutline : BarChartOutline" />
+              <el-icon><component :is="selectedRecord?.iteration === record.iteration ? EyeOffOutline : BarChartOutline" /></el-icon>
               {{ selectedRecord?.iteration === record.iteration ? '隐藏对比图' : '查看对比图' }}
             </el-button>
           </div>
-        </n-card>
-      </n-timeline-item>
-    </n-timeline>
+        </el-card>
+      </el-timeline-item>
+    </el-timeline>
   </div>
 </template>
 
 <script setup>
 import { ref, computed } from 'vue'
-import { NIcon } from 'naive-ui'
+import { ElIcon, ElTag, ElTimeline, ElTimelineItem, ElCard } from 'element-plus'
 import { 
   TimeOutline,
   DiamondOutline,

@@ -1,6 +1,6 @@
 <template>
   <SummaryCard 
-    icon=""
+
     :icon-component="BulbOutline"
     title="根因分析"
     :clickable="true"
@@ -10,7 +10,7 @@
       <!-- 综合评价 -->
       <div v-if="summary" class="analysis-section">
         <div class="section-header">
-          <n-icon :component="CheckmarkCircleOutline" />
+          <el-icon><CheckmarkCircleOutline /></el-icon>
           <span class="section-title">综合评价</span>
         </div>
         <div class="summary-text">
@@ -21,7 +21,7 @@
       <!-- 关键发现 -->
       <div v-if="keyFindings.length > 0" class="analysis-section">
         <div class="section-header">
-          <n-icon :component="AlertCircleOutline" />
+          <el-icon><AlertCircleOutline /></el-icon>
           <span class="section-title">关键发现</span>
         </div>
         <div class="findings-list">
@@ -30,7 +30,7 @@
             :key="index"
             class="finding-item"
           >
-            <n-icon :component="ChevronForwardOutline" class="bullet" />
+            <el-icon class="bullet"><ChevronForwardOutline /></el-icon>
             <div class="finding-text">
               <MarkdownRenderer :content="finding" />
             </div>
@@ -40,7 +40,7 @@
 
       <!-- 无数据提示 -->
       <div v-if="!hasContent" class="no-content">
-        <n-icon :component="DocumentTextOutline" />
+        <el-icon><DocumentTextOutline /></el-icon>
         <span>等待分析结果...</span>
       </div>
     </div>
@@ -49,7 +49,7 @@
 
 <script setup>
 import { computed } from 'vue'
-import { NIcon } from 'naive-ui'
+import { ElIcon } from 'element-plus'
 import {
   BulbOutline,
   CheckmarkCircleOutline,
@@ -124,14 +124,14 @@ const rootCauseAnalysis = computed(() => {
 .section-header {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   color: var(--primary);
-  font-size: 13px;
+  font-size: var(--font-base);
   font-weight: 600;
 }
 
-.section-header .n-icon {
-  font-size: 16px;
+.section-header .el-icon {
+  font-size: var(--icon-base);
 }
 
 .section-title {
@@ -139,18 +139,18 @@ const rootCauseAnalysis = computed(() => {
 }
 
 .summary-text {
-  font-size: 13px;
+  font-size: var(--font-base);
   color: var(--text-primary);
-  line-height: 1.6;
-  padding: 10px;
+  line-height: 1.7;
+  padding: 12px;
   background: var(--bg-tertiary);
   border-radius: var(--radius-md);
   border-left: 3px solid var(--success);
 }
 
 .summary-text :deep(.markdown-content) {
-  font-size: 13px;
-  line-height: 1.6;
+  font-size: var(--font-base);
+  line-height: 1.7;
   margin: 0;
 }
 
@@ -163,13 +163,13 @@ const rootCauseAnalysis = computed(() => {
 .finding-item {
   display: flex;
   align-items: flex-start;
-  gap: 8px;
-  padding: 8px;
+  gap: 10px;
+  padding: 10px;
   background: var(--bg-tertiary);
   border-radius: var(--radius-md);
-  font-size: 12px;
+  font-size: var(--font-sm);
   color: var(--text-primary);
-  line-height: 1.5;
+  line-height: 1.6;
 }
 
 .finding-text {
@@ -177,13 +177,13 @@ const rootCauseAnalysis = computed(() => {
 }
 
 .finding-item :deep(.markdown-content) {
-  font-size: 12px;
-  line-height: 1.5;
+  font-size: var(--font-sm);
+  line-height: 1.6;
   margin: 0;
 }
 
 .finding-item .bullet {
-  font-size: 14px;
+  font-size: var(--icon-sm);
   color: var(--primary);
   flex-shrink: 0;
   margin-top: 2px;
@@ -195,10 +195,10 @@ const rootCauseAnalysis = computed(() => {
 }
 
 .recommendation-text {
-  font-size: 13px;
+  font-size: var(--font-base);
   color: var(--text-primary);
-  line-height: 1.6;
-  padding: 10px;
+  line-height: 1.7;
+  padding: 12px;
   background: linear-gradient(135deg, var(--warning-lighter) 0%, var(--warning-light) 100%);
   border-radius: var(--radius-md);
   border-left: 3px solid var(--warning);
@@ -208,13 +208,14 @@ const rootCauseAnalysis = computed(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 10px;
   padding: 30px 20px;
   color: var(--text-secondary);
-  font-size: 13px;
+  font-size: var(--font-base);
+  font-weight: 500;
 }
 
-.no-content .n-icon {
-  font-size: 20px;
+.no-content .el-icon {
+  font-size: var(--icon-md);
 }
 </style>

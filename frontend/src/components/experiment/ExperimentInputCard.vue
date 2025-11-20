@@ -173,7 +173,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { NIcon } from 'naive-ui'
+import { ElIcon } from 'element-plus'
 import { 
   FlaskOutline, 
   DocumentTextOutline,
@@ -262,10 +262,10 @@ const handleCancel = () => {
 
 .header-left h3 {
   margin: 0;
-  font-size: 20px;
+  font-size: var(--font-xl);
   font-weight: 700;
   color: var(--text-primary);
-  letter-spacing: -0.02em;
+  letter-spacing: 0.3px;
 }
 
 .experiment-form {
@@ -287,13 +287,14 @@ const handleCancel = () => {
   align-items: center;
   gap: 10px;
   margin: 0 0 20px 0;
-  font-size: 16px;
+  font-size: var(--font-lg);
   font-weight: 700;
   color: var(--text-primary);
+  letter-spacing: 0.3px;
 }
 
 .section-title .el-icon {
-  font-size: 20px;
+  font-size: var(--icon-md);
   color: var(--primary);
 }
 
@@ -305,8 +306,8 @@ const handleCancel = () => {
 }
 
 .unit {
-  font-size: 14px;
-  font-weight: 500;
+  font-size: var(--font-base);
+  font-weight: 600;
   color: var(--text-secondary);
   min-width: 56px;
   white-space: nowrap;
@@ -341,15 +342,15 @@ const handleCancel = () => {
 }
 
 .comparison-item .label {
-  font-size: 12px;
-  font-weight: 500;
+  font-size: var(--font-sm);
+  font-weight: 600;
   color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
 
 .comparison-item .value {
-  font-size: 22px;
+  font-size: var(--font-3xl);
   font-weight: 700;
   line-height: 1;
 }
@@ -381,19 +382,20 @@ const handleCancel = () => {
 .decision-hint {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   padding: 12px 16px;
   background: white;
   border-radius: var(--radius-md);
   margin-bottom: 20px;
-  font-size: 14px;
+  font-size: var(--font-base);
   color: var(--text-secondary);
+  font-weight: 500;
   width: 100%;
   box-sizing: border-box;
 }
 
 .decision-hint .el-icon {
-  font-size: 18px;
+  font-size: var(--icon-base);
   color: var(--primary);
   flex-shrink: 0;
 }
@@ -465,22 +467,23 @@ const handleCancel = () => {
 }
 
 .radio-icon {
-  font-size: 24px;
+  font-size: var(--icon-xl);
   color: var(--primary);
   flex-shrink: 0;
 }
 
 .radio-title {
-  font-size: 17px;
+  font-size: var(--font-lg);
   font-weight: 700;
   color: var(--text-primary);
   line-height: 1.2;
+  letter-spacing: 0.3px;
 }
 
 .radio-desc {
-  font-size: 14px;
+  font-size: var(--font-base);
   color: var(--text-secondary);
-  line-height: 1.5;
+  line-height: 1.6;
   margin-left: 36px;
   margin-top: 4px;
   word-break: break-word;
@@ -506,7 +509,7 @@ const handleCancel = () => {
 .form-section :deep(.el-form-item__label) {
   font-weight: 600;
   color: var(--text-primary);
-  font-size: 14px;
+  font-size: var(--font-base);
 }
 
 .form-section :deep(.el-input-number),

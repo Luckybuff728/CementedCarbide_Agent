@@ -2,7 +2,7 @@
   <el-collapse-item name="composition">
     <template #title>
       <div class="collapse-title">
-        <n-icon class="title-icon" :component="ConstructOutline" />
+        <el-icon class="title-icon"><ConstructOutline /></el-icon>
         <span class="title-text">涂层成分</span>
         <el-tag v-if="compositionSum > 0" size="small" type="info">
           {{ compositionSum.toFixed(1) }}%
@@ -88,27 +88,25 @@
           circle 
           @click="removeElement(index)"
         >
-          <n-icon :component="TrashOutline" />
+          <el-icon><TrashOutline /></el-icon>
         </el-button>
       </div>
-      <n-button 
+      <el-button 
         type="primary" 
         size="small" 
         @click="addElement"
-        dashed
+        style="border-style: dashed"
       >
-        <template #icon>
-          <n-icon :component="AddOutline" />
-        </template>
+        <el-icon class="el-icon--left"><AddOutline /></el-icon>
         添加元素
-      </n-button>
+      </el-button>
     </div>
   </el-collapse-item>
 </template>
 
 <script setup>
 import { computed } from 'vue'
-import { NButton, NIcon } from 'naive-ui'
+import { ElButton, ElIcon } from 'element-plus'
 import { ConstructOutline, AddOutline, TrashOutline } from '@vicons/ionicons5'
 
 // 定义props和emits

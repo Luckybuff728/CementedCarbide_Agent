@@ -1,6 +1,6 @@
 <template>
   <SummaryCard 
-    icon=""
+
     :icon-component="DocumentTextOutline"
     :title="solutionName"
     :badge="{ text: '工单已生成', type: 'success' }"
@@ -23,7 +23,7 @@
       <!-- 优化方案 -->
       <div v-if="selectedOptimization" class="optimization-info">
         <div class="opt-label">
-          <n-icon :component="BulbOutline" />
+          <el-icon><BulbOutline /></el-icon>
           <span>优化方案</span>
         </div>
         <div :class="['opt-badge', optBadgeClass]">
@@ -49,17 +49,15 @@
 
       <!-- 操作按钮 -->
       <div class="workorder-actions">
-        <n-button 
+        <el-button 
           type="primary" 
-          size="medium" 
+          size="default" 
           @click.stop="handleDownload"
-          block
+          style="width: 100%"
         >
-          <template #icon>
-            <n-icon :component="DownloadOutline" />
-          </template>
+          <el-icon class="el-icon--left"><DownloadOutline /></el-icon>
           下载完整工单
-        </n-button>
+        </el-button>
       </div>
     </div>
   </SummaryCard>
@@ -67,7 +65,7 @@
 
 <script setup>
 import { computed } from 'vue'
-import { NButton, NIcon } from 'naive-ui'
+import { ElButton, ElIcon } from 'element-plus'
 import {
   DocumentTextOutline,
   BulbOutline,
@@ -195,7 +193,7 @@ const handleDownload = () => {
   font-weight: 500;
 }
 
-.opt-label .n-icon {
+.opt-label .el-icon {
   font-size: 14px;
 }
 

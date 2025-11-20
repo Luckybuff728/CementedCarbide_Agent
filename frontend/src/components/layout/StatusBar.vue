@@ -33,7 +33,7 @@
             @click="handleNodeClick(node)"
           >
             <div class="step-content">
-              <n-icon class="step-icon" :component="getStatusIcon(node.status)" />
+              <el-icon class="step-icon"><component :is="getStatusIcon(node.status)" /></el-icon>
               <span class="step-name">{{ node.name }}</span>
             </div>
             <div v-if="index < nodes.length - 1" class="step-connector"></div>
@@ -43,48 +43,40 @@
       
       <div class="actions">
         <!-- 历史查看模式：显示返回按钮 -->
-        <n-button 
+        <el-button 
           v-if="workflowStore.viewMode === 'history'" 
           size="small" 
           @click="handleReturnToCurrent" 
           type="warning"
         >
-          <template #icon>
-            <n-icon :component="ArrowBackOutline" />
-          </template>
+          <el-icon class="el-icon--left"><ArrowBackOutline /></el-icon>
           返回当前 (第{{ workflowStore.currentIteration }}轮)
-        </n-button>
+        </el-button>
         
         <!-- 正常模式：导出和清空按钮 -->
         <template v-else>
-          <n-button 
+          <el-button 
             size="small" 
             @click="handleExport" 
             :disabled="!canExport"
-            secondary
           >
-            <template #icon>
-              <n-icon :component="DownloadOutline" />
-            </template>
+            <el-icon class="el-icon--left"><DownloadOutline /></el-icon>
             导出
-          </n-button>
-          <n-button 
+          </el-button>
+          <el-button 
             size="small" 
             @click="handleClear" 
             :disabled="!canClear"
-            secondary
           >
-            <template #icon>
-              <n-icon :component="TrashOutline" />
-            </template>
+            <el-icon class="el-icon--left"><TrashOutline /></el-icon>
             清空
-          </n-button>
+          </el-button>
         </template>
 
         <!-- 用户信息与退出 -->
         <div class="user-info" v-if="authUser">
           <span class="user-name">{{ authUser.display_name || authUser.username }}</span>
-          <n-button size="small" text @click="handleLogout">退出</n-button>
+          <el-button size="small" text @click="handleLogout">退出</el-button>
         </div>
         <div class="user-info" v-else>
           <span class="user-name muted">未登录</span>
@@ -96,8 +88,7 @@
 
 <script setup>
 import { computed, h, inject } from 'vue'
-import { ElMessageBox, ElMessage } from 'element-plus'
-import { NButton, NIcon } from 'naive-ui'
+import { ElMessageBox, ElMessage, ElButton, ElIcon } from 'element-plus'
 import { 
   CheckmarkCircle, 
   HourglassOutline, 
@@ -393,8 +384,8 @@ function handleLogout() {
   color: var(--text-tertiary);
 }
 
-/* Naive UI按钮自定义样式 */
-.actions :deep(.n-button) {
+/* Element Plus按钮自定义样式 */
+.actions :deep(.el-button) {
   border-radius: 6px;
 }
 

@@ -2,7 +2,7 @@
   <el-collapse-item name="performance">
     <template #title>
       <div class="collapse-title">
-        <n-icon class="title-icon" :component="SpeedometerOutline" />
+        <el-icon class="title-icon"><SpeedometerOutline /></el-icon>
         <span class="title-text">性能需求</span>
       </div>
     </template>
@@ -101,7 +101,7 @@
 </template>
 
 <script setup>
-import { NIcon } from 'naive-ui'
+import { ElIcon } from 'element-plus'
 import { SpeedometerOutline } from '@vicons/ionicons5'
 
 // 定义props和emits

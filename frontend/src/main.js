@@ -5,16 +5,11 @@ import 'element-plus/dist/index.css'
 import './style.css'
 import App from './App.vue'
 
-// 导入Naive UI
-import naive from 'naive-ui'
-
 const app = createApp(App)
 const pinia = createPinia()
 
 app.use(pinia)
 app.use(ElementPlus)
-// 使用Naive UI
-app.use(naive)
 
 // 全局错误处理器
 app.config.errorHandler = (err, instance, info) => {
@@ -23,7 +18,7 @@ app.config.errorHandler = (err, instance, info) => {
     component: instance?.$options?.name || 'Unknown',
     info: info
   })
-  
+
   // 可选：发送到错误监控服务
   // sendErrorToSentry(err, instance, info)
 }
@@ -46,14 +41,14 @@ window.addEventListener('error', (event) => {
     'ResizeObserver loop completed with undelivered notifications',
     'ResizeObserver loop limit exceeded'
   ]
-  
+
   // 检查是否是需要忽略的错误
   if (ignoredErrors.some(msg => event.message?.includes(msg))) {
     // 阻止错误冒泡到控制台（可选）
     // event.preventDefault()
     return
   }
-  
+
   console.error('[全局错误]', {
     message: event.message,
     filename: event.filename,

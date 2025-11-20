@@ -1,6 +1,6 @@
 <template>
   <SummaryCard 
-    icon=""
+
     :icon-component="RadioButtonOnOutline"
     title="性能预测"
     :badge="confidenceBadge"
@@ -42,7 +42,7 @@
 
 <script setup>
 import { computed } from 'vue'
-import { NIcon } from 'naive-ui'
+// import { NIcon } from 'naive-ui' // Removed unused import
 import { RadioButtonOnOutline } from '@vicons/ionicons5'
 import { getConfidenceColor } from '../../utils/markdown'
 import SummaryCard from '../common/SummaryCard.vue'
@@ -111,12 +111,13 @@ const confidenceBadge = computed(() => {
 }
 
 .metric-label {
-  font-size: 12px;
+  font-size: var(--font-sm);
   color: var(--text-secondary);
+  font-weight: 500;
 }
 
 .metric-value {
-  font-size: 20px;
+  font-size: var(--font-3xl);
   font-weight: 700;
 }
 
@@ -127,14 +128,18 @@ const confidenceBadge = computed(() => {
 .metrics-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  gap: 10px;
 }
 
 .metric-item {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  font-size: 12px;
+  font-size: var(--font-sm);
+}
+
+.metric-item span:first-child {
+  font-weight: 500;
 }
 
 .metric-item span:first-child {

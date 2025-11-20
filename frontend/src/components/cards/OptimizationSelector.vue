@@ -1,7 +1,7 @@
 <template>
   <div class="optimization-section">
     <div class="section-header">
-      <n-icon :component="BulbOutline" />
+      <el-icon><BulbOutline /></el-icon>
       <h4>选择优化方案</h4>
     </div>
     
@@ -13,7 +13,7 @@
         @click="selectedOpt = opt.id"
       >
         <div class="opt-header">
-          <n-icon class="opt-icon" :component="opt.iconComponent" />
+          <el-icon class="opt-icon"><component :is="opt.iconComponent" /></el-icon>
           <h5>{{ opt.title }}</h5>
         </div>
         <p v-if="opt.planName" class="opt-plan-name">{{ opt.planName }}</p>
@@ -30,21 +30,21 @@
       <p>{{ comprehensiveRecommendation }}</p>
     </div>
 
-    <n-button 
+    <el-button 
       type="primary"
       size="large"
       :disabled="!selectedOpt"
       @click="handleSelect"
-      block
+      style="width: 100%"
     >
       确认选择并生成工单
-    </n-button>
+    </el-button>
   </div>
 </template>
 
 <script setup>
 import { ref, computed } from 'vue'
-import { NButton, NIcon } from 'naive-ui'
+import { ElButton, ElIcon } from 'element-plus'
 import {
   BulbOutline,
   FlaskOutline,
@@ -182,7 +182,7 @@ const handleSelect = () => {
   margin-bottom: 16px;
 }
 
-.section-header .n-icon {
+.section-header .el-icon {
   font-size: 20px;
   color: var(--warning);
 }

@@ -2,7 +2,7 @@
   <div class="performance-comparison-chart">
     <div class="chart-header">
       <div class="header-left">
-        <n-icon :component="BarChartOutline" size="24" color="#6366f1" />
+        <el-icon size="24" color="#6366f1"><BarChartOutline /></el-icon>
         <h4>性能对比图</h4>
       </div>
       <div class="chart-legend">
@@ -48,7 +48,7 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
-import { NIcon } from 'naive-ui'
+import { ElIcon } from 'element-plus'
 import { BarChartOutline } from '@vicons/ionicons5'
 import Plotly from 'plotly.js-dist-min'
 
@@ -131,18 +131,18 @@ const createFacetScatterChart = () => {
         text: [formatValue(value)],
         textposition: 'top center',
         textfont: {
-          size: 12,
+          size: 13,
           color: colors[dataIndex],
           family: 'Arial, sans-serif',
           weight: 'bold'
         },
         marker: {
-          size: 20,
+          size: 24,
           color: colors[dataIndex],
           symbol: symbols[dataIndex],
           line: {
             color: 'white',
-            width: 2.5
+            width: 3
           }
         },
         xaxis: `x${index + 1}`,
@@ -170,12 +170,12 @@ const createFacetScatterChart = () => {
     }
   })
   
-  // 创建布局：2行3列排列（更舒适）
+  // 创建布局：2行2列排列（4个指标正好平均分布）
   const layout = {
     title: {
       text: '性能指标对比分析',
       font: {
-        size: 17,
+        size: 18,
         family: 'Arial, sans-serif',
         weight: 'bold'
       }
@@ -184,27 +184,28 @@ const createFacetScatterChart = () => {
     legend: {
       x: 0.5,
       xanchor: 'center',
-      y: 1.08,
+      y: 1.06,
       yanchor: 'top',
       orientation: 'h',
       font: {
-        size: 14,
+        size: 15,
         family: 'Arial, sans-serif'
-      }
+      },
+      itemwidth: 30
     },
     grid: {
       rows: 2,
-      columns: 3,
+      columns: 2,
       pattern: 'independent',
-      xgap: 0.12,
-      ygap: 0.15,
+      xgap: 0.18,
+      ygap: 0.20,
       roworder: 'top to bottom'
     },
     margin: {
-      l: 60,
-      r: 60,
-      t: 90,
-      b: 60
+      l: 80,
+      r: 80,
+      t: 100,
+      b: 80
     },
     autosize: true,
     hovermode: 'closest'
@@ -217,15 +218,15 @@ const createFacetScatterChart = () => {
     // X轴配置
     layout[`xaxis${axisNum}`] = {
       title: {
-        text: `<b>${metric.label}</b><br><span style="font-size:12px">(${metric.unit})</span>`,
+        text: `<b>${metric.label}</b><br><span style="font-size:13px">(${metric.unit})</span>`,
         font: {
-          size: 14,
+          size: 15,
           family: 'Arial, sans-serif'
         },
-        standoff: 15
+        standoff: 20
       },
       tickfont: {
-        size: 12
+        size: 13
       },
       showgrid: false,
       fixedrange: false
@@ -234,9 +235,10 @@ const createFacetScatterChart = () => {
     // Y轴配置（自适应范围）
     layout[`yaxis${axisNum}`] = {
       tickfont: {
-        size: 12
+        size: 13
       },
-      gridcolor: 'rgba(0,0,0,0.08)',
+      gridcolor: 'rgba(0,0,0,0.1)',
+      gridwidth: 1,
       fixedrange: false,
       // 应用计算好的Y轴范围，确保文字标注不被裁剪
       range: yRanges[axisNum] || undefined
@@ -496,7 +498,7 @@ onUnmounted(() => {
 
 .chart-container {
   width: 100%;
-  height: 650px;
+  height: 800px;
   position: relative;
   padding: 0;
 }

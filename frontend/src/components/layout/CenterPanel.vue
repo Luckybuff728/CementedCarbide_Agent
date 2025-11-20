@@ -4,23 +4,19 @@
       <div class="header-left">
         <h3>分析过程</h3>
         <el-tag v-if="workflowStore.isProcessing" type="warning" size="small">
-          <n-icon class="is-loading" :component="ReloadOutline" />
+          <el-icon class="is-loading"><ReloadOutline /></el-icon>
           正在处理...
         </el-tag>
       </div>
       <div class="actions">
-        <n-button text size="small" @click="expandAll">
-          <template #icon>
-            <n-icon :component="ExpandOutline" />
-          </template>
+        <el-button text size="small" @click="expandAll">
+          <el-icon class="el-icon--left"><ExpandOutline /></el-icon>
           全部展开
-        </n-button>
-        <n-button text size="small" @click="collapseAll">
-          <template #icon>
-            <n-icon :component="ContractOutline" />
-          </template>
+        </el-button>
+        <el-button text size="small" @click="collapseAll">
+          <el-icon class="el-icon--left"><ContractOutline /></el-icon>
           全部收起
-        </n-button>
+        </el-button>
       </div>
     </div>
     
@@ -37,7 +33,7 @@
             <div class="step-number">1</div>
             <div class="step-info">
               <div class="step-title">
-                <n-icon :component="CheckmarkCircleOutline" />
+                <el-icon><CheckmarkCircleOutline /></el-icon>
                 <span>参数验证</span>
               </div>
               <div class="step-desc">验证成分配比、工艺参数和结构设计</div>
@@ -48,7 +44,7 @@
             <div class="step-number">2</div>
             <div class="step-info">
               <div class="step-title">
-                <n-icon :component="FlaskOutline" />
+                <el-icon><FlaskOutline /></el-icon>
                 <span>TopPhi相场模拟</span>
               </div>
               <div class="step-desc">相场模拟计算晶体结构和微观组织演化</div>
@@ -59,7 +55,7 @@
             <div class="step-number">3</div>
             <div class="step-info">
               <div class="step-title">
-                <n-icon :component="RadioButtonOnOutline" />
+                <el-icon><RadioButtonOnOutline /></el-icon>
                 <span>ML性能预测</span>
               </div>
               <div class="step-desc">机器学习预测硬度、结合力等性能指标</div>
@@ -70,7 +66,7 @@
             <div class="step-number">4</div>
             <div class="step-info">
               <div class="step-title">
-                <n-icon :component="BarChartOutline" />
+                <el-icon><BarChartOutline /></el-icon>
                 <span>历史对比</span>
               </div>
               <div class="step-desc">与历史案例对比，识别相似配方</div>
@@ -81,7 +77,7 @@
             <div class="step-number">5</div>
             <div class="step-info">
               <div class="step-title">
-                <n-icon :component="BulbOutline" />
+                <el-icon><BulbOutline /></el-icon>
                 <span>根因分析</span>
               </div>
               <div class="step-desc">综合分析性能结果，提供优化建议</div>
@@ -92,7 +88,7 @@
             <div class="step-number">6</div>
             <div class="step-info">
               <div class="step-title">
-                <n-icon :component="DocumentTextOutline" />
+                <el-icon><DocumentTextOutline /></el-icon>
                 <span>实验工单</span>
               </div>
               <div class="step-desc">生成详细实验方案和操作指导</div>
@@ -101,7 +97,7 @@
         </div>
         
         <div class="empty-hint">
-          <n-icon :component="ArrowForwardOutline" />
+          <el-icon><ArrowForwardOutline /></el-icon>
           <span>在左侧面板输入参数，点击「开始分析」启动流程</span>
         </div>
       </div>
@@ -120,15 +116,15 @@
       <!-- 优化建议（Tab卡片，整合P1/P2/P3） -->
       <OptimizationPanelCard
         v-if="showOptimizationCards"
-        :ref="el => setCardRef('optimization', el)"
+        :ref="el => setCardRef('optimization_panel', el)"
         :p1-content="workflowStore.displayP1Content"
         :p2-content="workflowStore.displayP2Content"
         :p3-content="workflowStore.displayP3Content"
         :process-steps="workflowStore.displayProcessSteps"
         :is-processing="workflowStore.isProcessing"
         :current-node="workflowStore.currentNode"
-        :collapsed="optimizationCollapsed"
-        @update:collapsed="optimizationCollapsed = $event"
+        :collapsed="workflowStore.collapsedNodes['optimization_panel'] || false"
+        @toggle="workflowStore.toggleNodeCollapse('optimization_panel')"
       />
       
       <!-- 后续卡片（优化方案汇总等） -->
@@ -147,7 +143,7 @@
     <transition name="fade">
       <div v-if="showScrollToBottom" class="scroll-to-bottom" @click="handleScrollToBottomClick">
         <el-button type="primary" circle size="large">
-          <n-icon :component="ChevronDownOutline" />
+          <el-icon><ChevronDownOutline /></el-icon>
         </el-button>
       </div>
     </transition>
@@ -156,7 +152,7 @@
 
 <script setup>
 import { ref, computed, watch, nextTick } from 'vue'
-import { NButton, NIcon } from 'naive-ui'
+import { ElButton, ElIcon, ElTag } from 'element-plus'
 import {
   ReloadOutline,
   ChevronDownOutline,
@@ -183,7 +179,6 @@ import OptimizationPanelCard from './OptimizationPanelCard.vue'
 const workflowStore = useWorkflowStore()
 const scrollContainer = ref(null)
 const cardRefs = ref({})
-const optimizationCollapsed = ref(false)
 
 // 自动滚动控制
 const autoScrollEnabled = ref(true)  // 是否启用自动滚动
@@ -371,7 +366,7 @@ defineExpose({
 
 .header-left h3 {
   margin: 0;
-  font-size: 18px;
+  font-size: var(--font-xl);
   font-weight: 600;
 }
 
@@ -446,7 +441,7 @@ defineExpose({
 
 .empty-title {
   margin: 0 0 12px 0;
-  font-size: 22px;
+  font-size: var(--font-2xl);
   font-weight: 700;
   color: var(--text-primary);
   letter-spacing: -0.02em;
@@ -454,7 +449,7 @@ defineExpose({
 
 .empty-description {
   margin: 0 0 36px 0;
-  font-size: 15px;
+  font-size: var(--font-md);
   color: var(--text-secondary);
   text-align: center;
   line-height: 1.6;
@@ -488,12 +483,12 @@ defineExpose({
 }
 
 .step-number {
-  width: 36px;
-  height: 36px;
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
   background: linear-gradient(135deg, var(--primary-light) 0%, var(--primary-lighter) 100%);
   color: var(--primary);
-  font-size: 15px;
+  font-size: var(--font-md);
   font-weight: 700;
   display: flex;
   align-items: center;
@@ -511,39 +506,41 @@ defineExpose({
   align-items: center;
   gap: 10px;
   margin-bottom: 6px;
-  font-size: 15px;
+  font-size: var(--font-md);
   font-weight: 700;
   color: var(--text-primary);
+  letter-spacing: 0.3px;
 }
 
-.step-title .n-icon {
-  font-size: 18px;
+.step-title .el-icon {
+  font-size: var(--icon-base);
   color: var(--primary);
 }
 
 .step-desc {
-  font-size: 13px;
+  font-size: var(--font-sm);
   color: var(--text-secondary);
-  line-height: 1.6;
+  line-height: 1.7;
+  font-weight: 500;
 }
 
 /* 空状态提示 */
 .empty-hint {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 16px 24px;
+  gap: 12px;
+  padding: 18px 26px;
   background: linear-gradient(135deg, var(--primary-lighter) 0%, var(--primary-light) 100%);
   border-radius: var(--radius-lg);
   border: 2px solid var(--primary-light);
   color: var(--primary);
-  font-size: 15px;
+  font-size: var(--font-md);
   font-weight: 600;
   box-shadow: var(--shadow-xs);
 }
 
-.empty-hint .n-icon {
-  font-size: 20px;
+.empty-hint .el-icon {
+  font-size: var(--icon-md);
   animation: slideRight 1.5s ease-in-out infinite;
   flex-shrink: 0;
 }
@@ -698,7 +695,7 @@ defineExpose({
   gap: 6px;
 }
 
-.tab-label .n-icon {
+.tab-label .el-icon {
   font-size: 16px;
 }
 

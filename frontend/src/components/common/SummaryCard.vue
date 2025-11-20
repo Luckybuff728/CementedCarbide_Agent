@@ -2,7 +2,7 @@
   <div :class="['summary-card', { clickable }]" @click="handleClick">
     <div class="card-header">
       <div class="header-left">
-        <n-icon v-if="iconComponent" class="icon" :component="iconComponent" />
+        <el-icon v-if="iconComponent" class="icon"><component :is="iconComponent" /></el-icon>
         <span v-else class="icon">{{ icon }}</span>
         <h4>{{ title }}</h4>
       </div>
@@ -10,7 +10,7 @@
         <el-tag v-if="badge" :type="badge.type" size="small">
           {{ badge.text }}
         </el-tag>
-        <n-icon v-if="clickable" class="click-icon" :component="ArrowForwardOutline" />
+        <el-icon v-if="clickable" class="click-icon"><ArrowForwardOutline /></el-icon>
       </div>
     </div>
     <div class="card-body">
@@ -20,16 +20,17 @@
 </template>
 
 <script setup>
-import { NIcon } from 'naive-ui'
+import { ElIcon } from 'element-plus'
 import { ArrowForwardOutline } from '@vicons/ionicons5'
 
 defineProps({
   icon: {
     type: [String, Object],  // 支持字符串(emoji)和组件
-    required: true
+    type: [String, Object],  // 支持字符串(emoji)和组件
+    default: ''
   },
   iconComponent: {
-    type: Object,  // Naive UI图标组件
+    type: Object,  // 图标组件
     default: null
   },
   title: {
@@ -89,15 +90,16 @@ const handleClick = () => {
 }
 
 .icon {
-  font-size: 22px;
+  font-size: var(--icon-md);
   color: var(--primary);
 }
 
 .header-left h4 {
   margin: 0;
-  font-size: 15px;
+  font-size: var(--font-lg);
   font-weight: 600;
   color: var(--text-primary);
+  letter-spacing: 0.3px;
 }
 
 .header-right {
@@ -107,7 +109,7 @@ const handleClick = () => {
 }
 
 .click-icon {
-  font-size: 14px;
+  font-size: var(--icon-sm);
   color: var(--text-tertiary);
   transition: all var(--transition-fast);
 }
@@ -118,6 +120,6 @@ const handleClick = () => {
 }
 
 .card-body {
-  font-size: 13px;
+  font-size: var(--font-base);
 }
 </style>

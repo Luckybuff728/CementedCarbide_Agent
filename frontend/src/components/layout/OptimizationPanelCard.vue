@@ -6,10 +6,10 @@
   >
     <div class="card-header" @click="toggleCollapse">
       <div class="header-left">
-        <n-icon :class="['status-icon', optimizationCardStatusClass]" :component="optimizationStatusIcon" />
-        <n-icon class="title-icon" :component="BulbOutline" />
+        <el-icon :class="['status-icon', optimizationCardStatusClass]"><component :is="optimizationStatusIcon" /></el-icon>
+        <el-icon class="title-icon"><BulbOutline /></el-icon>
         <h4>优化建议</h4>
-        <el-tag :type="optimizationStatusTag.type" size="small">
+        <el-tag :type="optimizationStatusTag.type" size="small" class="status-tag">
           {{ optimizationStatusTag.text }}
         </el-tag>
         <div class="optimization-availability">
@@ -18,7 +18,7 @@
         </div>
       </div>
       <div class="header-right">
-        <n-icon class="toggle-icon" :component="collapsed ? ChevronDownOutline : ChevronUpOutline" />
+        <el-icon class="toggle-icon"><component :is="collapsed ? ChevronDownOutline : ChevronUpOutline" /></el-icon>
       </div>
     </div>
     <transition name="collapse">
@@ -30,7 +30,7 @@
           >
             <template #label>
               <div class="tab-label">
-                <n-icon :component="FlaskOutline" />
+                <el-icon><FlaskOutline /></el-icon>
                 <span>P1 成分优化</span>
               </div>
             </template>
@@ -44,7 +44,7 @@
           >
             <template #label>
               <div class="tab-label">
-                <n-icon :component="BuildOutline" />
+                <el-icon><BuildOutline /></el-icon>
                 <span>P2 结构优化</span>
               </div>
             </template>
@@ -58,7 +58,7 @@
           >
             <template #label>
               <div class="tab-label">
-                <n-icon :component="SettingsOutline" />
+                <el-icon><SettingsOutline /></el-icon>
                 <span>P3 工艺优化</span>
               </div>
             </template>
@@ -69,7 +69,7 @@
         </el-tabs>
         <div class="card-footer">
           <el-button text size="small" @click.stop="copyOptimizationContent">
-            <n-icon :component="CopyOutline" />
+            <el-icon class="el-icon--left"><CopyOutline /></el-icon>
             复制
           </el-button>
         </div>
@@ -80,8 +80,7 @@
 
 <script setup>
 import { ref, computed, watch, nextTick } from 'vue'
-import { ElMessage } from 'element-plus'
-import { NIcon } from 'naive-ui'
+import { ElMessage, ElButton, ElIcon } from 'element-plus'
 import {
   ChevronDownOutline,
   ChevronUpOutline,
@@ -128,7 +127,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['update:collapsed'])
+const emit = defineEmits(['toggle'])
 
 const rootRef = ref(null)
 const activeOptimizationTab = ref('p1')
@@ -262,7 +261,7 @@ const optimizationAvailabilityText = computed(() => {
 })
 
 const toggleCollapse = () => {
-  emit('update:collapsed', !props.collapsed)
+  emit('toggle')
 }
 
 const copyOptimizationContent = async () => {
@@ -341,42 +340,58 @@ defineExpose({
 .process-card {
   background: white;
   border-radius: var(--radius-lg);
-  margin-bottom: 16px;
+  margin-bottom: 18px;
   border: 1px solid var(--border-color);
-  border-left: 3px solid var(--border-color);
+  border-left: 4px solid var(--border-color);
   overflow: hidden;
-  transition: all var(--transition-base);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow: var(--shadow-sm);
 }
 
 .process-card:hover {
-  box-shadow: var(--shadow-md);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
   transform: translateY(-2px);
   border-color: var(--primary-light);
 }
 
 .process-card.completed {
   border-left-color: var(--success);
-  border-left-width: 4px;
+  border-left-width: 5px;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.1);
 }
 
 .process-card.processing {
   border-left-color: var(--warning);
-  border-left-width: 4px;
+  border-left-width: 5px;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.1);
 }
 
 .process-card.collapsed .card-header {
   border-bottom: none;
 }
 
+.process-card.current {
+  border-left-color: var(--primary);
+  border-left-width: 5px;
+  border-color: var(--primary-light);
+  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.12);
+  background: linear-gradient(90deg, var(--primary-lighter) 0%, white 8%);
+}
+
+.process-card.error {
+  border-left-color: var(--danger);
+  border-left-width: 5px;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.1);
+}
+
 .card-header {
-  padding: 18px 20px;
+  padding: 20px 24px;
   cursor: pointer;
   display: flex;
   justify-content: space-between;
   align-items: center;
   border-bottom: 1px solid var(--border-color);
-  transition: all var(--transition-fast);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .card-header:hover {
@@ -386,18 +401,20 @@ defineExpose({
 .header-left {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
   flex: 1;
 }
 
 .header-left h4 {
   margin: 0;
-  font-size: 15px;
+  font-size: var(--font-lg);
   font-weight: 600;
+  letter-spacing: 0.3px;
 }
 
 .status-icon {
-  font-size: 20px;
+  font-size: var(--icon-lg);
+  transition: all var(--transition-base);
 }
 
 .status-icon.completed {
@@ -427,7 +444,7 @@ defineExpose({
 }
 
 .title-icon {
-  font-size: 20px;
+  font-size: var(--icon-md);
   color: var(--warning);
 }
 
@@ -438,21 +455,39 @@ defineExpose({
 }
 
 .toggle-icon {
-  font-size: 16px;
+  font-size: var(--icon-base);
   color: var(--text-secondary);
+  transition: all 0.2s;
+}
+
+.card-header:hover .toggle-icon {
+  color: var(--primary);
+  transform: scale(1.1);
 }
 
 .card-content {
-  padding: 24px;
+  padding: 28px;
   overflow-x: hidden;
+  line-height: 1.8;
 }
 
 .card-footer {
-  margin-top: 16px;
-  padding-top: 12px;
+  margin-top: 20px;
+  padding-top: 16px;
   border-top: 1px solid var(--border-light);
   display: flex;
-  gap: 8px;
+  gap: 10px;
+}
+
+.card-footer :deep(.el-button) {
+  font-size: 14px;
+  padding: 8px 16px;
+  font-weight: 500;
+}
+
+.card-footer :deep(.el-button:hover) {
+  color: var(--primary);
+  background: var(--primary-lighter);
 }
 
 .optimization-tabs {
@@ -468,21 +503,22 @@ defineExpose({
 }
 
 .optimization-tabs :deep(.el-tabs__item) {
-  font-size: 14px;
-  font-weight: 500;
-  height: 40px;
-  line-height: 40px;
+  font-size: var(--font-base);
+  font-weight: 600;
+  height: 42px;
+  line-height: 42px;
   padding: 0 20px;
+  transition: all 0.2s;
 }
 
 .tab-label {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 
-.tab-label .n-icon {
-  font-size: 16px;
+.tab-label .el-icon {
+  font-size: var(--icon-base);
 }
 
 .optimization-tabs :deep(.el-tabs__item.is-active) {
@@ -498,13 +534,14 @@ defineExpose({
 .optimization-availability {
   display: flex;
   align-items: center;
-  gap: 4px;
-  font-size: 12px;
+  gap: 6px;
+  font-size: var(--font-sm);
   color: var(--text-secondary);
+  font-weight: 500;
 }
 
 .optimization-availability .value {
-  font-weight: 500;
+  font-weight: 600;
   color: var(--primary);
 }
 
@@ -525,5 +562,34 @@ defineExpose({
 .collapse-leave-from {
   max-height: 5000px;
   padding: 20px;
+}
+
+/* Tag 标签美化 */
+.status-tag {
+  font-weight: 600;
+  font-size: var(--font-sm);
+  padding: 4px 12px;
+  border-radius: 6px;
+  border: none;
+}
+
+.status-tag.el-tag--success {
+  background: var(--success-light);
+  color: var(--success);
+}
+
+.status-tag.el-tag--warning {
+  background: var(--warning-light);
+  color: #d97706;
+}
+
+.status-tag.el-tag--info {
+  background: #e5e7eb;
+  color: #6b7280;
+}
+
+.status-tag.el-tag--danger {
+  background: var(--danger-light);
+  color: var(--danger);
 }
 </style>

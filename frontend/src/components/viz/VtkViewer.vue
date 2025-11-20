@@ -5,13 +5,13 @@
     
     <!-- 加载状态 -->
     <div v-if="loading" class="loading-overlay">
-      <n-icon class="is-loading" :component="ReloadOutline" size="40" />
+      <el-icon class="is-loading" size="40"><ReloadOutline /></el-icon>
       <p>加载VTK数据中...</p>
     </div>
     
     <!-- 错误提示 -->
     <div v-if="error" class="error-message">
-      <n-icon :component="CloseCircleOutline" size="24" color="#f56c6c" />
+      <el-icon size="24" color="#f56c6c"><CloseCircleOutline /></el-icon>
       <p>{{ error }}</p>
     </div>
     
@@ -19,13 +19,13 @@
     <div v-if="!loading && !error" class="controls">
       <el-button-group size="small">
         <el-button @click="resetCamera" title="重置视角">
-          <n-icon :component="RefreshOutline" />
+          <el-icon><RefreshOutline /></el-icon>
         </el-button>
         <el-button @click="toggleWireframe" title="切换线框">
-          <n-icon :component="GridOutline" />
+          <el-icon><GridOutline /></el-icon>
         </el-button>
         <el-button @click="downloadVTK" title="下载VTK文件">
-          <n-icon :component="DownloadOutline" />
+          <el-icon><DownloadOutline /></el-icon>
         </el-button>
       </el-button-group>
       
@@ -39,7 +39,7 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
-import { NIcon } from 'naive-ui'
+import { ElIcon } from 'element-plus'
 import { ReloadOutline, CloseCircleOutline, RefreshOutline, GridOutline, DownloadOutline } from '@vicons/ionicons5'
 import { API_BASE_URL } from '../../config'
 
@@ -506,14 +506,20 @@ onBeforeUnmount(() => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(4px);
   color: #fff;
   z-index: 10;
 }
 
 .loading-overlay p {
-  margin-top: 12px;
-  font-size: 14px;
+  margin-top: 16px;
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.loading-overlay .el-icon {
+  font-size: 44px;
 }
 
 .error-message {
@@ -526,13 +532,22 @@ onBeforeUnmount(() => {
   align-items: center;
   color: #f56c6c;
   text-align: center;
-  padding: 20px;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(4px);
+  border-radius: 12px;
+  border: 1px solid rgba(245, 108, 108, 0.3);
   z-index: 10;
+}
+
+.error-message .el-icon {
+  font-size: 32px;
 }
 
 .error-message p {
   margin-top: 12px;
   font-size: 14px;
+  font-weight: 500;
 }
 
 .controls {
@@ -544,18 +559,38 @@ onBeforeUnmount(() => {
   justify-content: space-between;
   align-items: center;
   z-index: 5;
+  gap: 12px;
 }
 
 .info-text {
-  color: #fff;
-  font-size: 12px;
-  background: rgba(0, 0, 0, 0.5);
-  padding: 4px 12px;
-  border-radius: 4px;
+  color: rgba(255, 255, 255, 0.95);
+  font-size: 13px;
+  font-weight: 600;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  padding: 8px 14px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
 }
 
 /* Element Plus 按钮组样式调整 */
 :deep(.el-button-group) {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+:deep(.el-button-group .el-button) {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(8px);
+  font-weight: 500;
+}
+
+:deep(.el-button-group .el-button:hover) {
+  background: #fff;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 </style>
+```

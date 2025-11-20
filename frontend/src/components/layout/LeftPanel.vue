@@ -4,16 +4,13 @@
     <div class="panel-header">
       <h3>参数输入</h3>
       <div class="header-actions">
-	        <n-button 
+        <el-button 
           size="small" 
           @click="resetForm"
-          secondary
         >
-          <template #icon>
-            <n-icon :component="RefreshOutline" />
-          </template>
+          <el-icon class="el-icon--left"><RefreshOutline /></el-icon>
           清空
-        </n-button>
+        </el-button>
       </div>
     </div>
 
@@ -22,16 +19,28 @@
       <div class="selector-label">示例场景</div>
       <el-radio-group v-model="selectedScenario" size="small" @change="handleScenarioChange">
         <el-radio-button value="highSpeedSteel">
-          <span class="scenario-option">🔧 高速钢</span>
+          <span class="scenario-option">
+            <el-icon><HammerOutline /></el-icon>
+            高速钢
+          </span>
         </el-radio-button>
         <el-radio-button value="precisionAluminum">
-          <span class="scenario-option">⚙️ 铝合金</span>
+          <span class="scenario-option">
+            <el-icon><SettingsOutline /></el-icon>
+            铝合金
+          </span>
         </el-radio-button>
         <el-radio-button value="titaniumAlloy">
-          <span class="scenario-option">🛠 钛合金</span>
+          <span class="scenario-option">
+            <el-icon><BuildOutline /></el-icon>
+            钛合金
+          </span>
         </el-radio-button>
         <el-radio-button value="highTempWear">
-          <span class="scenario-option">🔥 高温耐磨</span>
+          <span class="scenario-option">
+            <el-icon><FlameOutline /></el-icon>
+            高温耐磨
+          </span>
         </el-radio-button>
       </el-radio-group>
     </div>
@@ -75,11 +84,14 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { NButton, NIcon } from 'naive-ui'
+import { ElMessage, ElMessageBox, ElButton, ElIcon } from 'element-plus'
 import { 
   RefreshOutline,
-  PlayOutline
+  PlayOutline,
+  HammerOutline,
+  SettingsOutline,
+  BuildOutline,
+  FlameOutline
 } from '@vicons/ionicons5'
 import { useWorkflowStore } from '../../stores/workflow'
 
@@ -363,7 +375,7 @@ const handleSubmit = () => {
 
 .panel-header h3 {
   margin: 0;
-  font-size: 18px;
+  font-size: var(--font-xl);
   font-weight: 600;
   color: var(--text-primary);
 }
@@ -414,7 +426,7 @@ const handleSubmit = () => {
 }
 
 :deep(.el-form-item__label) {
-  font-size: 14px;
+  font-size: var(--font-base);
   color: var(--text-secondary);
   font-weight: 500;
   padding-bottom: 6px;

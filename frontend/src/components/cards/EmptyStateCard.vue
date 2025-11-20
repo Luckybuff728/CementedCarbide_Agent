@@ -10,19 +10,19 @@
     </p>
     <div class="empty-features">
       <div class="feature-item">
-        <n-icon :component="CheckmarkCircleOutline" color="#10b981" />
+        <el-icon color="#10b981"><CheckmarkCircleOutline /></el-icon>
         <span>参数验证与可行性分析</span>
       </div>
       <div class="feature-item">
-        <n-icon :component="CheckmarkCircleOutline" color="#10b981" />
+        <el-icon color="#10b981"><CheckmarkCircleOutline /></el-icon>
         <span>TopPhi相场模拟</span>
       </div>
       <div class="feature-item">
-        <n-icon :component="CheckmarkCircleOutline" color="#10b981" />
+        <el-icon color="#10b981"><CheckmarkCircleOutline /></el-icon>
         <span>ML性能预测与历史对比</span>
       </div>
       <div class="feature-item">
-        <n-icon :component="CheckmarkCircleOutline" color="#10b981" />
+        <el-icon color="#10b981"><CheckmarkCircleOutline /></el-icon>
         <span>智能优化建议与实验工单</span>
       </div>
     </div>
@@ -30,7 +30,7 @@
 </template>
 
 <script setup>
-import { NIcon } from 'naive-ui'
+import { ElIcon } from 'element-plus'
 import { RocketOutline, CheckmarkCircleOutline } from '@vicons/ionicons5'
 </script>
 
@@ -81,7 +81,7 @@ import { RocketOutline, CheckmarkCircleOutline } from '@vicons/ionicons5'
   color: var(--text-primary);
 }
 
-.feature-item .n-icon {
+.feature-item .el-icon {
   font-size: 18px;
   flex-shrink: 0;
 }

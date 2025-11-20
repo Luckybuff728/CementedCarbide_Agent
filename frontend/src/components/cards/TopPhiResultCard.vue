@@ -1,6 +1,6 @@
 <template>
   <SummaryCard 
-    icon=""
+
     :icon-component="FlaskOutline"
     title="TopPhi相场模拟"
     :badge="topphiBadge"
@@ -8,34 +8,40 @@
     @click="emit('jump-to-node', 'topphi_simulation')"
   >
     <div class="topphi-content">
-      <div v-if="topphiView" class="topphi-summary">
-        <div class="summary-main">
-          <div class="metric-label">预测晶粒尺寸</div>
-          <div class="metric-value highlight">{{ topphiView.grainSizeText }}</div>
-          <div v-if="topphiView.simulationTimeText" class="metric-sub">计算时长约 {{ topphiView.simulationTimeText }}</div>
+      <div v-if="topphiView" class="metrics-container">
+        <!-- 主要指标：晶粒尺寸 -->
+        <div class="metric-primary">
+          <div class="label">预测晶粒尺寸</div>
+          <div class="value">{{ topphiView.grainSizeText }}</div>
         </div>
-        <div class="summary-metrics">
+
+        <!-- 次要指标网格 -->
+        <div class="metrics-grid">
           <div class="metric-item">
-            <span>择优取向</span>
-            <span>{{ topphiView.orientationText }}</span>
+            <span class="label">择优取向</span>
+            <span class="value">{{ topphiView.orientationText }}</span>
           </div>
           <div class="metric-item">
-            <span>残余应力</span>
-            <span>{{ topphiView.stressText }}</span>
+            <span class="label">残余应力</span>
+            <span class="value">{{ topphiView.stressText }}</span>
           </div>
           <div class="metric-item">
-            <span>形成能</span>
-            <span>{{ topphiView.formationEnergyText }}</span>
+            <span class="label">形成能</span>
+            <span class="value">{{ topphiView.formationEnergyText }}</span>
           </div>
           <div v-if="topphiView.confidencePercent !== null" class="metric-item">
-            <span>模型置信度</span>
-            <span>{{ topphiView.confidencePercent }}%</span>
+            <span class="label">置信度</span>
+            <span class="value">{{ topphiView.confidencePercent }}%</span>
           </div>
         </div>
-        <div v-if="topphiView.dimensionsText || topphiView.pointCountText || topphiView.fileSizeText" class="summary-meta">
-          <span v-if="topphiView.dimensionsText" class="meta-item">网格：{{ topphiView.dimensionsText }}</span>
-          <span v-if="topphiView.pointCountText" class="meta-item">点数：{{ topphiView.pointCountText }}</span>
-          <span v-if="topphiView.fileSizeText" class="meta-item">文件大小：{{ topphiView.fileSizeText }}</span>
+
+        <!-- 底部元信息 -->
+        <div class="meta-info">
+          <span v-if="topphiView.simulationTimeText">耗时 {{ topphiView.simulationTimeText }}</span>
+          <span v-if="topphiView.dimensionsText" class="divider">|</span>
+          <span v-if="topphiView.dimensionsText">网格 {{ topphiView.dimensionsText }}</span>
+          <span v-if="topphiView.pointCountText" class="divider">|</span>
+          <span v-if="topphiView.pointCountText">{{ topphiView.pointCountText }} 点</span>
         </div>
       </div>
 
@@ -46,7 +52,7 @@
           v-if="isTimeSeries && timeSeriesFiles.length > 0"
           :timeSeriesFiles="timeSeriesFiles"
           :baseUrl="apiBaseUrl"
-          height="450px"
+          height="380px"
         />
         
         <!-- 单帧查看器 -->
@@ -54,19 +60,19 @@
           v-else-if="!isTimeSeries"
           :vtkData="vtkData"
           :baseUrl="apiBaseUrl"
-          height="450px"
+          height="380px"
           renderMode="volume"
         />
         
         <!-- 加载时间序列中 -->
         <div v-else-if="isTimeSeries && loadingTimeSeries" class="loading-timeseries">
-          <n-icon class="is-loading" :component="ReloadOutline" size="40" />
-          <span>加载时间序列数据...</span>
+          <el-icon class="is-loading" size="32"><ReloadOutline /></el-icon>
+          <span>加载数据...</span>
         </div>
       </div>
 
       <div v-else class="no-vtk">
-        <span>暂无可视化数据，请先完成 TopPhi 模拟。</span>
+        <span>暂无可视化数据</span>
       </div>
     </div>
   </SummaryCard>
@@ -74,7 +80,7 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { NIcon } from 'naive-ui'
+import { ElIcon } from 'element-plus'
 import { FlaskOutline, ReloadOutline } from '@vicons/ionicons5'
 import { API_BASE_URL } from '../../config'
 import SummaryCard from '../common/SummaryCard.vue'
@@ -111,7 +117,7 @@ const topphiView = computed(() => {
     stressText: result.residual_stress_gpa != null ? `${result.residual_stress_gpa} GPa` : 'N/A',
     formationEnergyText: result.formation_energy != null ? `${result.formation_energy} eV` : 'N/A',
     confidencePercent: typeof result.confidence === 'number' ? Math.round(result.confidence * 100) : null,
-    simulationTimeText: result.simulation_time != null ? `${result.simulation_time} s` : null,
+    simulationTimeText: result.simulation_time != null ? `${result.simulation_time}s` : null,
     dimensionsText: hasDims ? `${rawDimensions[0]}×${rawDimensions[1]}×${rawDimensions[2]}` : null,
     pointCountText: vtk.point_count != null ? String(vtk.point_count) : null,
     fileSizeText: vtk.file_size_mb != null ? `${vtk.file_size_mb} MB` : null,
@@ -124,7 +130,7 @@ const topphiBadge = computed(() => {
   if (!topphiView.value) return null
   return topphiView.value.isTimeSeries
     ? { text: '时间序列', type: 'info' }
-    : { text: '单帧结果', type: 'success' }
+    : { text: '单帧', type: 'success' }
 })
 
 // 时间序列文件列表
@@ -176,87 +182,89 @@ watch(
 .topphi-content {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
 }
 
-.topphi-summary {
+.metrics-container {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 16px;
-  background: var(--bg-tertiary);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--border-light);
 }
 
-.summary-main {
+.metric-primary {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-light);
 }
 
-.summary-main .metric-label {
-  font-size: 12px;
+.metric-primary .label {
+  font-size: var(--font-sm);
   color: var(--text-secondary);
+  font-weight: 500;
 }
 
-.summary-main .metric-value {
-  font-size: 20px;
+.metric-primary .value {
+  font-size: var(--font-3xl);
   font-weight: 700;
   color: var(--primary);
+  line-height: 1.2;
+  letter-spacing: -0.02em;
 }
 
-.summary-main .metric-sub {
-  font-size: 12px;
-  color: var(--text-tertiary);
-}
-
-.summary-metrics {
+.metrics-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px 16px;
 }
 
-.summary-metrics .metric-item {
+.metric-item {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  font-size: 12px;
 }
 
-.summary-metrics .metric-item span:first-child {
-  color: var(--text-secondary);
-}
-
-.summary-metrics .metric-item span:last-child {
-  font-weight: 600;
-}
-
-.summary-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 4px;
-  font-size: 11px;
+.metric-item .label {
+  font-size: var(--font-sm);
   color: var(--text-tertiary);
+  font-weight: 500;
 }
 
-.summary-meta .meta-item {
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: rgba(148, 163, 184, 0.12);
+.metric-item .value {
+  font-size: var(--font-lg);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.meta-info {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 6px;
+  font-size: var(--font-sm);
+  color: var(--text-tertiary);
+  font-weight: 500;
+}
+
+.meta-info .divider {
+  color: var(--border-color);
+  font-weight: 400;
 }
 
 .vtk-visualization {
   width: 100%;
   border-radius: var(--radius-md);
   overflow: hidden;
+  border: 1px solid var(--border-light);
+  background: #000; /* VTK背景通常较深 */
 }
 
 .no-vtk {
-  padding: 32px 16px;
+  padding: 24px;
   text-align: center;
-  font-size: 13px;
+  font-size: var(--font-sm);
   color: var(--text-tertiary);
   background: var(--bg-tertiary);
   border-radius: var(--radius-md);
@@ -267,15 +275,19 @@ watch(
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 12px;
-  padding: 40px;
-  background: var(--bg-tertiary);
-  border-radius: var(--radius-md);
-  color: var(--text-secondary);
+  gap: 16px;
+  padding: 48px;
+  color: rgba(255, 255, 255, 0.9);
 }
 
-.loading-timeseries .n-icon {
+.loading-timeseries .el-icon {
   animation: spin 1s linear infinite;
+  font-size: 36px;
+}
+
+.loading-timeseries span {
+  font-size: 15px;
+  font-weight: 500;
 }
 
 @keyframes spin {
