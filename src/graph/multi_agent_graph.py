@@ -1,13 +1,20 @@
 """
 多Agent Graph - 基于 Supervisor-Workers 模式
 支持LLM驱动的动态路由和多轮对话
+
+已适配 LangGraph v1.0
 """
 from typing import Literal, Any
 from langgraph.graph import StateGraph, END
-from langgraph.checkpoint.memory import MemorySaver
 from langgraph.store.memory import InMemoryStore
 from langchain_core.messages import HumanMessage, AIMessage
 import logging
+
+# LangGraph v1.0 兼容性：MemorySaver → InMemorySaver
+try:
+    from langgraph.checkpoint.memory import InMemorySaver
+except ImportError:
+    from langgraph.checkpoint.memory import MemorySaver as InMemorySaver
 
 from .agent_state import CoatingAgentState
 from ..agents.supervisor_agent import supervisor_node, create_supervisor_router
@@ -136,7 +143,7 @@ def create_multi_agent_graph(
     
     # ==================== 编译Graph ====================
     if use_memory:
-        checkpointer = MemorySaver()
+        checkpointer = InMemorySaver()  # v1.0: MemorySaver → InMemorySaver
         memory = InMemoryStore()
         compiled = workflow.compile(checkpointer=checkpointer, store=memory)
     else:
@@ -157,6 +164,141 @@ class MultiAgentManager:
         self.graph = create_multi_agent_graph(use_memory=use_memory)
         self.active_tasks = {}
         logger.info(f"多Agent管理器初始化完成 (use_memory={use_memory})")
+    
+    def _build_initial_message(
+        self,
+        composition: dict,
+        process_params: dict,
+        structure_design: dict,
+        target_requirements
+    ) -> str:
+        """
+        构建完整的初始消息，包含所有输入参数的详细描述
+        
+        Args:
+            composition: 涂层成分数据
+            process_params: 工艺参数数据
+            structure_design: 结构设计数据
+            target_requirements: 目标需求（字符串或字典）
+        
+        Returns:
+            str: 格式化的初始消息
+        """
+        parts = ["请帮我优化涂层配方。\n"]
+        
+        # ==================== 目标需求 ====================
+        if target_requirements:
+            if isinstance(target_requirements, dict):
+                req_lines = []
+                # 基材信息（兼容两种字段名）
+                substrate = target_requirements.get("substrate_material") or target_requirements.get("substrate")
+                if substrate:
+                    req_lines.append(f"- 基材：{substrate}")
+                if "adhesion_strength" in target_requirements:
+                    req_lines.append(f"- 结合力：{target_requirements['adhesion_strength']} N")
+                if "elastic_modulus" in target_requirements:
+                    req_lines.append(f"- 弹性模量：{target_requirements['elastic_modulus']} GPa")
+                if "working_temperature" in target_requirements:
+                    req_lines.append(f"- 工作温度：{target_requirements['working_temperature']}°C")
+                if "cutting_speed" in target_requirements:
+                    req_lines.append(f"- 切削速度：{target_requirements['cutting_speed']} m/min")
+                if "application_scenario" in target_requirements and target_requirements['application_scenario']:
+                    req_lines.append(f"- 应用场景：{target_requirements['application_scenario']}")
+                if "special_requirements" in target_requirements and target_requirements['special_requirements']:
+                    req_lines.append(f"- 特殊要求：{target_requirements['special_requirements']}")
+                
+                if req_lines:
+                    parts.append("**【目标需求】**\n" + "\n".join(req_lines))
+            else:
+                parts.append(f"**【目标需求】**\n{target_requirements}")
+        
+        # ==================== 涂层成分 ====================
+        if composition:
+            comp_lines = []
+            al = composition.get("al_content", 0)
+            ti = composition.get("ti_content", 0)
+            n = composition.get("n_content", 0)
+            
+            if al or ti or n:
+                comp_lines.append(f"- 主要成分：Al {al}%, Ti {ti}%, N {n}%")
+                # 计算Al/(Al+Ti)比例
+                if al + ti > 0:
+                    ratio = al / (al + ti)
+                    comp_lines.append(f"- Al/(Al+Ti)比例：{ratio:.2f}")
+            
+            # 其他添加元素
+            other_elements = composition.get("other_elements", [])
+            if other_elements and len(other_elements) > 0:
+                others = ", ".join([f"{e.get('type', 'Unknown')} {e.get('content', 0)}%" for e in other_elements if e.get('type')])
+                if others:
+                    comp_lines.append(f"- 其他元素：{others}")
+            
+            if comp_lines:
+                parts.append("\n\n**【涂层成分】**\n" + "\n".join(comp_lines))
+        
+        # ==================== 工艺参数 ====================
+        if process_params:
+            proc_lines = []
+            # 工艺类型
+            process_type = process_params.get("process_type", "")
+            process_type_map = {
+                "magnetron_sputtering": "磁控溅射",
+                "arc_ion_plating": "电弧离子镀",
+                "cvd": "CVD化学气相沉积",
+                "pecvd": "PECVD等离子增强化学气相沉积"
+            }
+            if process_type:
+                proc_lines.append(f"- 工艺类型：{process_type_map.get(process_type, process_type)}")
+            
+            # 沉积参数
+            if "deposition_temperature" in process_params:
+                proc_lines.append(f"- 沉积温度：{process_params['deposition_temperature']}°C")
+            if "deposition_pressure" in process_params:
+                proc_lines.append(f"- 沉积压力：{process_params['deposition_pressure']} Pa")
+            if "bias_voltage" in process_params:
+                proc_lines.append(f"- 偏压：{process_params['bias_voltage']} V")
+            if "n2_flow" in process_params:
+                proc_lines.append(f"- N₂流量：{process_params['n2_flow']} sccm")
+            
+            # 其他气体
+            other_gases = process_params.get("other_gases", [])
+            if other_gases and len(other_gases) > 0:
+                gases = ", ".join([f"{g.get('type', 'Unknown')} {g.get('flow', 0)} sccm" for g in other_gases if g.get('type')])
+                if gases:
+                    proc_lines.append(f"- 其他气体：{gases}")
+            
+            if proc_lines:
+                parts.append("\n\n**【工艺参数】**\n" + "\n".join(proc_lines))
+        
+        # ==================== 结构设计 ====================
+        if structure_design:
+            struct_lines = []
+            # 结构类型
+            struct_type = structure_design.get("structure_type", "")
+            struct_type_map = {
+                "single": "单层结构",
+                "multi": "多层结构",
+                "gradient": "梯度结构",
+                "nano_multi": "纳米多层结构"
+            }
+            if struct_type:
+                struct_lines.append(f"- 结构类型：{struct_type_map.get(struct_type, struct_type)}")
+            
+            # 总厚度
+            if "total_thickness" in structure_design:
+                struct_lines.append(f"- 总厚度：{structure_design['total_thickness']} μm")
+            
+            # 多层结构详情
+            layers = structure_design.get("layers", [])
+            if layers and len(layers) > 0:
+                layer_info = ", ".join([f"{l.get('type', '未知')} ({l.get('thickness', 0)} μm)" for l in layers if l.get('type')])
+                if layer_info:
+                    struct_lines.append(f"- 层结构：{layer_info}")
+            
+            if struct_lines:
+                parts.append("\n\n**【结构设计】**\n" + "\n".join(struct_lines))
+        
+        return "".join(parts)
     
     async def start_task_stream_events(
         self,
@@ -185,54 +327,10 @@ class MultiAgentManager:
         structure_design = input_data.get("structure_design", {})
         target_requirements = input_data.get("target_requirements", "")
         
-        # 构建初始消息：包含完整的参数描述
-        initial_message_parts = ["请帮我优化涂层配方。"]
-        
-        # 添加目标需求（支持字符串和字典格式）
-        if target_requirements:
-            if isinstance(target_requirements, dict):
-                # 格式化字典为易读文本
-                req_parts = []
-                if "substrate" in target_requirements:
-                    req_parts.append(f"基材：{target_requirements['substrate']}")
-                if "bonding_strength" in target_requirements:
-                    req_parts.append(f"结合力：{target_requirements['bonding_strength']} N")
-                if "elastic_modulus" in target_requirements:
-                    req_parts.append(f"弹性模量：{target_requirements['elastic_modulus']} GPa")
-                if "working_temperature" in target_requirements:
-                    req_parts.append(f"工作温度：{target_requirements['working_temperature']}°C")
-                if "cutting_speed" in target_requirements:
-                    req_parts.append(f"切削速度：{target_requirements['cutting_speed']} m/min")
-                if "application_scenario" in target_requirements:
-                    req_parts.append(f"应用场景：{target_requirements['application_scenario']}")
-                if "special_requirements" in target_requirements and target_requirements['special_requirements']:
-                    req_parts.append(f"特殊要求：{target_requirements['special_requirements']}")
-                
-                if req_parts:
-                    initial_message_parts.append(f"\n**目标需求：**\n" + "，".join(req_parts))
-            else:
-                # 字符串格式直接使用
-                initial_message_parts.append(f"\n**目标需求：**\n{target_requirements}")
-        
-        # 添加涂层参数摘要
-        if composition and any(composition.values()):
-            al = composition.get("al_content", 0)
-            ti = composition.get("ti_content", 0)
-            n = composition.get("n_content", 0)
-            initial_message_parts.append(f"\n**涂层成分：** Al {al}%, Ti {ti}%, N {n}%")
-        
-        if process_params:
-            process_type = process_params.get("process_type", "")
-            temp = process_params.get("deposition_temperature", 0)
-            if process_type:
-                initial_message_parts.append(f"\n**工艺参数：** {process_type}工艺, 沉积温度{temp}°C")
-        
-        if structure_design:
-            struct_type = structure_design.get("structure_type", "")
-            if struct_type:
-                initial_message_parts.append(f"\n**结构设计：** {struct_type}")
-        
-        initial_message = "".join(initial_message_parts)
+        # 使用统一方法构建初始消息
+        initial_message = self._build_initial_message(
+            composition, process_params, structure_design, target_requirements
+        )
         
         initial_state = {
             "task_id": task_id,
@@ -307,53 +405,9 @@ class MultiAgentManager:
         target_requirements = input_data.get("target_requirements", "")
         
         # 构建初始消息：包含完整的参数描述
-        initial_message_parts = ["请帮我优化涂层配方。"]
-        
-        # 添加目标需求（支持字符串和字典格式）
-        if target_requirements:
-            if isinstance(target_requirements, dict):
-                # 格式化字典为易读文本
-                req_parts = []
-                if "substrate" in target_requirements:
-                    req_parts.append(f"基材：{target_requirements['substrate']}")
-                if "bonding_strength" in target_requirements:
-                    req_parts.append(f"结合力：{target_requirements['bonding_strength']} N")
-                if "elastic_modulus" in target_requirements:
-                    req_parts.append(f"弹性模量：{target_requirements['elastic_modulus']} GPa")
-                if "working_temperature" in target_requirements:
-                    req_parts.append(f"工作温度：{target_requirements['working_temperature']}°C")
-                if "cutting_speed" in target_requirements:
-                    req_parts.append(f"切削速度：{target_requirements['cutting_speed']} m/min")
-                if "application_scenario" in target_requirements:
-                    req_parts.append(f"应用场景：{target_requirements['application_scenario']}")
-                if "special_requirements" in target_requirements and target_requirements['special_requirements']:
-                    req_parts.append(f"特殊要求：{target_requirements['special_requirements']}")
-                
-                if req_parts:
-                    initial_message_parts.append(f"\n**目标需求：**\n" + "，".join(req_parts))
-            else:
-                # 字符串格式直接使用
-                initial_message_parts.append(f"\n**目标需求：**\n{target_requirements}")
-        
-        # 添加涂层参数摘要
-        if composition and any(composition.values()):
-            al = composition.get("al_content", 0)
-            ti = composition.get("ti_content", 0)
-            n = composition.get("n_content", 0)
-            initial_message_parts.append(f"\n**涂层成分：** Al {al}%, Ti {ti}%, N {n}%")
-        
-        if process_params:
-            process_type = process_params.get("process_type", "")
-            temp = process_params.get("deposition_temperature", 0)
-            if process_type:
-                initial_message_parts.append(f"\n**工艺参数：** {process_type}工艺, 沉积温度{temp}°C")
-        
-        if structure_design:
-            struct_type = structure_design.get("structure_type", "")
-            if struct_type:
-                initial_message_parts.append(f"\n**结构设计：** {struct_type}")
-        
-        initial_message = "".join(initial_message_parts)
+        initial_message = self._build_initial_message(
+            composition, process_params, structure_design, target_requirements
+        )
         
         initial_state = {
             "task_id": task_id,

@@ -114,6 +114,17 @@ export function useMultiAgent() {
       case 'connection':
         ElMessage.success('多Agent系统已连接')
         break
+      
+      case 'system_welcome':
+        // 系统欢迎消息 - 添加到对话区域
+        messages.value.push({
+          type: 'agent',
+          agent: '🤖 System',
+          content: data.content,
+          timestamp: data.timestamp || new Date().toISOString(),
+          isWelcome: true  // 标记为欢迎消息
+        })
+        break
 
       case 'task_started':
         currentTaskId.value = data.task_id
@@ -524,6 +535,97 @@ export function useMultiAgent() {
   }
 
   /**
+   * 构建完整的用户消息，包含所有输入参数
+   */
+  const buildUserMessage = (formData) => {
+    const parts = ['请帮我优化涂层配方。\n']
+    
+    // 目标需求
+    const targetReq = formData.target_requirements
+    if (targetReq) {
+      const reqLines = []
+      if (targetReq.substrate_material) reqLines.push(`- 基材：${targetReq.substrate_material}`)
+      if (targetReq.adhesion_strength) reqLines.push(`- 结合力：${targetReq.adhesion_strength} N`)
+      if (targetReq.elastic_modulus) reqLines.push(`- 弹性模量：${targetReq.elastic_modulus} GPa`)
+      if (targetReq.working_temperature) reqLines.push(`- 工作温度：${targetReq.working_temperature}°C`)
+      if (targetReq.cutting_speed) reqLines.push(`- 切削速度：${targetReq.cutting_speed} m/min`)
+      if (targetReq.application_scenario) reqLines.push(`- 应用场景：${targetReq.application_scenario}`)
+      if (reqLines.length > 0) {
+        parts.push('**【目标需求】**\n' + reqLines.join('\n'))
+      }
+    }
+    
+    // 涂层成分
+    const comp = formData.composition
+    if (comp) {
+      const compLines = []
+      if (comp.al_content || comp.ti_content || comp.n_content) {
+        compLines.push(`- 主要成分：Al ${comp.al_content || 0}%, Ti ${comp.ti_content || 0}%, N ${comp.n_content || 0}%`)
+        // 计算比例
+        const alTi = (comp.al_content || 0) + (comp.ti_content || 0)
+        if (alTi > 0) {
+          const ratio = (comp.al_content || 0) / alTi
+          compLines.push(`- Al/(Al+Ti)比例：${ratio.toFixed(2)}`)
+        }
+      }
+      if (comp.other_elements && comp.other_elements.length > 0) {
+        const others = comp.other_elements.filter(e => e.type).map(e => `${e.type} ${e.content || 0}%`).join(', ')
+        if (others) compLines.push(`- 其他元素：${others}`)
+      }
+      if (compLines.length > 0) {
+        parts.push('\n\n**【涂层成分】**\n' + compLines.join('\n'))
+      }
+    }
+    
+    // 工艺参数
+    const proc = formData.process_params
+    if (proc) {
+      const procLines = []
+      const processTypeMap = {
+        'magnetron_sputtering': '磁控溅射',
+        'arc_ion_plating': '电弧离子镀',
+        'cvd': 'CVD化学气相沉积',
+        'pecvd': 'PECVD等离子增强化学气相沉积'
+      }
+      if (proc.process_type) procLines.push(`- 工艺类型：${processTypeMap[proc.process_type] || proc.process_type}`)
+      if (proc.deposition_temperature) procLines.push(`- 沉积温度：${proc.deposition_temperature}°C`)
+      if (proc.deposition_pressure) procLines.push(`- 沉积压力：${proc.deposition_pressure} Pa`)
+      if (proc.bias_voltage) procLines.push(`- 偏压：${proc.bias_voltage} V`)
+      if (proc.n2_flow) procLines.push(`- N₂流量：${proc.n2_flow} sccm`)
+      if (proc.other_gases && proc.other_gases.length > 0) {
+        const gases = proc.other_gases.filter(g => g.type).map(g => `${g.type} ${g.flow || 0} sccm`).join(', ')
+        if (gases) procLines.push(`- 其他气体：${gases}`)
+      }
+      if (procLines.length > 0) {
+        parts.push('\n\n**【工艺参数】**\n' + procLines.join('\n'))
+      }
+    }
+    
+    // 结构设计
+    const struct = formData.structure_design
+    if (struct) {
+      const structLines = []
+      const structTypeMap = {
+        'single': '单层结构',
+        'multi': '多层结构',
+        'gradient': '梯度结构',
+        'nano_multi': '纳米多层结构'
+      }
+      if (struct.structure_type) structLines.push(`- 结构类型：${structTypeMap[struct.structure_type] || struct.structure_type}`)
+      if (struct.total_thickness) structLines.push(`- 总厚度：${struct.total_thickness} μm`)
+      if (struct.layers && struct.layers.length > 0) {
+        const layerInfo = struct.layers.filter(l => l.type).map(l => `${l.type} (${l.thickness || 0} μm)`).join(', ')
+        if (layerInfo) structLines.push(`- 层结构：${layerInfo}`)
+      }
+      if (structLines.length > 0) {
+        parts.push('\n\n**【结构设计】**\n' + structLines.join('\n'))
+      }
+    }
+    
+    return parts.join('')
+  }
+
+  /**
    * 启动Agent任务
    */
   const startAgentTask = (formData) => {
@@ -531,9 +633,8 @@ export function useMultiAgent() {
     results.value = []  // 清空结果列表
     isPaused.value = false
 
-    // 添加用户消息（格式化目标需求）
-    const targetText = formatTargetRequirements(formData.target_requirements)
-    const userMessage = `请帮我优化涂层配方。目标：${targetText}`
+    // 添加用户消息（包含完整参数信息）
+    const userMessage = buildUserMessage(formData)
     messages.value.push({
       type: 'user',
       agent: '我',

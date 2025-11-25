@@ -1,12 +1,12 @@
 ﻿# ============================================
-# TopMat Agent 后端依赖（精简优化版）
-# 优化：删除未使用的langchain和langchain-community
-# 减少约100-120 MB
+# TopMat Agent 后端依赖
+# 已适配 LangChain/LangGraph v1.0
 # ============================================
 
-# 核心LLM框架（只保留实际使用的）
-langchain-core>=0.3.75,<2.0.0  # 核心抽象类（BaseMessage等）
-langgraph>=1.0.0                # 工作流编排
+# 核心LLM框架（LangChain/LangGraph v1.0）
+langchain>=1.0.0                # v1.0 新 API (create_agent)
+langchain-core>=1.0.0           # 核心抽象类（BaseMessage等）
+langgraph>=1.0.0                # 工作流编排 (InMemorySaver等)
 
 # 阿里云百炼LLM
 dashscope==1.20.0
@@ -17,6 +17,8 @@ uvicorn==0.31.0
 websockets==13.0
 
 # 数据处理 / ORM
+numpy>=1.23.2,<2           # 兼容 pandas 2.2.x
+pandas>=2.2.0              # 数据处理
 pydantic==2.9.0
 sqlalchemy==2.0.36
 
