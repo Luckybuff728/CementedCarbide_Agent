@@ -2,152 +2,171 @@
   <div class="experiment-input-card">
     <div class="card-header">
       <div class="header-left">
-        <el-icon :size="24" color="#3b82f6">
-          <FlaskOutline />
-        </el-icon>
-        <h3>实验数据录入</h3>
+        <div class="icon-wrapper">
+          <el-icon :size="24" color="#3b82f6">
+            <FlaskOutline />
+          </el-icon>
+        </div>
+        <div class="header-text">
+          <h3>实验数据录入</h3>
+          <span class="subtitle">请输入第 {{ iteration }} 轮迭代的测试结果</span>
+        </div>
       </div>
-      <el-tag type="primary" size="large">第 {{ iteration }} 轮迭代</el-tag>
+      <el-tag type="primary" effect="plain" round>第 {{ iteration }} 轮</el-tag>
     </div>
     
-    <el-form :model="formData" label-width="140px" class="experiment-form">
+    <el-form :model="formData" label-position="top" class="experiment-form">
       <!-- 实验数据输入 -->
       <div class="form-section">
-        <h4 class="section-title">
-          <el-icon>
-            <DocumentTextOutline />
-          </el-icon>
-          实验测试结果
-        </h4>
+        <div class="section-header">
+          <h4 class="section-title">
+            <el-icon><DocumentTextOutline /></el-icon>
+            测试结果
+          </h4>
+          <span class="section-desc">请准确填写各项测试数据</span>
+        </div>
         
-        <el-form-item label="硬度" required>
-          <div class="input-with-unit">
-            <el-input-number 
-              v-model="formData.hardness"
-              :min="0"
-              :max="50"
-              :precision="1"
-              :step="0.1"
-              placeholder="请输入实测硬度"
-            />
-            <span class="unit">GPa</span>
+        <div class="form-grid">
+          <div class="form-item">
+            <label class="input-label">
+              硬度 <span class="required">*</span>
+            </label>
+            <div class="input-with-unit">
+              <el-input-number 
+                v-model="formData.hardness"
+                :min="0"
+                :max="50"
+                :precision="1"
+                :step="0.1"
+                placeholder="0.0"
+                :controls="false"
+              />
+              <span class="unit">GPa</span>
+            </div>
           </div>
-        </el-form-item>
-        
-        <el-form-item label="结合力" required>
-          <div class="input-with-unit">
-            <el-input-number 
-              v-model="formData.adhesion_strength"
-              :min="0"
-              :max="100"
-              :precision="1"
-              placeholder="请输入结合力"
-            />
-            <span class="unit">N</span>
+          
+          <div class="form-item">
+            <label class="input-label">
+              结合力 <span class="required">*</span>
+            </label>
+            <div class="input-with-unit">
+              <el-input-number 
+                v-model="formData.adhesion_strength"
+                :min="0"
+                :max="100"
+                :precision="1"
+                placeholder="0.0"
+                :controls="false"
+              />
+              <span class="unit">N</span>
+            </div>
           </div>
-        </el-form-item>
-        
-        <el-form-item label="弹性模量" required>
-          <div class="input-with-unit">
-            <el-input-number 
-              v-model="formData.elastic_modulus"
-              :min="0"
-              :max="1000"
-              :precision="1"
-              :step="1"
-              placeholder="请输入弹性模量"
-            />
-            <span class="unit">GPa</span>
+          
+          <div class="form-item">
+            <label class="input-label">
+              弹性模量 <span class="required">*</span>
+            </label>
+            <div class="input-with-unit">
+              <el-input-number 
+                v-model="formData.elastic_modulus"
+                :min="0"
+                :max="1000"
+                :precision="1"
+                :step="1"
+                placeholder="0.0"
+                :controls="false"
+              />
+              <span class="unit">GPa</span>
+            </div>
           </div>
-        </el-form-item>
-        
-        <el-form-item label="磨损率">
-          <div class="input-with-unit">
-            <el-input-number 
-              v-model="formData.wear_rate"
-              :min="0"
-              :max="1"
-              :precision="3"
-              :step="0.001"
-              placeholder="请输入磨损率"
-            />
-            <span class="unit">mm³/Nm</span>
+          
+          <div class="form-item">
+            <label class="input-label">
+              磨损率
+            </label>
+            <div class="input-with-unit">
+              <el-input-number 
+                v-model="formData.wear_rate"
+                :min="0"
+                :max="1"
+                :precision="3"
+                :step="0.001"
+                placeholder="0.000"
+                :controls="false"
+              />
+              <span class="unit">mm³/Nm</span>
+            </div>
           </div>
-        </el-form-item>
+        </div>
         
-        <el-form-item label="备注">
+        <div class="notes-section">
+          <label class="input-label">备注信息</label>
           <el-input 
             v-model="formData.notes"
             type="textarea"
-            :rows="3"
-            placeholder="请输入实验备注（可选）"
+            :rows="2"
+            placeholder="请输入实验过程中的特殊情况或备注（可选）"
+            resize="none"
           />
-        </el-form-item>
+        </div>
       </div>
       
       <!-- 对比参考信息 -->
       <div v-if="historicalBest" class="reference-section">
-        <h4 class="section-title">
-          <el-icon>
-            <BarChartOutline />
-          </el-icon>
-          性能对比参考
-        </h4>
-        <div class="comparison-grid">
-          <div class="comparison-item">
-            <span class="label">当前实验硬度</span>
-            <span class="value current">{{ formData.hardness || '-' }} GPa</span>
+        <div class="section-header">
+          <h4 class="section-title">
+            <el-icon><BarChartOutline /></el-icon>
+            性能参考
+          </h4>
+        </div>
+        <div class="comparison-row">
+          <div class="stat-item">
+            <span class="stat-label">当前硬度</span>
+            <span class="stat-value current">{{ formData.hardness || '-' }} <small>GPa</small></span>
           </div>
-          <div class="comparison-item">
-            <span class="label">历史最优硬度</span>
-            <span class="value historical">{{ historicalBest.hardness }} GPa</span>
+          <div class="stat-divider"></div>
+          <div class="stat-item">
+            <span class="stat-label">历史最优</span>
+            <span class="stat-value historical">{{ historicalBest.hardness }} <small>GPa</small></span>
           </div>
-          <div v-if="targetHardness" class="comparison-item">
-            <span class="label">目标硬度</span>
-            <span class="value target">{{ targetHardness }} GPa</span>
-          </div>
+          <template v-if="targetHardness">
+            <div class="stat-divider"></div>
+            <div class="stat-item">
+              <span class="stat-label">目标值</span>
+              <span class="stat-value target">{{ targetHardness }} <small>GPa</small></span>
+            </div>
+          </template>
         </div>
       </div>
     </el-form>
     
     <!-- 迭代决策 -->
     <div class="decision-section">
-      <h4 class="section-title">
-        <el-icon>
-          <GitBranchOutline />
-        </el-icon>
-        下一步操作
-      </h4>
-      
-      <div class="decision-hint">
-        <el-icon>
-          <InformationCircleOutline />
-        </el-icon>
-        <span>请根据实验结果决定是否继续优化</span>
+      <div class="section-header">
+        <h4 class="section-title">
+          <el-icon><GitBranchOutline /></el-icon>
+          下一步操作
+        </h4>
       </div>
       
       <div class="decision-options">
-        <el-radio-group v-model="formData.continue_iteration" class="decision-radio">
-          <el-radio :value="true" border size="large">
-            <div class="radio-content">
-              <div class="radio-header">
-                <el-icon class="radio-icon">
-                  <RefreshOutline />
-                </el-icon>
-                <span class="radio-title">继续迭代优化</span>
+        <el-radio-group v-model="formData.continue_iteration" class="decision-radio-group">
+          <el-radio :value="true" class="decision-radio" border>
+            <div class="radio-inner">
+              <el-icon class="radio-icon"><RefreshOutline /></el-icon>
+              <div class="radio-text">
+                <span class="radio-label">继续优化</span>
+                <span class="radio-sub">性能未达标</span>
               </div>
-              <div class="radio-desc">性能未达标或希望进一步优化</div>
             </div>
           </el-radio>
-          <el-radio :value="false" border size="large">
-            <div class="radio-content">
-              <div class="radio-header">
-                <el-icon class="radio-icon">
-                  <CheckmarkCircleOutline />
-                </el-icon>
-                <span class="radio-title">完成优化</span>
+          <el-radio :value="false" class="decision-radio" border>
+            <div class="radio-inner">
+              <el-icon class="radio-icon"><CheckmarkCircleOutline /></el-icon>
+              <div class="radio-text">
+                <span class="radio-label">完成实验</span>
+                <span class="radio-sub">性能已达标</span>
               </div>
-              <div class="radio-desc">性能满足要求，结束优化流程</div>
             </div>
           </el-radio>
         </el-radio-group>
@@ -155,17 +174,17 @@
     </div>
     
     <div class="actions">
-      <el-button size="large" @click="handleCancel">取消</el-button>
+      <el-button @click="handleCancel">取消</el-button>
       <el-button 
         type="primary" 
-        size="large"
         @click="handleSubmit"
         :disabled="!isFormValid"
+        class="submit-btn"
       >
-        <el-icon>
+        {{ formData.continue_iteration ? '提交并继续' : '提交并完成' }}
+        <el-icon class="el-icon--right">
           <component :is="formData.continue_iteration ? RefreshOutline : CheckmarkCircleOutline" />
         </el-icon>
-        {{ formData.continue_iteration ? '提交数据并继续优化' : '提交数据并完成' }}
       </el-button>
     </div>
   </div>
@@ -179,7 +198,6 @@ import {
   DocumentTextOutline,
   BarChartOutline,
   GitBranchOutline,
-  InformationCircleOutline,
   RefreshOutline,
   CheckmarkCircleOutline
 } from '@vicons/ionicons5'
@@ -238,287 +256,308 @@ const handleCancel = () => {
 <style scoped>
 .experiment-input-card {
   background: white;
-  border-radius: var(--radius-xl);
-  padding: 28px;
-  box-shadow: var(--shadow-lg);
-  margin-bottom: 20px;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
   border: 1px solid var(--border-color);
+  max-width: 100%;
+  overflow-x: hidden; /* Prevent overflow */
+  box-sizing: border-box;
 }
 
 .card-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 28px;
-  padding-bottom: 20px;
-  border-bottom: 2px solid var(--primary-light);
+  align-items: flex-start;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border-light);
+  flex-wrap: wrap; /* Allow wrapping */
+  gap: 12px;
 }
 
 .header-left {
   display: flex;
-  align-items: center;
   gap: 12px;
+  min-width: 0; /* Allow text truncation */
+  flex: 1;
 }
 
-.header-left h3 {
-  margin: 0;
-  font-size: var(--font-xl);
-  font-weight: 700;
+.icon-wrapper {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: var(--primary-lighter);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.header-text {
+  min-width: 0; /* Allow text truncation */
+}
+
+.header-text h3 {
+  margin: 0 0 4px 0;
+  font-size: 18px;
+  font-weight: 600;
   color: var(--text-primary);
-  letter-spacing: 0.3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.experiment-form {
-  margin-top: 0;
+.subtitle {
+  font-size: 13px;
+  color: var(--text-secondary);
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.form-section,
-.reference-section,
-.decision-section {
+.form-section, .reference-section, .decision-section {
   margin-bottom: 24px;
-  padding: 24px;
-  background: var(--bg-secondary);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--border-light);
+}
+
+.section-header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
 }
 
 .section-title {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin: 0 0 20px 0;
-  font-size: var(--font-lg);
-  font-weight: 700;
-  color: var(--text-primary);
-  letter-spacing: 0.3px;
-}
-
-.section-title .el-icon {
-  font-size: var(--icon-md);
-  color: var(--primary);
-}
-
-.input-with-unit {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.unit {
-  font-size: var(--font-base);
+  gap: 8px;
+  margin: 0;
+  font-size: 15px;
   font-weight: 600;
-  color: var(--text-secondary);
-  min-width: 56px;
+  color: var(--text-primary);
   white-space: nowrap;
 }
 
-.reference-section {
-  background: linear-gradient(135deg, var(--primary-lighter) 0%, var(--primary-light) 100%);
-  border: 1px solid var(--primary-light);
+.section-desc {
+  font-size: 12px;
+  color: var(--text-secondary);
 }
 
-.comparison-grid {
+.form-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 12px;
-  margin-top: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); /* Flexible grid */
+  gap: 16px;
+  margin-bottom: 16px;
 }
 
-.comparison-item {
+.form-item {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 16px;
-  background: white;
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-xs);
-  transition: all var(--transition-fast);
+  min-width: 0; /* Prevent flex item overflow */
 }
 
-.comparison-item:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-sm);
-}
-
-.comparison-item .label {
-  font-size: var(--font-sm);
-  font-weight: 600;
+.input-label {
+  font-size: 13px;
+  font-weight: 500;
   color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  white-space: nowrap;
 }
 
-.comparison-item .value {
-  font-size: var(--font-3xl);
-  font-weight: 700;
-  line-height: 1;
+.required {
+  color: var(--danger);
 }
 
-.value.current {
-  color: var(--primary);
-}
-
-.value.historical {
-  color: var(--success);
-}
-
-.value.target {
-  color: var(--warning);
-}
-
-.decision-section {
-  margin-bottom: 24px;
-  padding: 24px;
-  background: linear-gradient(135deg, var(--warning-light) 0%, #fef3c7 100%);
-  border-radius: var(--radius-lg);
-  border: 2px solid var(--warning);
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  box-sizing: border-box;
-}
-
-.decision-hint {
+.input-with-unit {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 12px 16px;
-  background: white;
-  border-radius: var(--radius-md);
-  margin-bottom: 20px;
-  font-size: var(--font-base);
+  width: 100%;
+}
+
+.input-with-unit :deep(.el-input-number) {
+  width: 100%;
+}
+
+.input-with-unit :deep(.el-input__inner) {
+  text-align: left;
+  padding-right: 45px; /* Space for unit */
+  width: 100%;
+}
+
+.unit {
+  position: absolute;
+  right: 12px;
+  font-size: 12px;
   color: var(--text-secondary);
   font-weight: 500;
-  width: 100%;
-  box-sizing: border-box;
+  pointer-events: none;
+  background: transparent;
 }
 
-.decision-hint .el-icon {
-  font-size: var(--icon-base);
-  color: var(--primary);
-  flex-shrink: 0;
+.notes-section :deep(.el-textarea__inner) {
+  background: var(--bg-secondary);
+  border: 1px solid transparent;
+  transition: all 0.2s;
 }
 
-.decision-options {
-  margin-bottom: 0;
+.notes-section :deep(.el-textarea__inner):focus {
+  background: white;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px var(--primary-lighter);
+}
+
+/* Reference Section */
+.reference-section {
+  background: linear-gradient(to right, var(--primary-lighter), white);
+  border-radius: 12px;
+  padding: 16px;
+  border: 1px solid var(--primary-light);
+  overflow-x: auto; /* Allow scroll if needed */
+}
+
+.comparison-row {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  min-width: max-content; /* Ensure content fits */
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stat-value {
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.stat-value small {
+  font-size: 12px;
+  font-weight: 500;
+  margin-left: 2px;
+}
+
+.stat-value.current { color: var(--primary); }
+.stat-value.historical { color: var(--success); }
+.stat-value.target { color: var(--warning); }
+
+.stat-divider {
+  width: 1px;
+  height: 32px;
+  background: var(--border-color);
+}
+
+/* Decision Section */
+.decision-radio-group {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); /* Flexible grid */
+  gap: 16px;
   width: 100%;
 }
 
 .decision-radio {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+  margin-right: 0 !important;
   width: 100%;
-  margin: 0;
-}
-
-.decision-radio :deep(.el-radio) {
-  margin-right: 0;
-  width: 100%;
-}
-
-.decision-radio :deep(.el-radio.is-bordered) {
-  padding: 20px 24px;
-  height: auto;
-  border-radius: var(--radius-lg);
-  border: 2px solid var(--border-dark);
-  background: white;
-  transition: all var(--transition-fast);
-  display: flex;
-  align-items: flex-start;
-  width: 100%;
+  height: auto !important;
+  padding: 12px !important;
   box-sizing: border-box;
 }
 
-.decision-radio :deep(.el-radio__label) {
-  width: 100%;
-  white-space: normal;
-}
-
-.decision-radio :deep(.el-radio.is-bordered:hover) {
-  border-color: var(--primary);
-  box-shadow: var(--shadow-md);
-  transform: translateY(-2px);
-}
-
-.decision-radio :deep(.el-radio.is-bordered.is-checked) {
-  border-color: var(--primary);
-  border-width: 3px;
-  background: var(--primary-lighter);
-  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
-}
-
-.decision-radio :deep(.el-radio__input) {
-  display: none;
-}
-
-.radio-content {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  width: 100%;
-}
-
-.radio-header {
+.radio-inner {
   display: flex;
   align-items: center;
   gap: 12px;
+  width: 100%;
 }
 
 .radio-icon {
-  font-size: var(--icon-xl);
-  color: var(--primary);
+  font-size: 20px;
+  color: var(--text-secondary);
   flex-shrink: 0;
 }
 
-.radio-title {
-  font-size: var(--font-lg);
-  font-weight: 700;
-  color: var(--text-primary);
+.decision-radio.is-checked .radio-icon {
+  color: var(--primary);
+}
+
+.radio-text {
+  display: flex;
+  flex-direction: column;
   line-height: 1.2;
-  letter-spacing: 0.3px;
+  min-width: 0; /* Allow text truncation */
 }
 
-.radio-desc {
-  font-size: var(--font-base);
+.radio-label {
+  font-weight: 600;
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.radio-sub {
+  font-size: 12px;
   color: var(--text-secondary);
-  line-height: 1.6;
-  margin-left: 36px;
-  margin-top: 4px;
-  word-break: break-word;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
+/* Actions */
 .actions {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
-  padding-top: 24px;
-  margin-top: 8px;
-  border-top: 2px solid var(--border-color);
+  margin-top: 32px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border-light);
+  flex-wrap: wrap;
 }
 
-.actions :deep(.el-button) {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 24px;
-  font-weight: 600;
+.submit-btn {
+  min-width: 140px;
 }
 
-.form-section :deep(.el-form-item__label) {
-  font-weight: 600;
-  color: var(--text-primary);
-  font-size: var(--font-base);
-}
-
-.form-section :deep(.el-input-number),
-.form-section :deep(.el-input),
-.form-section :deep(.el-textarea) {
-  width: 100%;
-}
-
-.form-section :deep(.el-textarea__inner) {
-  border-radius: var(--radius-md);
+/* Responsive */
+@media (max-width: 640px) {
+  .experiment-input-card {
+    padding: 16px;
+  }
+  
+  /* Auto-fit handles grid columns now, so we don't need explicit media queries for that */
+  
+  .comparison-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+    min-width: 0; /* Reset min-width */
+  }
+  
+  .stat-divider {
+    display: none;
+  }
+  
+  .actions {
+    flex-direction: column-reverse;
+  }
+  
+  .actions .el-button {
+    width: 100%;
+    margin-left: 0 !important;
+  }
 }
 </style>

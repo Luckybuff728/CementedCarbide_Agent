@@ -68,7 +68,7 @@
             @click="handleClear" 
             :disabled="!canClear"
           >
-            <el-icon class="el-icon--left"><TrashOutline /></el-icon>
+            <el-icon class="el-icon--left"><CloseCircleOutline /></el-icon>
             清空
           </el-button>
         </template>
@@ -95,7 +95,7 @@ import {
   EllipseOutline,
   Settings,
   DownloadOutline,
-  TrashOutline,
+  CloseCircleOutline,
   ArrowBackOutline
 } from '@vicons/ionicons5'
 import { useWorkflowStore } from '../../stores/workflow'

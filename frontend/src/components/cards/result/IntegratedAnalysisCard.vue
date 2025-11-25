@@ -4,6 +4,7 @@
     :icon-component="BulbOutline"
     title="根因分析"
     :clickable="true"
+    :show-header="showHeader"
     @click="emit('jump-to-node', 'integrated_analysis')"
   >
     <div class="analysis-summary">
@@ -13,9 +14,7 @@
           <el-icon><CheckmarkCircleOutline /></el-icon>
           <span class="section-title">综合评价</span>
         </div>
-        <div class="summary-text">
-          <MarkdownRenderer :content="summary" />
-        </div>
+        <div class="summary-text">{{ summary }}</div>
       </div>
 
       <!-- 关键发现 -->
@@ -31,9 +30,7 @@
             class="finding-item"
           >
             <el-icon class="bullet"><ChevronForwardOutline /></el-icon>
-            <div class="finding-text">
-              <MarkdownRenderer :content="finding" />
-            </div>
+            <span class="finding-text" v-html="renderInlineMarkdown(finding)"></span>
           </div>
         </div>
       </div>
@@ -65,20 +62,16 @@ const props = defineProps({
   analysis: {
     type: [Object, String],  // 支持Object和String类型
     default: null
+  },
+  showHeader: {
+    type: Boolean,
+    default: true
   }
 })
 
 const emit = defineEmits(['jump-to-node'])
 
-// 清洗分析文本中的 Markdown 星号，避免不成对的 ** 裸露显示
-const sanitizeAnalysisText = (text) => {
-  if (!text) return ''
-  return String(text)
-    // 去掉可能出现在行首的列表符号，如 "- ", "* ", "• "
-    .replace(/^\s*[-*•]\s+/gm, '')
-    // 去掉剩余的星号/圆点（包含全角变体），避免残留
-    .replace(/[\*•＊﹡]/g, '')
-}
+
 
 // 判断是否有内容（简化：只检查对象类型）
 const hasContent = computed(() => {
@@ -88,13 +81,13 @@ const hasContent = computed(() => {
 // 访问数据字段并做轻量清洗，去掉不成对的 Markdown 星号
 const summary = computed(() => {
   if (!hasContent.value) return ''
-  return sanitizeAnalysisText(props.analysis.summary || '')
+  return props.analysis.summary || ''
 })
 
 const keyFindings = computed(() => {
   if (!hasContent.value) return []
   const list = props.analysis.key_findings || []
-  return list.map(item => sanitizeAnalysisText(item || ''))
+  return list.map(item => item || '')
 })
 
 const recommendations = computed(() => {
@@ -106,116 +99,124 @@ const rootCauseAnalysis = computed(() => {
   if (!hasContent.value) return ''
   return props.analysis.root_cause_analysis || ''
 })
+
+// 轻量级内联Markdown渲染（处理粗体、斜体）
+const renderInlineMarkdown = (text) => {
+  if (!text) return ''
+  return text
+    // 粗体: **text** 或 __text__
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/__([^_]+)__/g, '<strong>$1</strong>')
+    // 斜体: *text* 或 _text_
+    .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+    .replace(/_([^_]+)_/g, '<em>$1</em>')
+    // 行内代码: `code`
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+}
 </script>
 
 <style scoped>
+/* 根因分析摘要卡片 - 简洁样式 */
 .analysis-summary {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
 }
 
 .analysis-section {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .section-header {
   display: flex;
   align-items: center;
-  gap: 8px;
-  color: var(--primary);
-  font-size: var(--font-base);
+  gap: 6px;
+  font-size: 13px;
   font-weight: 600;
+  color: #6b7280;
 }
 
 .section-header .el-icon {
-  font-size: var(--icon-base);
+  font-size: 14px;
+  color: #10b981;
 }
 
 .section-title {
-  color: var(--text-primary);
+  color: #374151;
 }
 
 .summary-text {
-  font-size: var(--font-base);
-  color: var(--text-primary);
-  line-height: 1.7;
-  padding: 12px;
-  background: var(--bg-tertiary);
-  border-radius: var(--radius-md);
-  border-left: 3px solid var(--success);
-}
-
-.summary-text :deep(.markdown-content) {
-  font-size: var(--font-base);
-  line-height: 1.7;
-  margin: 0;
+  font-size: 14px;
+  color: #1f2937;
+  line-height: 1.6;
+  padding: 10px 12px;
+  background: #f9fafb;
+  border-radius: 6px;
+  border-left: 3px solid #10b981;
 }
 
 .findings-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
 .finding-item {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
-  padding: 10px;
-  background: var(--bg-tertiary);
-  border-radius: var(--radius-md);
-  font-size: var(--font-sm);
-  color: var(--text-primary);
-  line-height: 1.6;
+  gap: 8px;
+  padding: 8px 10px;
+  background: #f9fafb;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #374151;
+  line-height: 1.5;
 }
 
 .finding-text {
   flex: 1;
 }
 
-.finding-item :deep(.markdown-content) {
-  font-size: var(--font-sm);
-  line-height: 1.6;
-  margin: 0;
+/* 内联Markdown样式 */
+.finding-text :deep(strong) {
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.finding-text :deep(em) {
+  font-style: italic;
+  color: #4b5563;
+}
+
+.finding-text :deep(code) {
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 12px;
+  padding: 1px 4px;
+  background: #e5e7eb;
+  border-radius: 3px;
+  color: #6366f1;
 }
 
 .finding-item .bullet {
-  font-size: var(--icon-sm);
-  color: var(--primary);
+  font-size: 12px;
+  color: #6366f1;
   flex-shrink: 0;
   margin-top: 2px;
-}
-
-.recommendation {
-  border-top: 1px solid var(--border-light);
-  padding-top: 12px;
-}
-
-.recommendation-text {
-  font-size: var(--font-base);
-  color: var(--text-primary);
-  line-height: 1.7;
-  padding: 12px;
-  background: linear-gradient(135deg, var(--warning-lighter) 0%, var(--warning-light) 100%);
-  border-radius: var(--radius-md);
-  border-left: 3px solid var(--warning);
 }
 
 .no-content {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  padding: 30px 20px;
-  color: var(--text-secondary);
-  font-size: var(--font-base);
-  font-weight: 500;
+  gap: 8px;
+  padding: 24px 16px;
+  color: #9ca3af;
+  font-size: 14px;
 }
 
 .no-content .el-icon {
-  font-size: var(--icon-md);
+  font-size: 20px;
 }
 </style>

@@ -1,154 +1,101 @@
 <template>
-  <SummaryCard 
-
-    :icon-component="FlaskOutline"
-    title="TopPhi相场模拟"
-    :badge="topphiBadge"
-    :clickable="true"
-    @click="emit('jump-to-node', 'topphi_simulation')"
-  >
-    <div class="topphi-content">
-      <div v-if="topphiView" class="metrics-container">
-        <!-- 主要指标：晶粒尺寸 -->
-        <div class="metric-primary">
-          <div class="label">预测晶粒尺寸</div>
-          <div class="value">{{ topphiView.grainSizeText }}</div>
-        </div>
-
-        <!-- 次要指标网格 -->
-        <div class="metrics-grid">
-          <div class="metric-item">
-            <span class="label">择优取向</span>
-            <span class="value">{{ topphiView.orientationText }}</span>
-          </div>
-          <div class="metric-item">
-            <span class="label">残余应力</span>
-            <span class="value">{{ topphiView.stressText }}</span>
-          </div>
-          <div class="metric-item">
-            <span class="label">形成能</span>
-            <span class="value">{{ topphiView.formationEnergyText }}</span>
-          </div>
-          <div v-if="topphiView.confidencePercent !== null" class="metric-item">
-            <span class="label">置信度</span>
-            <span class="value">{{ topphiView.confidencePercent }}%</span>
-          </div>
-        </div>
-
-        <!-- 底部元信息 -->
-        <div class="meta-info">
-          <span v-if="topphiView.simulationTimeText">耗时 {{ topphiView.simulationTimeText }}</span>
-          <span v-if="topphiView.dimensionsText" class="divider">|</span>
-          <span v-if="topphiView.dimensionsText">网格 {{ topphiView.dimensionsText }}</span>
-          <span v-if="topphiView.pointCountText" class="divider">|</span>
-          <span v-if="topphiView.pointCountText">{{ topphiView.pointCountText }} 点</span>
+  <div class="topphi-result-card">
+    <!-- 核心指标网格 -->
+    <div class="metrics-grid">
+      <!-- 主指标：晶粒尺寸 -->
+      <div class="metric-card primary">
+        <span class="metric-label">晶粒尺寸</span>
+        <div class="metric-main">
+          <span class="metric-value">{{ formatNumber(result.data?.grain_size_nm) }}</span>
+          <span class="metric-unit">nm</span>
         </div>
       </div>
-
-      <!-- VTK可视化 -->
-      <div v-if="vtkData" class="vtk-visualization">
-        <!-- 时间序列播放器 -->
-        <VtkTimeSeriesViewer
-          v-if="isTimeSeries && timeSeriesFiles.length > 0"
-          :timeSeriesFiles="timeSeriesFiles"
-          :baseUrl="apiBaseUrl"
-          height="380px"
-        />
-        
-        <!-- 单帧查看器 -->
-        <VtkViewer
-          v-else-if="!isTimeSeries"
-          :vtkData="vtkData"
-          :baseUrl="apiBaseUrl"
-          height="380px"
-          renderMode="volume"
-        />
-        
-        <!-- 加载时间序列中 -->
-        <div v-else-if="isTimeSeries && loadingTimeSeries" class="loading-timeseries">
-          <el-icon class="is-loading" size="32"><ReloadOutline /></el-icon>
-          <span>加载数据...</span>
+      <!-- 次要指标 -->
+      <div class="metric-card">
+        <span class="metric-label">择优取向</span>
+        <span class="metric-value small">{{ result.data?.preferred_orientation || '-' }}</span>
+      </div>
+      <div class="metric-card">
+        <span class="metric-label">残余应力</span>
+        <div class="metric-main">
+          <span class="metric-value small">{{ formatNumber(result.data?.residual_stress_gpa) }}</span>
+          <span class="metric-unit">GPa</span>
         </div>
       </div>
-
-      <div v-else class="no-vtk">
-        <span>暂无可视化数据</span>
+      <div class="metric-card">
+        <span class="metric-label">形成能</span>
+        <div class="metric-main">
+          <span class="metric-value small">{{ formatNumber(result.data?.formation_energy) }}</span>
+          <span class="metric-unit">eV</span>
+        </div>
+      </div>
+      <div class="metric-card">
+        <span class="metric-label">置信度</span>
+        <span class="metric-value small success">{{ formatConfidence(result.data?.confidence) }}%</span>
       </div>
     </div>
-  </SummaryCard>
+
+    <!-- 3D 视图区域 -->
+    <div class="viewer-section">
+      <!-- 加载状态 -->
+      <div v-if="loadingTimeSeries" class="loading-state">
+        <el-icon class="is-loading" :size="28"><Loading /></el-icon>
+        <span>正在加载模拟数据...</span>
+      </div>
+      <!-- VTK 时间序列播放器 -->
+      <VtkTimeSeriesViewer
+        v-else-if="vtkFiles.length > 0"
+        :time-series-files="vtkFiles"
+        height="380px"
+        :auto-play="true"
+        :immersive="true"
+      />
+      <!-- 无数据状态 -->
+      <div v-else class="empty-state">
+        <el-empty description="暂无模拟数据" :image-size="80" />
+      </div>
+    </div>
+    
+  </div>
 </template>
 
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { ElIcon } from 'element-plus'
-import { FlaskOutline, ReloadOutline } from '@vicons/ionicons5'
-import { API_BASE_URL } from '../../config'
-import SummaryCard from '../common/SummaryCard.vue'
+import { ElIcon, ElEmpty } from 'element-plus'
+import { ReloadOutline as Loading } from '@vicons/ionicons5'
 import VtkTimeSeriesViewer from '../viz/VtkTimeSeriesViewer.vue'
-import VtkViewer from '../viz/VtkViewer.vue'
+import { API_BASE_URL } from '../../config'
 
-// 定义props
 const props = defineProps({
-  topphiResult: {
-    type: [Object, String],  // 支持Object和String类型
-    default: null
+  result: {
+    type: Object,
+    required: true
   }
 })
 
-const emit = defineEmits(['jump-to-node'])
-
-// API基础URL
-const apiBaseUrl = ref(API_BASE_URL)
-
-// TopPhi显示数据
-const topphiView = computed(() => {
-  const result = props.topphiResult
-  if (!result || typeof result !== 'object') {
-    return null
-  }
-
-  const vtk = result.vtk_data || {}
-  const rawDimensions = vtk.dimensions || (vtk.metadata && vtk.metadata.dimensions) || null
-  const hasDims = Array.isArray(rawDimensions) && rawDimensions.length === 3
-
-  return {
-    grainSizeText: result.grain_size_nm != null ? `${result.grain_size_nm} nm` : 'N/A',
-    orientationText: result.preferred_orientation || 'N/A',
-    stressText: result.residual_stress_gpa != null ? `${result.residual_stress_gpa} GPa` : 'N/A',
-    formationEnergyText: result.formation_energy != null ? `${result.formation_energy} eV` : 'N/A',
-    confidencePercent: typeof result.confidence === 'number' ? Math.round(result.confidence * 100) : null,
-    simulationTimeText: result.simulation_time != null ? `${result.simulation_time}s` : null,
-    dimensionsText: hasDims ? `${rawDimensions[0]}×${rawDimensions[1]}×${rawDimensions[2]}` : null,
-    pointCountText: vtk.point_count != null ? String(vtk.point_count) : null,
-    fileSizeText: vtk.file_size_mb != null ? `${vtk.file_size_mb} MB` : null,
-    isTimeSeries: vtk.type === 'timeseries'
-  }
-})
-
-// 卡片徽章
-const topphiBadge = computed(() => {
-  if (!topphiView.value) return null
-  return topphiView.value.isTimeSeries
-    ? { text: '时间序列', type: 'info' }
-    : { text: '单帧', type: 'success' }
-})
-
-// 时间序列文件列表
+// 时间序列文件列表状态
 const timeSeriesFiles = ref([])
 const loadingTimeSeries = ref(false)
 
-// 获取VTK数据
-const vtkData = computed(() => {
-  if (!props.topphiResult || !props.topphiResult.vtk_data) return null
-  return props.topphiResult.vtk_data
-})
+// 格式化数字
+const formatNumber = (num) => {
+  if (num === undefined || num === null) return '-'
+  return Number(num).toFixed(2)
+}
 
-// 判断是否为时间序列
-const isTimeSeries = computed(() => {
-  return vtkData.value?.type === 'timeseries'
-})
+// 格式化置信度（处理 undefined 情况）
+const formatConfidence = (confidence) => {
+  if (confidence === undefined || confidence === null) return '-'
+  return (confidence * 100).toFixed(0)
+}
 
-// 监听时间序列数据变化，自动获取文件列表
+// 获取 VTK 数据
+const vtkData = computed(() => props.result?.data?.vtk_data)
+
+// 是否为时间序列类型
+const isTimeSeries = computed(() => vtkData.value?.type === 'timeseries')
+
+// 监听时间序列数据变化，自动从后端获取文件列表
 watch(
   () => [isTimeSeries.value, vtkData.value?.folder],
   async ([isTS, folder]) => {
@@ -157,18 +104,19 @@ watch(
       timeSeriesFiles.value = []
       return
     }
-    
     // 如果是时间序列且有文件夹，加载文件列表
     if (isTS && folder) {
       loadingTimeSeries.value = true
       try {
-        const response = await fetch(`${apiBaseUrl.value}/api/vtk/timeseries/${folder}`)
+        const response = await fetch(`${API_BASE_URL}/api/vtk/timeseries/${folder}`)
         if (response.ok) {
           const data = await response.json()
-          timeSeriesFiles.value = data.files
+          timeSeriesFiles.value = data.files || []
+          console.log('[TopPhiResultCard] 加载时间序列文件:', timeSeriesFiles.value.length, '个')
         }
       } catch (err) {
         console.error('[TopPhiResultCard] 获取时间序列列表出错:', err)
+        timeSeriesFiles.value = []
       } finally {
         loadingTimeSeries.value = false
       }
@@ -176,122 +124,140 @@ watch(
   },
   { immediate: true }
 )
+
+// VTK文件列表（用于非时间序列类型）
+const vtkFiles = computed(() => {
+  // 时间序列类型使用 timeSeriesFiles ref
+  if (isTimeSeries.value) {
+    return timeSeriesFiles.value
+  }
+  // 如果有直接的 vtk_files 列表
+  if (props.result?.data?.vtk_files) {
+    return props.result.data.vtk_files.map((file, index) => ({
+      name: file,
+      timeStep: index,
+      size: props.result.data?.file_sizes?.[index] || 0
+    }))
+  }
+  return []
+})
 </script>
 
 <style scoped>
-.topphi-content {
+/* ===============================
+   TopPhi相场模拟卡片 - 现代简洁风格
+   =============================== */
+.topphi-result-card {
+  background: #ffffff;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  gap: 16px;
 }
 
-.metrics-container {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+/* 指标网格 */
+.metrics-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: #f0f0f0;
+  padding: 1px;
 }
 
-.metric-primary {
+.metric-card {
+  background: #fff;
+  padding: 12px 14px;
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--border-light);
 }
 
-.metric-primary .label {
-  font-size: var(--font-sm);
-  color: var(--text-secondary);
+.metric-card.primary {
+  grid-column: span 2;
+  background: #fafafa;
+  padding: 14px;
+}
+
+.metric-label {
+  font-size: 12px;
+  color: #6b7280;
   font-weight: 500;
 }
 
-.metric-primary .value {
-  font-size: var(--font-3xl);
-  font-weight: 700;
-  color: var(--primary);
-  line-height: 1.2;
-  letter-spacing: -0.02em;
-}
-
-.metrics-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px 16px;
-}
-
-.metric-item {
+.metric-main {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  align-items: baseline;
+  gap: 4px;
 }
 
-.metric-item .label {
-  font-size: var(--font-sm);
-  color: var(--text-tertiary);
-  font-weight: 500;
-}
-
-.metric-item .value {
-  font-size: var(--font-lg);
+.metric-value {
+  font-size: 24px;
   font-weight: 700;
-  color: var(--text-primary);
+  color: #1f2937;
+  line-height: 1.1;
+  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
 }
 
-.meta-info {
+.metric-value.small {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.metric-value.success {
+  color: #1f2937;
+}
+
+.metric-unit {
+  font-size: 12px;
+  font-weight: 500;
+  color: #9ca3af;
+}
+
+.metric-card.primary .metric-value {
+  font-size: 28px;
+  color: #1f2937;
+}
+
+.metric-card.primary .metric-unit {
+  font-size: 14px;
+  color: #6b7280;
+}
+
+/* 3D 视图区域 */
+.viewer-section {
+  background: #0a0a0a;
+  position: relative;
+  min-height: 320px;
+  /* 确保内容不被裁切 */
+  overflow: visible;
+}
+
+.empty-state {
+  height: 280px;
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 6px;
-  font-size: var(--font-sm);
-  color: var(--text-tertiary);
-  font-weight: 500;
+  justify-content: center;
+  background: #fafafa;
 }
 
-.meta-info .divider {
-  color: var(--border-color);
-  font-weight: 400;
-}
-
-.vtk-visualization {
-  width: 100%;
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  border: 1px solid var(--border-light);
-  background: #000; /* VTK背景通常较深 */
-}
-
-.no-vtk {
-  padding: 24px;
-  text-align: center;
-  font-size: var(--font-sm);
-  color: var(--text-tertiary);
-  background: var(--bg-tertiary);
-  border-radius: var(--radius-md);
-}
-
-.loading-timeseries {
+.loading-state {
+  height: 280px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 16px;
-  padding: 48px;
-  color: rgba(255, 255, 255, 0.9);
+  gap: 10px;
+  background: #0a0a0a;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 13px;
 }
 
-.loading-timeseries .el-icon {
+.loading-state .is-loading {
   animation: spin 1s linear infinite;
-  font-size: 36px;
-}
-
-.loading-timeseries span {
-  font-size: 15px;
-  font-weight: 500;
 }
 
 @keyframes spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
+
 </style>

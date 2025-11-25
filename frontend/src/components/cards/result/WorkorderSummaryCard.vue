@@ -1,10 +1,10 @@
 <template>
   <SummaryCard 
-
     :icon-component="DocumentTextOutline"
     :title="solutionName"
     :badge="{ text: '工单已生成', type: 'success' }"
     :clickable="true"
+    :show-header="showHeader"
     @click="emit('jump-to-node', 'experiment_workorder')"
   >
     <div class="workorder-summary">
@@ -65,13 +65,14 @@
 
 <script setup>
 import { computed } from 'vue'
-import { ElButton, ElIcon } from 'element-plus'
+import { ElButton, ElIcon, ElMessage } from 'element-plus'
 import {
   DocumentTextOutline,
   BulbOutline,
   DownloadOutline
 } from '@vicons/ionicons5'
 import SummaryCard from '../../common/SummaryCard.vue'
+import { generateWorkorderPDF } from '../../../utils/pdfExporter'
 
 // 定义props和emits
 const props = defineProps({
@@ -82,20 +83,28 @@ const props = defineProps({
   selectedOptimization: {
     type: String,
     default: ''
+  },
+  showHeader: {
+    type: Boolean,
+    default: true
   }
 })
 
-const emit = defineEmits(['jump-to-node', 'download'])
+const emit = defineEmits(['jump-to-node'])
 
 // 判断是否有内容（简化：只检查对象类型）
 const hasContent = computed(() => {
-  return props.workorder && typeof props.workorder === 'object'
+  const result = props.workorder && typeof props.workorder === 'object'
+  console.log('[WorkorderCard] hasContent:', result, 'workorder:', props.workorder)
+  return result
 })
 
 // 直接访问数据字段（简化：不做复杂处理）
 const solutionName = computed(() => {
   if (!hasContent.value) return '实验工单'
-  return props.workorder.solution_name || '实验工单'
+  const name = props.workorder.solution_name || '实验工单'
+  console.log('[WorkorderCard] solutionName:', name)
+  return name
 })
 
 const workorderNumber = computed(() => {
@@ -133,9 +142,210 @@ const optBadgeClass = computed(() => {
   return map[props.selectedOptimization] || 'opt-p1'
 })
 
-// 处理下载
-const handleDownload = () => {
-  emit('download')
+// 优化方案名称
+const selectedOptimization = computed(() => {
+  if (!hasContent.value) return ''
+  return props.workorder.selected_optimization || ''
+})
+
+// 处理下载 - 生成PDF格式
+const handleDownload = async () => {
+  try {
+    const data = props.workorder
+    const content = data.content || ''
+    const workorderId = data.workorder_id || data.experiment_id || 'workorder'
+    const solutionNameValue = solutionName.value || '实验工单'
+    
+    if (!content) {
+      ElMessage.error('工单内容为空，无法下载')
+      return
+    }
+    
+    // 显示生成中提示
+    ElMessage.info('正在生成PDF，请稍候...')
+    
+    // 使用PDF导出器生成PDF
+    const fileName = await generateWorkorderPDF(
+      content,
+      workorderId,
+      solutionNameValue
+    )
+    
+    ElMessage.success(`工单已下载: ${fileName}`)
+    console.log('[下载工单] PDF生成成功:', fileName)
+  } catch (error) {
+    console.error('[下载工单] PDF生成失败:', error)
+    ElMessage.error('PDF生成失败，请重试')
+  }
+}
+
+/**
+ * 生成工单HTML内容
+ */
+const generateWorkorderHTML = (data, content) => {
+  const workorderId = data.workorder_id || data.experiment_id || 'N/A'
+  const solutionNameValue = data.solution_name || '实验工单'
+  const experimentGoalValue = data.experiment_goal || ''
+  const selectedOptimizationValue = data.selected_optimization || ''
+  const optimizationNameValue = data.optimization_name || ''
+  const keyParametersValue = data.key_parameters || []
+  
+  // 转换Markdown为HTML（简单处理）
+  const htmlContent = content
+    .replace(/\n/g, '<br>')
+    .replace(/## (.*?)<br>/g, '<h2>$1</h2>')
+    .replace(/### (.*?)<br>/g, '<h3>$1</h3>')
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+    .replace(/- (.*?)<br>/g, '<li>$1</li>')
+  
+  return `
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${solutionNameValue} - ${workorderId}</title>
+  <style>
+    body {
+      font-family: "Microsoft YaHei", "微软雅黑", Arial, sans-serif;
+      line-height: 1.8;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 40px 20px;
+      color: #333;
+      background: #fff;
+    }
+    .header {
+      text-align: center;
+      padding: 30px 0;
+      border-bottom: 3px solid #2d2d2d;
+      margin-bottom: 30px;
+    }
+    .header h1 {
+      margin: 0 0 10px 0;
+      font-size: 28px;
+      color: #0d0d0d;
+    }
+    .header .workorder-id {
+      font-size: 14px;
+      color: #6b7280;
+      font-weight: 500;
+    }
+    .meta-info {
+      background: #f9fafb;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 30px;
+    }
+    .meta-info .row {
+      display: flex;
+      padding: 10px 0;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    .meta-info .row:last-child {
+      border-bottom: none;
+    }
+    .meta-info .label {
+      font-weight: 600;
+      color: #4b5563;
+      min-width: 120px;
+    }
+    .meta-info .value {
+      color: #0d0d0d;
+      flex: 1;
+    }
+    .content {
+      padding: 20px 0;
+    }
+    h2 {
+      font-size: 20px;
+      color: #0d0d0d;
+      margin: 30px 0 15px 0;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #e5e7eb;
+    }
+    h3 {
+      font-size: 16px;
+      color: #374151;
+      margin: 20px 0 10px 0;
+    }
+    ul, ol {
+      padding-left: 25px;
+    }
+    li {
+      margin: 8px 0;
+      list-style-position: outside;
+    }
+    strong {
+      color: #0d0d0d;
+      font-weight: 600;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+    }
+    table th, table td {
+      padding: 12px;
+      text-align: left;
+      border: 1px solid #e5e7eb;
+    }
+    table th {
+      background: #f9fafb;
+      font-weight: 600;
+      color: #374151;
+    }
+    .footer {
+      margin-top: 50px;
+      padding-top: 20px;
+      border-top: 1px solid #e5e7eb;
+      text-align: center;
+      color: #9ca3af;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>${solutionNameValue}</h1>
+    <div class="workorder-id">工单编号: ${workorderId}</div>
+  </div>
+  
+  <div class="meta-info">
+    ${experimentGoalValue ? `
+    <div class="row">
+      <div class="label">实验目标:</div>
+      <div class="value">${experimentGoalValue}</div>
+    </div>
+    ` : ''}
+    ${selectedOptimizationValue ? `
+    <div class="row">
+      <div class="label">优化方案:</div>
+      <div class="value">${selectedOptimizationValue} - ${optimizationNameValue}</div>
+    </div>
+    ` : ''}
+    ${keyParametersValue.length > 0 ? `
+    <div class="row">
+      <div class="label">关键参数:</div>
+      <div class="value">
+        ${keyParametersValue.map(p => `${p.name}: ${p.value}`).join(' | ')}
+      </div>
+    </div>
+    ` : ''}
+  </div>
+  
+  <div class="content">
+    ${htmlContent}
+  </div>
+  
+  <div class="footer">
+    TopMat Agent 硬质合金涂层优化专家系统<br>
+    生成时间: ${new Date().toLocaleString('zh-CN')}
+  </div>
+</body>
+</html>
+  `.trim()
 }
 </script>
 

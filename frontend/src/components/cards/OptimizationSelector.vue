@@ -1,10 +1,5 @@
 <template>
   <div class="optimization-section">
-    <div class="section-header">
-      <el-icon><BulbOutline /></el-icon>
-      <h4>选择优化方案</h4>
-    </div>
-    
     <div class="opt-cards">
       <div 
         v-for="opt in options"
@@ -171,26 +166,7 @@ const handleSelect = () => {
 .optimization-section {
   background: white;
   border-radius: var(--radius-md);
-  padding: 20px;
-  margin-bottom: 16px;
-}
-
-.section-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 16px;
-}
-
-.section-header .el-icon {
-  font-size: 20px;
-  color: var(--warning);
-}
-
-.section-header h4 {
-  margin: 0;
-  font-size: 15px;
-  font-weight: 600;
+  padding: 16px;
 }
 
 .opt-cards {

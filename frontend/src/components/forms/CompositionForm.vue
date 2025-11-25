@@ -20,6 +20,8 @@
             :max="100" 
             :precision="1"
             :step="0.5"
+            :controls="false"
+            placeholder="0.0"
             @update:modelValue="emit('update:modelValue', modelValue)"
           />
           <span class="unit">at.%</span>
@@ -35,6 +37,8 @@
             :max="100" 
             :precision="1"
             :step="0.5"
+            :controls="false"
+            placeholder="0.0"
             @update:modelValue="emit('update:modelValue', modelValue)"
           />
           <span class="unit">at.%</span>
@@ -50,6 +54,8 @@
             :max="100" 
             :precision="1"
             :step="0.5"
+            :controls="false"
+            placeholder="0.0"
             @update:modelValue="emit('update:modelValue', modelValue)"
           />
           <span class="unit">at.%</span>
@@ -69,33 +75,35 @@
         <el-input 
           v-model="element.name" 
           placeholder="元素名"
-          style="width: 90px;"
-          size="small"
+          style="flex: 1; min-width: 80px;"
         />
-        <el-input-number 
-          v-model="element.content"
-          :min="0" 
-          :max="50" 
-          :precision="1"
-          :step="0.1"
-          size="small"
-          style="width: 90px;"
-        />
-        <span class="unit">at.%</span>
+        <div class="input-with-unit" style="flex: 1.5;">
+          <el-input-number 
+            v-model="element.content"
+            :min="0" 
+            :max="50" 
+            :precision="1"
+            :step="0.1"
+            :controls="false"
+            placeholder="0.0"
+          />
+          <span class="unit">at.%</span>
+        </div>
         <el-button 
           type="danger" 
-          size="small" 
-          circle 
+          link
           @click="removeElement(index)"
+          class="delete-btn"
         >
-          <el-icon><TrashOutline /></el-icon>
+          <el-icon><CloseOutline /></el-icon>
         </el-button>
       </div>
       <el-button 
-        type="primary" 
-        size="small" 
+        class="add-btn"
+        text
+        bg
+        size="default"
         @click="addElement"
-        style="border-style: dashed"
       >
         <el-icon class="el-icon--left"><AddOutline /></el-icon>
         添加元素
@@ -107,7 +115,7 @@
 <script setup>
 import { computed } from 'vue'
 import { ElButton, ElIcon } from 'element-plus'
-import { ConstructOutline, AddOutline, TrashOutline } from '@vicons/ionicons5'
+import { ConstructOutline, AddOutline, CloseOutline } from '@vicons/ionicons5'
 
 // 定义props和emits
 const props = defineProps({
@@ -168,20 +176,39 @@ const removeElement = (index) => {
 }
 
 .input-with-unit {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 6px;
+  width: 100%;
 }
 
 .input-with-unit :deep(.el-input-number) {
-  flex: 1;
+  width: 100%;
 }
 
+.input-with-unit :deep(.el-input__inner) {
+  text-align: left;
+  padding-right: 45px; /* Space for unit */
+  width: 100%;
+}
+
+.input-with-unit .unit {
+  position: absolute;
+  right: 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 500;
+  pointer-events: none;
+  background: transparent;
+  min-width: auto;
+}
+
+/* 保留原来用于其他地方的unit样式，如果有的话，但在input-with-unit外 */
 .unit {
   font-size: 13px;
   color: var(--text-secondary);
   flex-shrink: 0;
-  min-width: 40px;
+  /* min-width: 40px;  Let specific context decide */
 }
 
 .composition-sum {
@@ -218,6 +245,30 @@ const removeElement = (index) => {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 8px;
+  margin-bottom: 12px;
+}
+
+.delete-btn {
+  padding: 4px;
+  height: auto;
+  color: var(--text-secondary);
+}
+
+.delete-btn:hover {
+  color: var(--danger);
+  background: transparent;
+}
+
+.add-btn {
+  width: 100%;
+  margin-top: 8px;
+  border: 1px dashed var(--border-color);
+  color: var(--text-secondary);
+}
+
+.add-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background-color: var(--primary-lighter);
 }
 </style>

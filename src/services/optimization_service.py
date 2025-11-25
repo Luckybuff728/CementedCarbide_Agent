@@ -61,17 +61,22 @@ class OptimizationService:
             target_requirements
         )
         
-        # LLM流式生成
+        # LLM流式生成（使用通用的Agent流式方法）
         try:
             logger.info(f"[{optimization_type.value}] 开始LLM流式生成...")
             
-            def _callback(chunk_content):
-                if stream_callback:
-                    stream_callback(optimization_type.name.lower(), chunk_content)
+            # 映射优化类型到简短的节点名称（前端识别用）
+            node_name_map = {
+                OptimizationType.P1_COMPOSITION: "p1",
+                OptimizationType.P2_STRUCTURE: "p2",
+                OptimizationType.P3_PROCESS: "p3"
+            }
+            node_name = node_name_map.get(optimization_type, "optimizer")
             
-            content = self.llm_service.generate_stream(
-                prompt=prompt,
-                stream_callback=_callback
+            # 使用统一的generate_agent_stream方法，自动通过contextvars流式输出
+            content = self.llm_service.generate_agent_stream(
+                node=node_name,  # "p1", "p2", "p3"
+                prompt=prompt
             )
             
             logger.info(f"[{optimization_type.value}] 建议生成完成，长度: {len(content)}")

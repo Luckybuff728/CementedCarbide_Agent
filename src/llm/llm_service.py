@@ -11,8 +11,8 @@ import os
 import logging
 from typing import Optional, Callable, List, Any, Dict
 from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import BaseMessage, SystemMessage, HumanMessage, AIMessage
-from langchain_core.outputs import ChatResult, ChatGeneration
+from langchain_core.messages import BaseMessage, SystemMessage, HumanMessage, AIMessage, AIMessageChunk
+from langchain_core.outputs import ChatResult, ChatGeneration, ChatGenerationChunk
 from langchain_core.callbacks import CallbackManagerForLLMRun
 from dashscope import Generation
 import dashscope
@@ -81,7 +81,7 @@ class DashScopeChatModel(BaseChatModel):
         run_manager: Optional[CallbackManagerForLLMRun] = None,
         **kwargs: Any
     ) -> ChatResult:
-        """生成响应"""
+        """生成响应（非流式）"""
         dashscope_messages = self._convert_messages_to_dashscope_format(messages)
         
         response = Generation.call(
@@ -101,6 +101,40 @@ class DashScopeChatModel(BaseChatModel):
             return ChatResult(generations=[generation])
         else:
             raise Exception(f"DashScope API调用失败: {response.message}")
+    
+    def _stream(
+        self,
+        messages: List[BaseMessage],
+        stop: Optional[List[str]] = None,
+        run_manager: Optional[CallbackManagerForLLMRun] = None,
+        **kwargs: Any
+    ):
+        """流式生成响应（LangChain标准接口）"""
+        dashscope_messages = self._convert_messages_to_dashscope_format(messages)
+        
+        responses = Generation.call(
+            model=self.model_name,
+            messages=dashscope_messages,
+            temperature=self.temperature,
+            top_p=self.top_p,
+            max_tokens=self.max_tokens,
+            result_format='message',
+            stream=True,
+            incremental_output=True
+        )
+        
+        for response in responses:
+            if response.status_code == 200:
+                content = response.output.choices[0].message.content
+                chunk = ChatGenerationChunk(message=AIMessageChunk(content=content))
+                
+                # 调用回调管理器
+                if run_manager:
+                    run_manager.on_llm_new_token(content, chunk=chunk)
+                
+                yield chunk
+            else:
+                raise Exception(f"DashScope API流式调用失败: {response.message}")
     
     async def _agenerate(
         self,
@@ -192,7 +226,7 @@ class LLMService:
         """
         self.system_prompt = system_prompt
         self.llm = DashScopeChatModel(
-            model_name=model_name or "qwen-max",
+            model_name=model_name or "qwen-flash",
             temperature=temperature,
             streaming=True
         )
@@ -247,6 +281,71 @@ class LLMService:
             
         except Exception as e:
             logger.error(f"LLM生成失败: {e}", exc_info=True)
+            raise RuntimeError(f"LLM生成失败: {e}")
+    
+    def generate_agent_stream(
+        self,
+        node: str,
+        prompt: str,
+        additional_messages: Optional[List[BaseMessage]] = None,
+        system_prompt: Optional[str] = None
+    ) -> str:
+        """
+        为Agent提供的流式生成方法，自动通过contextvars传递流式内容
+        
+        这个方法会自动调用 send_stream_chunk_sync 将流式内容发送到前端
+        适用于multi-agent场景下的LLM流式输出
+        
+        Args:
+            node: Agent节点名称（如 "analyst", "optimizer"）
+            prompt: 用户提示词
+            additional_messages: 额外的对话消息（可选）
+            system_prompt: 自定义系统提示词（可选，默认使用服务的系统提示词）
+        
+        Returns:
+            完整的生成内容
+        
+        Example:
+            >>> llm_service = get_llm_service()
+            >>> content = llm_service.generate_agent_stream(
+            ...     node="analyst",
+            ...     prompt="请分析这个涂层配方...",
+            ...     additional_messages=[HumanMessage(content="历史对话...")]
+            ... )
+        """
+        from ..graph.stream_callback import send_stream_chunk_sync
+        
+        # 构建消息列表
+        messages = [
+            SystemMessage(content=system_prompt or self.system_prompt),
+        ]
+        
+        # 添加额外消息（如有）
+        if additional_messages:
+            messages.extend(additional_messages)
+        
+        # 添加用户提示
+        messages.append(HumanMessage(content=prompt))
+        
+        # 流式生成
+        content = ""
+        try:
+            logger.debug(f"[{node}] 开始LLM流式生成，提示词长度: {len(prompt)}")
+            
+            for chunk in self.llm.stream(messages):
+                if hasattr(chunk, 'content') and chunk.content:
+                    content += chunk.content
+                    # 通过contextvars发送流式内容到前端
+                    try:
+                        send_stream_chunk_sync(node=node, content=chunk.content)
+                    except Exception as e:
+                        logger.warning(f"[{node}] 流式回调失败（不影响生成）: {e}")
+            
+            logger.info(f"[{node}] LLM生成完成，内容长度: {len(content)}")
+            return content
+            
+        except Exception as e:
+            logger.error(f"[{node}] LLM生成失败: {e}", exc_info=True)
             raise RuntimeError(f"LLM生成失败: {e}")
     
     def generate(

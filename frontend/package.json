@@ -1,8 +1,9 @@
 {
-  "name": "frontend_new",
+  "name": "topmat-agent-frontend",
   "private": true,
-  "version": "0.0.0",
+  "version": "2.0.0",
   "type": "module",
+  "description": "TopMat Multi-Agent System - Frontend",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

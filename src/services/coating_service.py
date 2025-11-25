@@ -174,21 +174,23 @@ class CoatingService:
         
         return self._wrap_success(data, message="[历史数据比对] 完成")
     
-    def integrate_analysis(self, state: Dict[str, Any], stream_callback=None) -> Dict[str, Any]:
+    def integrate_analysis(self, state: Dict[str, Any]) -> Dict[str, Any]:
         """
         根因分析 - 整合预测结果，使用LLM生成根因分析
+        
+        流式输出通过contextvars自动发送到前端，无需传递callback
         """
         
         topphi = state.get("topphi_simulation", {})
         ml_pred = state.get("ml_prediction", {})
         historical = state.get("historical_comparison", {})
         
-        # 生成根因分析（使用LLM）
+        # 生成根因分析（使用LLM，自动流式输出）
         composition = state.get("coating_composition", {})
         params = state.get("process_params", {})
         
         root_cause_analysis = self._generate_llm_root_cause_analysis(
-            state, composition, params, ml_pred, topphi, historical, stream_callback
+            state, composition, params, ml_pred, topphi, historical
         )
         
         # 从LLM分析文本中提取关键信息
@@ -243,9 +245,13 @@ class CoatingService:
         return result
     
     def _generate_llm_root_cause_analysis(
-        self, state: Dict, composition: Dict, params: Dict, ml_pred: Dict, topphi: Dict, historical: Dict, stream_callback=None
+        self, state: Dict, composition: Dict, params: Dict, ml_pred: Dict, topphi: Dict, historical: Dict
     ) -> str:
-        """使用LLM生成根因分析"""
+        """
+        使用LLM生成根因分析
+        
+        流式输出通过generate_agent_stream自动发送到前端（使用contextvars）
+        """
         
         logger.info(f"[根因分析] 开始LLM流式生成...")
         
@@ -345,31 +351,22 @@ class CoatingService:
 """
 # - 简洁明了，不超过100字
 
-        # LLM流式生成
-        content = ""
+        # 使用统一的generate_agent_stream进行流式生成（自动通过contextvars发送到前端）
         try:
-            from langchain_core.messages import SystemMessage, HumanMessage
-            from ..llm import MATERIAL_EXPERT_PROMPT
+            from ..llm import get_llm_service, MATERIAL_EXPERT_PROMPT
             
-            # 使用流式生成
-            for chunk in self.optimization_service.llm_service.llm.stream([
-                SystemMessage(content=MATERIAL_EXPERT_PROMPT),
-                HumanMessage(content=prompt)
-            ]):
-                if hasattr(chunk, 'content') and chunk.content:
-                    content += chunk.content
-                    # 发送流式输出
-                    if stream_callback:
-                        stream_callback("integrated_analysis", chunk.content)
+            llm_service = get_llm_service()
+            content = llm_service.generate_agent_stream(
+                node="analyst",  # 使用analyst节点，流式输出到前端
+                prompt=prompt,
+                system_prompt=MATERIAL_EXPERT_PROMPT
+            )
             
             logger.info(f"[根因分析] 生成完成，长度: {len(content)}")
             return content
             
         except Exception as e:
             logger.error(f"[根因分析] LLM生成失败: {e}")
-            error_msg = "❌ **根因分析生成失败**\n\n请点击重试按钮，或检查网络连接。"
-            if stream_callback:
-                stream_callback("integrated_analysis", error_msg)
             raise RuntimeError(f"根因分析失败: {e}")
     
     def generate_optimization_summary(self, state: Dict[str, Any], stream_callback=None) -> Dict[str, Any]:
@@ -456,7 +453,13 @@ class CoatingService:
             raise RuntimeError(f"优化汇总生成失败: {e}")
     
     def _extract_analysis_summary(self, analysis_text: str) -> Dict[str, Any]:
-        """优化的内容提取，更灵活地处理LLM输出格式"""
+        """
+        提取根因分析摘要，匹配提示词设计的4个部分：
+        1. 成分与性能关系（2条）
+        2. 工艺参数影响（2条）
+        3. 性能预测与历史对比（1条）
+        4. 综合评价（1条）
+        """
         if not analysis_text:
             return {"summary": "", "key_findings": [], "recommendations": []}
         
@@ -464,76 +467,81 @@ class CoatingService:
         summary = ""
         key_findings = []
         current_section = None
-        summary_lines = []  # 收集综合评价的所有行
         
-        for i, line in enumerate(lines):
+        for line in lines:
             line = line.strip()
             if not line:
                 continue
             
-            # 更灵活的section匹配
-            if "成分与性能" in line or "成分配比" in line or line.startswith("1."):
+            # 识别章节标题
+            if "成分与性能" in line or "成分配比" in line or (line.startswith("1.") and "成分" in line):
                 current_section = "composition"
                 continue
-            elif "工艺参数" in line or line.startswith("2."):
+            elif "工艺参数" in line or (line.startswith("2.") and "工艺" in line):
                 current_section = "process"
                 continue
             elif "性能预测" in line or "历史对比" in line or line.startswith("3."):
                 current_section = "performance"
                 continue
-            elif "综合评价" in line or line.startswith("4."):
+            elif "综合评价" in line or (line.startswith("4.") and "综合" in line):
                 current_section = "summary"
                 continue
             
-            # 提取关键发现（带有具体数据的行）
-            if current_section in ["composition", "process", "performance"]:
-                # 移除列表标记
-                clean_line = line.lstrip("-*•123456789. ").strip()
-                if len(clean_line) > 15:
-                    # 提取带有材料学关键词的内容
-                    if any(kw in clean_line for kw in ["Al", "Ti", "%", "GPa", "°C", "温度", 
-                                                         "硬度", "结合力", "晶粒", "应力", "模量",
-                                                         "氧化", "耐磨", "韧性", "沉积"]):
-                        key_findings.append(clean_line)
+            # 跳过标题行
+            if line.startswith("#") or line.startswith("**"):
+                continue
             
-            # 提取综合评价（收集所有非标题行）
-            elif current_section == "summary":
-                # 跳过标题行和空行
-                if not line.startswith("#") and not line.startswith("**") and len(line) > 20:
-                    clean_line = line.lstrip("-*•123456789. ").strip()
-                    if clean_line:
-                        summary_lines.append(clean_line)
+            # 清理行内容
+            clean_line = line.lstrip("-*•·").strip()
+            if len(clean_line) < 10:
+                continue
+            
+            # 提取关键发现（成分/工艺/性能部分）
+            if current_section in ["composition", "process", "performance"]:
+                # 限制每条长度，截取到句号或逗号
+                if len(clean_line) > 80:
+                    # 找到第一个句号或逗号截断
+                    for sep in ["。", "，", "；"]:
+                        pos = clean_line.find(sep)
+                        if 20 < pos < 80:
+                            clean_line = clean_line[:pos+1]
+                            break
+                    else:
+                        clean_line = clean_line[:80] + "..."
+                key_findings.append(clean_line)
+            
+            # 提取综合评价（只取第一句有意义的话）
+            elif current_section == "summary" and not summary:
+                # 去掉Markdown格式
+                clean_line = clean_line.replace("**", "").replace("*", "")
+                if len(clean_line) > 20:
+                    # 限制长度
+                    if len(clean_line) > 100:
+                        pos = clean_line.find("。")
+                        if 20 < pos < 100:
+                            clean_line = clean_line[:pos+1]
+                        else:
+                            clean_line = clean_line[:100] + "..."
+                    summary = clean_line
         
-        # 组合综合评价：优先取“综合评价”小节的第一行，避免内容过长
-        if summary_lines:
-            # 只取第一条作为综合评价，避免把4个小节全部拼接
-            summary = summary_lines[0][:200]
-        
-        # 如果没找到summary，尝试从整个文本中提取最后一段有意义的内容
+        # Fallback: 如果没找到综合评价，从最后几行找
         if not summary:
-            # 从后往前找，找到最后一个有实质内容的段落
-            for line in reversed(lines):
-                clean_line = line.strip().lstrip("-*•123456789. ")
-                if len(clean_line) > 40 and not clean_line.startswith("#"):
-                    # 检查是否包含评价性关键词
-                    if any(kw in clean_line for kw in ["配方", "建议", "优化", "改进", "适合", "推荐", "综合"]):
-                        summary = clean_line[:200]
+            for line in reversed(lines[-10:]):
+                clean_line = line.strip().lstrip("-*•·").replace("**", "")
+                if len(clean_line) > 30 and not clean_line.startswith("#"):
+                    if any(kw in clean_line for kw in ["配方", "建议", "优化", "综合", "整体"]):
+                        summary = clean_line[:100]
                         break
         
-        # 最后的fallback：使用第一段有意义的文本
+        # 最终Fallback
         if not summary:
-            for line in lines[:20]:
-                clean_line = line.strip().lstrip("-*•123456789. ")
-                if len(clean_line) > 40 and not clean_line.startswith("#"):
-                    summary = clean_line[:200]
-                    break
+            summary = "当前配方分析完成，请查看关键发现了解详情。"
         
-        logger.info(f"[提取摘要] 找到 {len(key_findings)} 条关键发现")
-        logger.info(f"[提取摘要] 综合评价长度: {len(summary)}")
-        logger.info(f"[提取摘要] 综合评价内容: {summary[:100]}...")
+        logger.info(f"[提取摘要] 综合评价: {summary[:50]}...")
+        logger.info(f"[提取摘要] 关键发现: {len(key_findings)} 条")
         
         return {
-            "summary": summary.strip(),
-            "key_findings": key_findings[:5],  # 最多5条
-            "recommendations": []  # 简化：不单独提取建议
+            "summary": summary,
+            "key_findings": key_findings[:4],  # 最多4条
+            "recommendations": []
         }

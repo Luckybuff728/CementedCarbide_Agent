@@ -8,7 +8,7 @@
           size="small" 
           @click="resetForm"
         >
-          <el-icon class="el-icon--left"><RefreshOutline /></el-icon>
+          <el-icon class="el-icon--left"><CloseCircleOutline /></el-icon>
           清空
         </el-button>
       </div>
@@ -86,7 +86,7 @@
 import { ref, computed } from 'vue'
 import { ElMessage, ElMessageBox, ElButton, ElIcon } from 'element-plus'
 import { 
-  RefreshOutline,
+  CloseCircleOutline,
   PlayOutline,
   HammerOutline,
   SettingsOutline,
@@ -355,29 +355,26 @@ const handleSubmit = () => {
 
 <style scoped>
 .left-panel {
-  min-width: 280px;
-  max-width: 600px;
-  background: white;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border-right: 1px solid var(--border-color);
+  height: 100%;
 }
 
 .panel-header {
-  padding: 12px 20px;/*顶部*/
-  border-bottom: 1px solid var(--border-color);
+  padding: 18px 20px;
+  border-bottom: 1px solid #e5e5e5;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: white;
+  background: #ffffff;
 }
 
 .panel-header h3 {
   margin: 0;
-  font-size: var(--font-xl);
+  font-size: 16px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: #0d0d0d;
 }
 
 .header-actions {
@@ -385,18 +382,53 @@ const handleSubmit = () => {
   gap: 8px;
 }
 
+.header-actions :deep(.el-button) {
+  border-radius: 8px;
+  border-color: #e5e5e5;
+  color: #666;
+  transition: all 0.2s;
+}
+
+.header-actions :deep(.el-button:hover) {
+  border-color: #2d2d2d;
+  color: #2d2d2d;
+  background: rgba(0, 0, 0, 0.03);
+}
+
 .panel-content {
   flex: 1;
   overflow-y: auto;
   padding: 20px;
-  background: var(--bg-secondary);
+  background: #fafafa;
 }
 
 .panel-footer {
-  padding: 20px;
-  border-top: 1px solid var(--border-color);
-  background: white;
-  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.05);
+  padding: 16px 20px;
+  border-top: 1px solid #e5e5e5;
+  background: #ffffff;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.panel-footer :deep(.el-button--primary) {
+  background: #2d2d2d;
+  border-color: #2d2d2d;
+  border-radius: 10px;
+  font-weight: 500;
+  font-size: 15px;
+  height: 44px;
+  transition: all 0.2s;
+}
+
+.panel-footer :deep(.el-button--primary:hover) {
+  background: #1a1a1a;
+  border-color: #1a1a1a;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.panel-footer :deep(.el-button--primary:active) {
+  transform: translateY(0);
+  background: #0d0d0d;
 }
 
 /* 表单分节 */
@@ -420,108 +452,136 @@ const handleSubmit = () => {
 
 /* 表单子组件的样式已移至各自的组件文件中 */
 
-/* Element Plus 表单项样式调整*/
+/* Element Plus 表单项样式调整 */
 :deep(.el-form-item) {
-  margin-bottom: 16px;
+  margin-bottom: 18px;
 }
 
 :deep(.el-form-item__label) {
-  font-size: var(--font-base);
-  color: var(--text-secondary);
+  font-size: 14px;
+  color: #4a4a4a;
   font-weight: 500;
-  padding-bottom: 6px;
+  padding-bottom: 8px;
 }
 
 :deep(.el-input-number) {
   width: 100%;
 }
 
+:deep(.el-input__inner),
+:deep(.el-input-number__inner) {
+  border-radius: 8px;
+  border-color: #e5e5e5;
+  transition: all 0.2s;
+}
+
+:deep(.el-input__inner:focus),
+:deep(.el-input-number__inner:focus),
+:deep(.el-input__inner:hover),
+:deep(.el-input-number__inner:hover) {
+  border-color: #2d2d2d;
+}
+
+:deep(.el-select .el-input__inner) {
+  border-radius: 8px;
+}
+
 /* Element Plus Collapse样式覆盖 */
+:deep(.el-collapse) {
+  border: none;
+}
+
 :deep(.el-collapse-item__header) {
-  height: 52px;
+  height: 48px;
   padding: 0 16px;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
+  border: 1px solid #e5e5e5;
+  border-radius: 10px;
   margin-bottom: 12px;
-  transition: all var(--transition-fast);
-  box-shadow: var(--shadow-xs);
+  background: #ffffff;
+  transition: all 0.2s;
+  font-weight: 500;
+  color: #0d0d0d;
 }
 
 :deep(.el-collapse-item__header:hover) {
-  border-color: var(--primary-light);
-  background: var(--primary-lighter);
+  border-color: #2d2d2d;
+  background: rgba(0, 0, 0, 0.02);
 }
 
 :deep(.el-collapse-item__header.is-active) {
-  background: var(--primary-lighter);
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px var(--primary-lighter);
+  background: rgba(0, 0, 0, 0.03);
+  border-color: #2d2d2d;
+  color: #0d0d0d;
+  font-weight: 600;
 }
 
 :deep(.el-collapse-item__wrap) {
   border: none;
+  background: transparent;
 }
 
 :deep(.el-collapse-item__content) {
   padding: 20px 16px;
-  background: white;
-  border: 1px solid var(--border-color);
+  background: #ffffff;
+  border: 1px solid #e5e5e5;
   border-top: none;
-  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  border-radius: 0 0 10px 10px;
   margin-top: -12px;
   margin-bottom: 12px;
 }
 
-/* 场景选择器 */
+/* 场景选择器 - 2x2网格布局 */
 .scenario-selector {
   padding: 16px 20px;
-  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-  border-bottom: 1px solid var(--border-color);
+  background: #ffffff;
+  border-bottom: 1px solid #e5e5e5;
 }
 
 .selector-label {
   font-size: 13px;
-  color: var(--text-secondary);
+  color: #666;
   font-weight: 500;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
 .scenario-selector :deep(.el-radio-group) {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 8px;
-  flex-wrap: wrap;
 }
 
 .scenario-selector :deep(.el-radio-button) {
-  flex: 1;
-  min-width: 90px;
+  margin: 0;
 }
 
 .scenario-selector :deep(.el-radio-button__inner) {
   width: 100%;
-  padding: 8px 12px;
+  padding: 10px 12px;
   font-size: 13px;
-  border-radius: 6px;
-  border: 1px solid var(--border-color);
-  background: white;
+  border-radius: 8px;
+  border: 1px solid #e5e5e5;
+  background: #fafafa;
+  color: #666;
   transition: all 0.2s;
 }
 
 .scenario-selector :deep(.el-radio-button__inner:hover) {
-  border-color: var(--primary);
-  background: var(--primary-lighter);
+  border-color: #2d2d2d;
+  background: rgba(0, 0, 0, 0.03);
+  color: #0d0d0d;
 }
 
 .scenario-selector :deep(.el-radio-button.is-active .el-radio-button__inner) {
-  background: var(--primary);
-  border-color: var(--primary);
+  background: #2d2d2d;
+  border-color: #2d2d2d;
   color: white;
-  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 .scenario-option {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 4px;
   font-size: 13px;
 }

@@ -5,6 +5,7 @@
     title="性能预测"
     :badge="confidenceBadge"
     :clickable="true"
+    :show-header="showHeader"
     @click="emit('jump-to-node', 'ml_prediction')"
   >
     <div class="prediction-summary">
@@ -52,6 +53,10 @@ const props = defineProps({
   prediction: {
     type: [Object, String],  // 支持Object和String类型
     default: null
+  },
+  showHeader: {
+    type: Boolean,
+    default: true
   }
 })
 

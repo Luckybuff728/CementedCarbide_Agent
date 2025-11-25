@@ -1,6 +1,6 @@
 <template>
   <div :class="['summary-card', { clickable }]" @click="handleClick">
-    <div class="card-header">
+    <div class="card-header" v-if="showHeader">
       <div class="header-left">
         <el-icon v-if="iconComponent" class="icon"><component :is="iconComponent" /></el-icon>
         <span v-else class="icon">{{ icon }}</span>
@@ -44,6 +44,10 @@ defineProps({
   clickable: {
     type: Boolean,
     default: false
+  },
+  showHeader: {
+    type: Boolean,
+    default: true
   }
 })
 

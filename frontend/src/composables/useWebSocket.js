@@ -14,8 +14,8 @@ const RECONNECT_CONFIG = {
 
 // 心跳配置
 const HEARTBEAT_CONFIG = {
-  interval: 300000,         // 心跳间隔（30秒）
-  timeout: 200000           // 心跳超时（20秒，适应LLM长时间处理
+  interval: 30000,          // 心跳间隔（30秒）
+  timeout: 20000            // 心跳超时（20秒，长任务时延长至180秒）
 }
 
 export function useWebSocket() {
@@ -162,9 +162,18 @@ export function useWebSocket() {
    * 内部连接方法
    */
   const connectInternal = (url, onMessage) => {
-    if (ws.value && ws.value.readyState === WebSocket.OPEN) {
-      console.warn('[WebSocket] 已有活动连接，先关闭')
-      ws.value.close()
+    // 防止重复连接
+    if (ws.value) {
+      if (ws.value.readyState === WebSocket.OPEN) {
+        console.warn('[WebSocket] 已有活动连接，跳过重复连接')
+        return
+      } else if (ws.value.readyState === WebSocket.CONNECTING) {
+        console.warn('[WebSocket] 正在连接中，跳过重复连接')
+        return
+      } else {
+        console.log('[WebSocket] 清理旧连接')
+        ws.value.close()
+      }
     }
     
     connectionState.value = 'connecting'

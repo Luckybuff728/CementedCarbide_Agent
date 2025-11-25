@@ -27,7 +27,8 @@ export const WS_BASE_URL = import.meta.env.VITE_WS_BASE_URL || (
 
 // WebSocket端点
 export const WS_ENDPOINTS = {
-  coating: `${WS_BASE_URL}/ws/coating`
+  coating: `${WS_BASE_URL}/ws/coating/agent`,  // 多Agent模式
+  coatingLegacy: `${WS_BASE_URL}/ws/coating`   // 原工作流模式（备用）
 }
 
 // API端点
@@ -45,9 +46,11 @@ export const CONFIG = {
   // 生产模式
   isProd: import.meta.env.PROD,
   // 应用名称
-  appName: 'TopMat Agent',
+  appName: 'TopMat Agent - 多Agent模式',
   // 版本号
-  version: '1.0.1'
+  version: '2.0.0',
+  // 模式
+  mode: 'multi-agent'
 }
 
 export default {

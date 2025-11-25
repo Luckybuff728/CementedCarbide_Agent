@@ -5,6 +5,7 @@
     title="参数验证"
     :badge="validationBadge"
     :clickable="true"
+    :show-header="showHeader"
     @click="emit('jump-to-node', 'input_validation')"
   >
     <div class="validation-summary">
@@ -34,6 +35,10 @@ const props = defineProps({
   validationResult: {
     type: [Object, String],  // 支持Object和String类型
     default: null
+  },
+  showHeader: {
+    type: Boolean,
+    default: true
   }
 })
 

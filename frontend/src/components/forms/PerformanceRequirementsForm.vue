@@ -25,6 +25,8 @@
             :min="0"
             :max="100"
             :precision="1"
+            :controls="false"
+            placeholder="0.0"
             @update:modelValue="emit('update:modelValue', modelValue)"
           />
           <span class="unit">N</span>
@@ -38,6 +40,8 @@
             :min="100"
             :max="800"
             :step="10"
+            :controls="false"
+            placeholder="0"
             @update:modelValue="emit('update:modelValue', modelValue)"
           />
           <span class="unit">GPa</span>
@@ -51,6 +55,8 @@
             :min="200"
             :max="1200"
             :step="50"
+            :controls="false"
+            placeholder="0"
             @update:modelValue="emit('update:modelValue', modelValue)"
           />
           <span class="unit">℃</span>
@@ -64,6 +70,8 @@
             :min="50"
             :max="1000"
             :step="10"
+            :controls="false"
+            placeholder="0"
             @update:modelValue="emit('update:modelValue', modelValue)"
           />
           <span class="unit">m/min</span>
@@ -89,9 +97,11 @@
           v-for="hint in scenarioHints"
           :key="hint"
           size="small"
+          effect="plain"
+          round
+          type="info"
           class="scenario-hint"
           @click="addHintToScenario(hint)"
-          style="cursor: pointer;"
         >
           {{ hint }}
         </el-tag>
@@ -162,20 +172,39 @@ const addHintToScenario = (hint) => {
 }
 
 .input-with-unit {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 6px;
+  width: 100%;
 }
 
 .input-with-unit :deep(.el-input-number) {
-  flex: 1;
+  width: 100%;
 }
 
+.input-with-unit :deep(.el-input__inner) {
+  text-align: left;
+  padding-right: 45px; /* Space for unit */
+  width: 100%;
+}
+
+.input-with-unit .unit {
+  position: absolute;
+  right: 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 500;
+  pointer-events: none;
+  background: transparent;
+  min-width: auto;
+}
+
+/* 保留原来用于其他地方的unit样式 */
 .unit {
   font-size: 13px;
   color: var(--text-secondary);
   flex-shrink: 0;
-  min-width: 40px;
+  /* min-width: 40px; */
 }
 
 .scenario-hints {
@@ -195,10 +224,15 @@ const addHintToScenario = (hint) => {
 .scenario-hint {
   cursor: pointer;
   transition: all 0.2s;
+  border-color: #e5e7eb;
+  color: #6b7280;
+  background-color: #ffffff;
 }
 
 .scenario-hint:hover {
   transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  color: #2d2d2d;
+  border-color: #2d2d2d;
+  background-color: #f9fafb;
 }
 </style>

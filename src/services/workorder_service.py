@@ -47,12 +47,11 @@ def generate_workorder(
         
         logger.info(f"[工单生成] 优化建议内容长度: {len(optimization_content)}")
         
-        # 使用LLM生成实验工单
+        # 使用LLM生成实验工单（流式输出通过contextvars自动处理）
         workorder_content = _generate_workorder_by_llm(
             optimization_name,
             optimization_content,
-            task_state,
-            stream_callback
+            task_state
         )
         
         # 从LLM生成的文本中提取关键信息
@@ -89,10 +88,9 @@ def generate_workorder(
 def _generate_workorder_by_llm(
     optimization_name: str,
     optimization_content: str,
-    state: Dict,
-    stream_callback=None
+    state: Dict
 ) -> str:
-    """使用LLM根据优化建议生成实验工单"""
+    """使用LLM根据优化建议生成实验工单（流式输出通过contextvars自动处理）"""
     
     # 获取当前配方参数
     composition = state.get("coating_composition", {})
@@ -140,9 +138,10 @@ def _generate_workorder_by_llm(
 
 **性能需求**：
 - 基材材料: {target_requirements.get('substrate_material', 'N/A')}
-- 目标硬度: {target_requirements.get('target_hardness', 0)} GPa
-- 目标弹性模量: {target_requirements.get('elastic_modulus', 0)} GPa
+- 结合力: {target_requirements.get('adhesion_strength', 0)} N
+- 弹性模量: {target_requirements.get('elastic_modulus', 0)} GPa
 - 工作温度: {target_requirements.get('working_temperature', 0)}°C
+- 切削速度: {target_requirements.get('cutting_speed', 0)} m/min
 - 应用场景: {target_requirements.get('application_scenario', 'N/A')}
 
 ## 选定的优化方案
@@ -212,14 +211,10 @@ def _generate_workorder_by_llm(
     
     llm_service = get_llm_service()
     
-    # 使用LLM服务生成工单
-    def _callback(content):
-        if stream_callback:
-            stream_callback("experiment_workorder", content)
-    
-    workorder_content = llm_service.generate_stream(
-        prompt=prompt,
-        stream_callback=_callback if stream_callback else None
+    # 使用统一的Agent流式方法生成工单（自动通过contextvars流式输出）
+    workorder_content = llm_service.generate_agent_stream(
+        node="experimenter",
+        prompt=prompt
     )
     
     return workorder_content
