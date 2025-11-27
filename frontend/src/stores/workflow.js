@@ -31,7 +31,7 @@ export const useWorkflowStore = defineStore('workflow', () => {
   
   // 分析结果
   const validationResult = ref(null)  // 验证结果（包含错误信息）
-  const topphiResult = ref(null)  // TopPhi模拟结果（包含VTK数据）
+  const topphiResult = ref(null)  // TopPhi相场模拟结果（包含VTK数据）
   const performancePrediction = ref(null)
   const historicalComparison = ref(null)
   const integratedAnalysis = ref(null)

@@ -1,6 +1,7 @@
 """
-FastAPI后端服务 - 重构版本
-拆分路由，简化主文件
+TopMat Agent API
+
+对话式多 Agent 智能研发助手
 """
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -8,17 +9,19 @@ from fastapi.responses import JSONResponse
 import logging
 from datetime import datetime
 
-from .routes import coating_router, vtk_router, setup_websocket_routes
+from .routes import vtk_router, auth_router, setup_websocket_routes
+from ..db.session import engine, Base
+from ..models import user as user_model
 
 # 配置日志
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# 创建FastAPI应用
+# 创建 FastAPI 应用
 app = FastAPI(
     title="TopMat Agent API",
-    description="硬质合金涂层优化专家系统API",
-    version="1.0.1"
+    description="硬质合金涂层智能研发助手 - 硬质合金涂层研发优化",
+    version="2.0.0"
 )
 
 # CORS配置
@@ -30,9 +33,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.on_event("startup")
+def on_startup():
+	Base.metadata.create_all(bind=engine)
+
 # 注册路由
-app.include_router(coating_router)
 app.include_router(vtk_router)
+app.include_router(auth_router)
 
 # 设置WebSocket路由
 setup_websocket_routes(app)
@@ -44,9 +51,9 @@ async def root():
     """根路径"""
     return {
         "name": "TopMat Agent API",
-        "version": "1.0.1",
+        "version": "2.0.0",
         "status": "running",
-        "description": "重构版 - 使用Service层架构"
+        "description": "对话式多 Agent 智能研发助手"
     }
 
 
@@ -66,20 +73,21 @@ async def health_check():
 
 @app.get("/api/info")
 async def api_info():
-    """API信息"""
+    """API 信息"""
     return {
-        "architecture": "Service Layer Pattern",
-        "improvements": [
-            "修复了成分验证逻辑bug",
-            "消除了P1/P2/P3节点代码重复",
-            "引入了Service层抽象",
-            "拆分了大文件为模块化结构",
-            "简化了WebSocket协议"
+        "architecture": "Conversational Multi-Agent",
+        "agents": [
+            "Router - 智能路由",
+            "Assistant - 通用对话 (思考模式)",
+            "Validator - 参数验证专家",
+            "Analyst - 性能预测专家",
+            "Optimizer - 优化建议专家",
+            "Experimenter - 实验管理专家"
         ],
-        "services": [
-            "ValidationService - 输入验证",
-            "OptimizationService - 优化建议生成", 
-            "CoatingService - 核心业务逻辑"
+        "features": [
+            "对话式交互，自然语言理解",
+            "思考过程可见，提升可解释性",
+            "流式输出，实时响应"
         ]
     }
 
@@ -110,7 +118,7 @@ async def general_exception_handler(request, exc):
 async def startup_event():
     """应用启动事件"""
     logger.info("TopMat Agent API 启动完成")
-    logger.info("Service层架构已激活")
+    logger.info("对话式多 Agent 系统已就绪")
 
 
 @app.on_event("shutdown")  

@@ -1,9 +1,30 @@
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import vue from '@vitejs/plugin-vue'
+import path from 'path'
 
 // https://vite.dev/config/
-export default defineConfig({
-  plugins: [vue()],
+export default defineConfig(({ mode }) => {
+  // 加载环境变量
+  const env = loadEnv(mode, process.cwd() + '/frontend', '')
+  
+  // 端口配置（统一从环境变量读取）
+  const backendHost = env.VITE_BACKEND_HOST || 'localhost'
+  const backendPort = env.VITE_BACKEND_PORT || '8000'
+  const devPort = parseInt(env.VITE_DEV_PORT || '5173')
+  
+  // 组装后端URL（支持完整URL覆盖）
+  const apiBaseUrl = env.VITE_API_BASE_URL || `http://${backendHost}:${backendPort}`
+  const wsBaseUrl = env.VITE_WS_BASE_URL || `ws://${backendHost}:${backendPort}`
+
+  return {
+    plugins: [vue()],
+    
+    // 路径别名配置
+    resolve: {
+      alias: {
+        '@': path.resolve(__dirname, 'src')
+      }
+    },
   
   // 生产环境构建配置
   build: {
@@ -11,7 +32,7 @@ export default defineConfig({
     outDir: 'dist',
     // 启用CSS代码分割
     cssCodeSplit: true,
-    // 构建优化 - 使用默认压缩器
+    // 构建优化
     minify: true,
     // chunk大小警告限制
     chunkSizeWarningLimit: 1000,
@@ -23,7 +44,7 @@ export default defineConfig({
         entryFileNames: 'js/[name]-[hash].js',
         assetFileNames: '[ext]/[name]-[hash].[ext]',
         // 代码分割
-        manualChunks(id) {
+         manualChunks(id) {
           if (id.includes('element-plus')) {
             return 'element-plus'
           }
@@ -38,17 +59,18 @@ export default defineConfig({
   // 开发服务器配置
   server: {
     host: '0.0.0.0',
-    port: 5173,
+    port: devPort, // 从环境变量读取
     // API代理（开发环境）
     proxy: {
       '/api': {
-        target: 'http://192.168.6.108:8000',
+        target: apiBaseUrl,
         changeOrigin: true
       },
       '/ws': {
-        target: 'ws://192.168.6.108:8000',
+        target: wsBaseUrl,
         ws: true
       }
     }
+  }
   }
 })

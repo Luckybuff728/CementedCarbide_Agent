@@ -1,0 +1,46 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# 环境变量（使用docker-compose传递）
+.env
+
+# Node
+node_modules/
+npm-debug.log*
+
+# 前端构建产物（会在Docker内构建）
+frontend/dist/
+frontend/.vite/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# 文档和测试
+docs/
+tests/
+*.md
+!README.md
+
+# 数据文件
+# *.vtk  # 已注释：需要打包VTK文件到镜像
+*.db
+# 涂层-调幅分解/  # 已注释：需要打包时间序列数据
+TopMat Agent 产品形态.pdf-*/
+
+# 临时文件
+*.log
+.DS_Store
+Thumbs.db

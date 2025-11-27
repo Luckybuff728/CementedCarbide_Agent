@@ -57,12 +57,22 @@ class HistoricalDataService:
         return historical_comparison
     
     def _generate_mock_cases(self, composition: Dict) -> List[Dict]:
-        """生成模拟历史案例数据"""
+        """生成模拟历史案例数据
+        
+        注意：字段名与实验数据录入保持一致，方便前端对比展示
+        - hardness: 硬度 (GPa)
+        - adhesion_strength: 结合力 (N)
+        - oxidation_temperature: 抗氧化温度 (℃)
+        - wear_rate: 磨损率 (mm³/Nm)
+        - surface_roughness: 表面粗糙度 (μm)
+        
+        TODO: 后续接入数据库，从历史实验记录表中检索相似案例
+        """
         al_content = composition.get('al_content', 30)
         ti_content = composition.get('ti_content', 30)
         n_content = composition.get('n_content', 40)
         
-        # 生成3个相似案例
+        # 生成3个相似案例（字段名与实验数据一致）
         cases = [
             {
                 "case_id": "CASE_001",
@@ -71,7 +81,14 @@ class HistoricalDataService:
                     "ti_content": ti_content - 2,
                     "n_content": n_content
                 },
+                # 性能指标（与实验录入字段一致）
                 "hardness": 29.2,
+                "elastic_modulus": 440.0,
+                "adhesion_strength": 55.3,
+                "oxidation_temperature": 850,
+                "wear_rate": 0.012,
+                "surface_roughness": 0.15,
+                # 元数据
                 "similarity": 0.87,
                 "notes": "相似成分配比，硬度表现良好",
                 "year": "2023"
@@ -83,7 +100,14 @@ class HistoricalDataService:
                     "ti_content": ti_content - 5,
                     "n_content": n_content
                 },
+                # 性能指标（与实验录入字段一致）
                 "hardness": 31.1,
+                "elastic_modulus": 470.0,
+                "adhesion_strength": 58.7,
+                "oxidation_temperature": 920,
+                "wear_rate": 0.009,
+                "surface_roughness": 0.12,
+                # 元数据
                 "similarity": 0.82,
                 "notes": "高Al含量，显著提升硬度",
                 "year": "2024"
@@ -95,7 +119,14 @@ class HistoricalDataService:
                     "ti_content": ti_content,
                     "n_content": n_content
                 },
+                # 性能指标（与实验录入字段一致）
                 "hardness": 27.8,
+                "elastic_modulus": 420.0,
+                "adhesion_strength": 52.1,
+                "oxidation_temperature": 820,
+                "wear_rate": 0.015,
+                "surface_roughness": 0.18,
+                # 元数据
                 "similarity": 0.75,
                 "notes": "平衡配比，稳定性好",
                 "year": "2023"

@@ -2,17 +2,8 @@
 数据模型包
 """
 
-from .coating_models import *
+from .user import User
 
 __all__ = [
-    "CoatingComposition",
-    "ProcessParameters",
-    "StructureDesign",
-    "TargetRequirements",
-    "CoatingInput",
-    "PerformancePrediction",
-    "OptimizationSuggestion",
-    "ExperimentResult",
-    "IterationState",
-    "CoatingTask"
+    "User",
 ]

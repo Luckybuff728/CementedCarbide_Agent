@@ -1,0 +1,261 @@
+<template>
+  <el-collapse-item name="process">
+    <template #title>
+      <div class="collapse-title">
+        <el-icon class="title-icon"><SettingsOutline /></el-icon>
+        <span class="title-text">工艺参数</span>
+      </div>
+    </template>
+
+    <!-- 工艺类型选择 -->
+    <el-form-item label="工艺选择">
+      <el-select 
+        v-model="modelValue.process_type" 
+        style="width: 100%" 
+        placeholder="请选择工艺类型"
+        @change="emit('update:modelValue', modelValue)"
+      >
+        <el-option label="磁控溅射" value="magnetron_sputtering" />
+        <el-option label="CVD" value="cvd" />
+      </el-select>
+    </el-form-item>
+
+    <!-- 主要工艺参数 -->
+    <div class="param-grid">
+      <el-form-item label="沉积气压">
+        <div class="input-with-unit">
+          <el-input-number 
+            v-model="modelValue.deposition_pressure"
+            :min="0" 
+            :max="10" 
+            :precision="1"
+            :step="0.1"
+            :controls="false"
+            placeholder="0.0"
+            @update:modelValue="emit('update:modelValue', modelValue)"
+          />
+          <span class="unit">Pa</span>
+        </div>
+      </el-form-item>
+
+      <el-form-item label="沉积温度">
+        <div class="input-with-unit">
+          <el-input-number 
+            v-model="modelValue.deposition_temperature"
+            :min="200" 
+            :max="800" 
+            :step="10"
+            :controls="false"
+            placeholder="0"
+            @update:modelValue="emit('update:modelValue', modelValue)"
+          />
+          <span class="unit">℃</span>
+        </div>
+      </el-form-item>
+
+      <el-form-item label="偏压">
+        <div class="input-with-unit">
+          <el-input-number 
+            v-model="modelValue.bias_voltage"
+            :min="0" 
+            :max="500" 
+            :step="5"
+            :controls="false"
+            placeholder="0"
+            @update:modelValue="emit('update:modelValue', modelValue)"
+          />
+          <span class="unit">V</span>
+        </div>
+      </el-form-item>
+
+      <el-form-item label="N₂流量">
+        <div class="input-with-unit">
+          <el-input-number 
+            v-model="modelValue.n2_flow"
+            :min="0" 
+            :max="500" 
+            :step="5"
+            :controls="false"
+            placeholder="0"
+            @update:modelValue="emit('update:modelValue', modelValue)"
+          />
+          <span class="unit">sccm</span>
+        </div>
+      </el-form-item>
+    </div>
+
+    <!-- 其他气体动态添加 -->
+    <div class="gas-section">
+      <label class="sub-label">其他气体</label>
+      <div v-for="(gas, index) in modelValue.other_gases" :key="index" class="gas-row">
+        <el-input 
+          v-model="gas.type" 
+          placeholder="气体种类"
+          style="flex: 1; min-width: 80px;"
+        />
+        <div class="input-with-unit" style="flex: 1.5;">
+          <el-input-number 
+            v-model="gas.flow"
+            :min="0"
+            :max="1000"
+            :step="5"
+            :controls="false"
+            placeholder="0"
+          />
+          <span class="unit">sccm</span>
+        </div>
+        <el-button 
+          type="danger" 
+          link
+          @click="removeGas(index)"
+          class="delete-btn"
+        >
+          <el-icon><CloseOutline /></el-icon>
+        </el-button>
+      </div>
+      <el-button 
+        class="add-btn"
+        text
+        bg
+        size="default"
+        @click="addGas"
+      >
+        <el-icon class="el-icon--left"><AddOutline /></el-icon>
+        添加气体
+      </el-button>
+    </div>
+  </el-collapse-item>
+</template>
+
+<script setup>
+import { ElButton, ElIcon } from 'element-plus'
+import { SettingsOutline, AddOutline, CloseOutline } from '@vicons/ionicons5'
+
+// 定义props和emits
+const props = defineProps({
+  modelValue: {
+    type: Object,
+    required: true
+  }
+})
+
+const emit = defineEmits(['update:modelValue'])
+
+// 添加气体
+const addGas = () => {
+  props.modelValue.other_gases.push({ type: '', flow: 0 })
+  emit('update:modelValue', props.modelValue)
+}
+
+// 删除气体
+const removeGas = (index) => {
+  props.modelValue.other_gases.splice(index, 1)
+  emit('update:modelValue', props.modelValue)
+}
+</script>
+
+<style scoped>
+.collapse-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.title-icon {
+  font-size: 20px;
+  color: var(--primary);
+}
+
+.title-text {
+  flex: 1;
+}
+
+.param-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.input-with-unit {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.input-with-unit :deep(.el-input-number) {
+  width: 100%;
+}
+
+.input-with-unit :deep(.el-input__inner) {
+  text-align: left;
+  padding-right: 45px; /* Space for unit */
+  width: 100%;
+}
+
+.input-with-unit .unit {
+  position: absolute;
+  right: 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 500;
+  pointer-events: none;
+  background: transparent;
+  min-width: auto;
+}
+
+/* 保留原来用于其他地方的unit样式 */
+.unit {
+  font-size: 13px;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+  /* min-width: 40px; */
+}
+
+.gas-section {
+  margin-top: 16px;
+}
+
+.sub-label {
+  display: block;
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.gas-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.delete-btn {
+  padding: 4px;
+  height: auto;
+  color: var(--text-secondary);
+}
+
+.delete-btn:hover {
+  color: var(--danger);
+  background: transparent;
+}
+
+.add-btn {
+  width: 100%;
+  margin-top: 8px;
+  border: 1px dashed var(--border-color);
+  color: var(--text-secondary);
+}
+
+.add-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background-color: var(--primary-lighter);
+}
+</style>

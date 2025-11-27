@@ -1,0 +1,32 @@
+<svg width="200" height="200" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-labelledby="title desc" role="img">
+  <title id="title">硬质合金微观结构图标 (蓝色简洁版)</title>
+  <desc id="desc">一个代表硬质合金微观结构的简洁扁平化图标。深蓝色、不同形状的多边形代表硬质相，浅蓝色背景代表粘结相。</desc>
+  
+  <!-- 定义一个圆形剪切蒙版 -->
+  <defs>
+    <clipPath id="circleView">
+      <circle cx="50" cy="50" r="48" />
+    </clipPath>
+  </defs>
+
+  <!-- 粘结相基体 (浅蓝色)，使用与颗粒同色的细描边 -->
+  <circle cx="50" cy="50" r="48" fill="#DBEAFE" stroke="#1D4ED8" stroke-width="1"/>
+
+  <!-- 应用剪切蒙版的组，用于容纳硬质相颗粒 -->
+  <g clip-path="url(#circleView)">
+    <!-- 硬质相颗粒 (深蓝色) - 全部使用多边形 -->
+    
+    <!-- 1. 一个六边形 -->
+    <polygon points="25,20 45,15 55,30 45,45 25,40 15,30" fill="#1D4ED8" />
+    
+    <!-- 2. 一个不规则四边形 -->
+    <polygon points="60,30 85,35 80,60 55,55" fill="#1D4ED8" />
+    
+    <!-- 3. 一个五边形 -->
+    <polygon points="25,60 40,60 45,75 33,85 20,75" fill="#1D4ED8" />
+
+    <!-- 4. 一个三角形 -->
+    <polygon points="65,70 85,75 75,90" fill="#1D4ED8" />
+
+  </g>
+</svg>

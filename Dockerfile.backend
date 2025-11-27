@@ -1,0 +1,63 @@
+# ============================================
+# TopMat Agent 后端 Dockerfile (精简优化版)
+# 预期大小: ~250 MB (相比原版~500MB减少50%)
+# ============================================
+
+# 第一阶段: 构建环境
+FROM python:3.11-alpine AS builder
+
+WORKDIR /app
+
+# 安装构建依赖并立即清理
+RUN apk add --no-cache --virtual .build-deps gcc musl-dev
+
+# 复制精简的依赖文件
+COPY requirements.txt .
+
+# 安装精简的Python依赖
+RUN pip install --no-cache-dir --user --timeout 300 --retries 5 -r requirements.txt && \
+    # 清理Python缓存以减少镜像大小
+    find /root/.local -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true && \
+    find /root/.local -type f -name '*.py[co]' -delete && \
+    find /root/.local -name "*.dist-info" -type d -exec rm -rf {} + 2>/dev/null || true
+
+# ============================================
+# 第二阶段: 运行环境
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# 创建非root用户并清理系统缓存
+RUN useradd -m -u 1000 topmat && \
+    chown -R topmat:topmat /app && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+# 从构建阶段复制Python包
+COPY --from=builder /root/.local /home/topmat/.local
+
+# 复制应用代码
+COPY --chown=topmat:topmat src/ ./src/
+COPY --chown=topmat:topmat run.py .
+COPY --chown=topmat:topmat .env.example .
+
+# 复制VTK数据文件
+COPY --chown=topmat:topmat 涂层-调幅分解/ ./涂层-调幅分解/
+COPY --chown=topmat:topmat conc-0.vtk ./conc-0.vtk
+
+# 设置环境变量
+ENV PATH=/home/topmat/.local/bin:$PATH \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
+# 切换到非root用户
+USER topmat
+
+# 健康检查
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
+
+# 暴露端口
+EXPOSE 8000
+
+# 启动命令
+CMD ["python", "-m", "uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]

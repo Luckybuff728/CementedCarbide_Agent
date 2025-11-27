@@ -5,7 +5,7 @@ from typing import Dict, List, Any, Optional
 from enum import Enum
 import logging
 import re
-from ..llm.llm_config import get_material_expert_llm, MATERIAL_EXPERT_PROMPT
+from ..llm import get_llm_service, MATERIAL_EXPERT_PROMPT
 from langchain_core.messages import SystemMessage, HumanMessage
 
 logger = logging.getLogger(__name__)
@@ -22,14 +22,15 @@ class OptimizationService:
     """优化建议生成服务"""
     
     def __init__(self):
-        self.llm = get_material_expert_llm()
+        self.llm_service = get_llm_service()
+        logger.info("[优化服务] 初始化完成 - 使用统一优化方法")
         
     def generate_optimization_suggestion(
         self,
         optimization_type: OptimizationType,
         state: Dict[str, Any],
         stream_callback: Optional[callable] = None
-    ) -> str:
+    ) -> Dict[str, Any]:
         """
         统一的优化建议生成方法 - 简化版，只返回原始内容
         
@@ -39,7 +40,7 @@ class OptimizationService:
             stream_callback: 流式输出回调
             
         Returns:
-            优化建议的原始文本内容
+            优化建议结果（统一结构字典）
         """
         logger.info(f"[{optimization_type.value}] 开始生成优化建议")
         
@@ -60,27 +61,54 @@ class OptimizationService:
             target_requirements
         )
         
-        # LLM流式生成
-        content = ""
+        # LLM流式生成（使用通用的Agent流式方法）
         try:
             logger.info(f"[{optimization_type.value}] 开始LLM流式生成...")
-            for chunk in self.llm.stream([
-                SystemMessage(content=MATERIAL_EXPERT_PROMPT),
-                HumanMessage(content=prompt)
-            ]):
-                if hasattr(chunk, 'content') and chunk.content:
-                    content += chunk.content
-                    # 发送流式输出
-                    if stream_callback:
-                        stream_callback(optimization_type.name.lower(), chunk.content)
+            
+            # 映射优化类型到简短的节点名称（前端识别用）
+            node_name_map = {
+                OptimizationType.P1_COMPOSITION: "p1",
+                OptimizationType.P2_STRUCTURE: "p2",
+                OptimizationType.P3_PROCESS: "p3"
+            }
+            node_name = node_name_map.get(optimization_type, "optimizer")
+            
+            # 使用统一的generate_agent_stream方法，自动通过contextvars流式输出
+            content = self.llm_service.generate_agent_stream(
+                node=node_name,  # "p1", "p2", "p3"
+                prompt=prompt
+            )
             
             logger.info(f"[{optimization_type.value}] 建议生成完成，长度: {len(content)}")
             
+            data = {
+                "content": content
+            }
+            
+            return {
+                "status": "success",
+                "data": data,
+                "message": f"{optimization_type.value}建议生成完成",
+                "error": None,
+                "meta": {
+                    "optimization_type": optimization_type.name
+                }
+            }
+            
         except Exception as e:
             logger.error(f"[{optimization_type.value}] 生成失败: {str(e)}")
-            content = f"{optimization_type.value}建议生成失败，请稍后重试"
-        
-        return content
+            return {
+                "status": "error",
+                "data": {},
+                "message": f"{optimization_type.value}建议生成失败，请稍后重试",
+                "error": {
+                    "type": "llm_error",
+                    "details": str(e)
+                },
+                "meta": {
+                    "optimization_type": optimization_type.name
+                }
+            }
     
     def _create_optimization_prompt(
         self,
@@ -147,9 +175,10 @@ class OptimizationService:
 {structure_str}
 
 ### 4. 当前性能预测
-- 预测硬度: {current_performance.get('hardness', 0)} GPa
-- 结合力等级: {current_performance.get('adhesion_level', 'N/A')}
-- 氧化温度: {current_performance.get('oxidation_temperature', 0)}°C
+- 预测纳米硬度: {current_performance.get('hardness', 0)} GPa
+- 弹性模量: {current_performance.get('elastic_modulus', 0)} GPa
+- 磨损率: {current_performance.get('wear_rate', 0)} mm³/(N·m)
+- 结合力: {current_performance.get('adhesion_strength', 0)} N
 
 ### 5. 目标需求
 {target_str}
@@ -160,12 +189,14 @@ class OptimizationService:
 请基于上述完整参数，生成**1个**最优的{optimization_type.value}方案。
 
 **严格按照以下格式输出**（使用统一的Markdown格式）：
+- 方案名称不能直接照抄示例文本；
+- 方案名称中要体现本类型优化的核心特点。
 
 ## 方案名称 
-[例如：高Al/微Si掺杂提升抗氧化与硬度]
+[请根据本次优化重点自行拟定简短方案名称]
 
 ### 方案概述
-[用1-2句话概括优化思路和目标]
+[用1-2句话概括优化思路和目标，突出本方案的独特侧重点]
 
 ### 具体调整内容
 - **调整项1**: [具体数值/参数] → [目标数值/参数]（变化量）
@@ -207,6 +238,10 @@ class OptimizationService:
 3. **N含量优化**：影响化学计量比和相结构
 4. **元素协同效应**：考虑多元素间的相互作用
 
+**方案名称要求（仅针对P1成分优化）**：
+- 方案名称中应体现成分或元素调整特征，例如“高Al/微Si掺杂提升抗氧化与硬度”；
+- 不要直接使用示例文本，可根据当前成分配比（{composition_str}）进行改写。
+
 请结合当前成分配比（{composition_str}），给出具有材料学依据的优化方案。
 """
         
@@ -221,6 +256,10 @@ class OptimizationService:
 2. **梯度结构设计**：底层高韧性，表层高硬度，优化应力分布
 3. **调制周期优化**：纳米多层的超硬效应（最优周期3-10nm）
 4. **总厚度控制**：平衡硬度与结合力，避免过厚导致应力失效
+
+**方案名称要求（仅针对P2结构优化）**：
+- 方案名称中应体现结构或层次特征，例如“梯度结构设计提升高温性能”、“纳米多层结构缓解残余应力”等；
+- 尽量包含“结构”、“多层”、“梯度”等结构相关关键词。
 
 请结合当前结构设计（{structure_str}），给出具有材料学依据的优化方案。
 """
@@ -237,6 +276,10 @@ class OptimizationService:
 3. **气体流量配比**：N₂/Ar比例影响成分和微观结构
 4. **沉积气压控制**：影响粒子平均自由程和沉积速率
 5. **多步工艺**：如变温沉积、脉冲偏压等先进工艺
+
+**方案名称要求（仅针对P3工艺优化）**：
+- 方案名称中应体现工艺参数或过程特征，例如“沉积温度与偏压协同优化工艺”、“分段升温沉积改善结合力”等；
+- 建议包含“温度”、“偏压”、“气氛”、“工艺”等工艺相关关键词。
 
 请结合当前工艺参数（温度{params.get('deposition_temperature', 0)}°C，气压{params.get('deposition_pressure', 0)}Pa等），给出具有工艺学依据的优化方案。
 """

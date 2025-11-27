@@ -1,10 +1,10 @@
 """
 TopMat Agent 主运行脚本
+
+对话式多 Agent 智能研发助手
 """
 import os
 import sys
-import asyncio
-import multiprocessing
 from pathlib import Path
 import logging
 from dotenv import load_dotenv
@@ -13,175 +13,124 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # 配置日志
+log_level = os.getenv("LOG_LEVEL", "INFO").upper()
 logging.basicConfig(
-    level=logging.INFO,
+    level=getattr(logging, log_level),
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
 
-
-def run_fastapi():
-    """运行FastAPI服务"""
+def run_fastapi(reload=True):
+    """运行FastAPI服务
+    
+    Args:
+        reload: 是否启用热重载（开发模式）
+    """
     import uvicorn
+    
+    # 从环境变量读取配置
+    host = os.getenv("SERVER_HOST", "0.0.0.0")
+    port = int(os.getenv("SERVER_PORT", "8000"))
+    log_level = os.getenv("LOG_LEVEL", "info").lower()
+    
+    logger.info(f"启动FastAPI服务: {host}:{port}")
+    logger.info(f"热重载模式: {'开启' if reload else '关闭'}")
+    logger.info(f"日志级别: {log_level}")
     
     uvicorn.run(
         "src.api.main:app",
-        host=os.getenv("SERVER_HOST", "0.0.0.0"),
-        port=int(os.getenv("SERVER_PORT", "8000")),
-        reload=True,
-        log_level=os.getenv("LOG_LEVEL", "info").lower()
+        host=host,
+        port=port,
+        reload=reload,
+        log_level=log_level
     )
 
-
 def check_environment():
-    """检查环境配置"""
+    """检查环境配置
+    
+    Returns:
+        bool: 环境配置是否完整
+    """
     required_vars = ["DASHSCOPE_API_KEY"]
     missing_vars = []
+    
+    logger.info("检查环境配置...")
     
     for var in required_vars:
         if not os.getenv(var):
             missing_vars.append(var)
+        else:
+            # 隐藏敏感信息
+            value = os.getenv(var)
+            masked_value = value[:8] + "..." if len(value) > 8 else "***"
+            logger.info(f"✓ {var}: {masked_value}")
     
     if missing_vars:
-        logger.error(f"缺少必需的环境变量: {', '.join(missing_vars)}")
+        logger.error(f"✗ 缺少必需的环境变量: {', '.join(missing_vars)}")
         logger.info("请复制 .env.example 到 .env 并填写相关配置")
         return False
     
+    # 检查可选配置
+    optional_vars = ["SERVER_HOST", "SERVER_PORT", "LOG_LEVEL", "DATABASE_URL"]
+    for var in optional_vars:
+        value = os.getenv(var)
+        if value:
+            logger.info(f"✓ {var}: {value}")
+        else:
+            logger.debug(f"- {var}: 使用默认值")
+    
+    logger.info("环境配置检查完成 ✓")
     return True
 
-
-def main():
-    """主函数"""
+def print_banner():
+    """打印启动横幅"""
     print("""
     ╔══════════════════════════════════════════╗
-    ║     TopMat Agent - 涂层优化专家系统      ║
+    ║  TopMat Agent - 硬质合金涂层智能研发助手   ║
+    ║         v2.0.0 对话式多Agent              ║
     ╚══════════════════════════════════════════╝
     """)
+
+def main():
+    """主函数
+    
+    支持命令行参数:
+        --no-reload: 禁用热重载（生产模式）
+        --test: 运行测试
+    """
+    print_banner()
     
     # 检查环境
     if not check_environment():
+        logger.error("环境配置不完整，退出")
         sys.exit(1)
     
-    # 选择运行模式
-    print("请选择运行模式:")
-    print("1. FastAPI后端服务")
-    print("2. 演示模式")
-    print("3. 运行测试")
-    print("4. 退出")
+    # 解析命令行参数
+    if "--test" in sys.argv:
+        # 运行测试模式
+        logger.info("运行测试套件...")
+        try:
+            import pytest
+            sys.exit(pytest.main(["tests/", "-v", "--tb=short"]))
+        except ImportError:
+            logger.error("pytest未安装，请运行: pip install pytest")
+            sys.exit(1)
     
-    choice = input("\n请输入选项 (1-4): ").strip()
+    # 检查是否禁用热重载
+    reload = "--no-reload" not in sys.argv
     
-    if choice == "1":
-        # FastAPI后端
-        logger.info("启动FastAPI后端服务...")
-        logger.info("提示: 使用 start_vue.bat 同时启动前后端")
-        run_fastapi()
+    # 启动FastAPI服务
+    logger.info("提示: 前端服务请在frontend目录运行 'npm run dev'")
+    logger.info("="*50)
     
-    elif choice == "2":
-        # 演示模式
-        logger.info("启动演示模式...")
-        demo_mode()
-    
-    elif choice == "3":
-        # 运行测试
-        logger.info("运行测试...")
-        import pytest
-        pytest.main(["tests/", "-v", "--tb=short"])
-    
-    elif choice == "4":
-        print("再见!")
+    try:
+        run_fastapi(reload=reload)
+    except KeyboardInterrupt:
+        logger.info("\n收到中断信号，正在关闭服务...")
         sys.exit(0)
-    
-    else:
-        print("无效的选项，请重新运行")
+    except Exception as e:
+        logger.error(f"服务启动失败: {e}", exc_info=True)
         sys.exit(1)
-
-
-def demo_mode():
-    """演示模式 - 快速展示系统功能"""
-    logger.info("进入演示模式...")
-    
-    from src.graph.workflow import CoatingWorkflowManager
-    
-    # 创建工作流管理器
-    manager = CoatingWorkflowManager(use_memory=True)
-    
-    # 准备演示数据
-    demo_input = {
-        "composition": {
-            "al_content": 30.0,
-            "ti_content": 25.0,
-            "n_content": 45.0,
-            "x_element": None,
-            "x_content": 0.0
-        },
-        "process_params": {
-            "process_type": "magnetron_sputtering",
-            "deposition_pressure": 0.6,
-            "n2_flow": 210,
-            "bias_voltage": 90,
-            "deposition_temperature": 500,
-            "other_gases": [
-                {"type": "Ar", "flow": 280}
-            ]
-        },
-        "structure_design": {
-            "total_thickness": 3.0,
-            "layers": []
-        },
-        "target_requirements": "高速切削刀具涂层，需要高硬度(>30GPa)和良好的抗氧化性(>850℃)"
-    }
-    
-    print("\n演示输入参数:")
-    print(f"涂层成分: Al={demo_input['composition']['al_content']}%, "
-          f"Ti={demo_input['composition']['ti_content']}%, "
-          f"N={demo_input['composition']['n_content']}%")
-    print(f"工艺参数: 偏压={demo_input['process_params']['bias_voltage']}V, "
-          f"温度={demo_input['process_params']['deposition_temperature']}℃")
-    print(f"目标需求: {demo_input['target_requirements']}")
-    
-    # 运行演示
-    async def run_demo():
-        task_id = "DEMO_001"
-        print(f"\n开始任务: {task_id}")
-        
-        # 执行工作流
-        print("\n执行中...")
-        async for update in manager.stream_task(task_id, demo_input):
-            if isinstance(update, tuple):
-                mode, data = update
-                print(f"[{mode}] 收到更新")
-            else:
-                print(f"收到更新: {type(update).__name__}")
-        
-        # 获取最终状态
-        state = manager.get_task_state(task_id)
-        
-        print("\n任务完成!")
-        print(f"最终状态: {state.get('workflow_status', 'unknown')}")
-        
-        if state.get('performance_prediction'):
-            print("\n预测性能:")
-            pred = state['performance_prediction']
-            print(f"- 硬度: {pred.get('hardness', 'N/A')} GPa")
-            print(f"- 结合力: {pred.get('adhesion_level', 'N/A')}")
-            print(f"- 置信度: {pred.get('confidence_score', 0)*100:.1f}%")
-        
-        if state.get('optimization_suggestions'):
-            print("\n优化建议:")
-            for opt_type, suggestions in state['optimization_suggestions'].items():
-                if suggestions:
-                    print(f"- {opt_type}: {len(suggestions)} 个方案")
-    
-    # 运行异步函数
-    asyncio.run(run_demo())
-    
-    print("\n演示完成!")
-
 
 if __name__ == "__main__":
-    # 检查是否是演示模式
-    if len(sys.argv) > 1 and sys.argv[1] == "demo":
-        demo_mode()
-    else:
-        main()
+    main()

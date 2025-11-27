@@ -14,8 +14,8 @@ const RECONNECT_CONFIG = {
 
 // 心跳配置
 const HEARTBEAT_CONFIG = {
-  interval: 300000,         // 心跳间隔（30秒）
-  timeout: 200000           // 心跳超时（20秒，适应LLM长时间处理
+  interval: 30000,          // 心跳间隔（30秒）
+  timeout: 600000            // 心跳超时（60秒，长任务时延长至300秒）
 }
 
 export function useWebSocket() {
@@ -50,10 +50,8 @@ export function useWebSocket() {
     isProcessingLongTask.value = isLongTask
     if (isLongTask) {
       longTaskStartTime.value = Date.now()
-      console.log('[WebSocket] 进入长时间任务模式，延长心跳超时')
     } else {
       longTaskStartTime.value = null
-      console.log('[WebSocket] 退出长时间任务模式')
     }
   }
 
@@ -65,17 +63,14 @@ export function useWebSocket() {
     
     heartbeatTimer.value = setInterval(() => {
       if (ws.value && ws.value.readyState === WebSocket.OPEN) {
-        console.log('[WebSocket] 发送心跳')
-        
         // 发送ping消息
         ws.value.send(JSON.stringify({ type: 'ping' }))
         
         // 根据任务状态动态调整超时时间
         let timeout = HEARTBEAT_CONFIG.timeout
         if (isProcessingLongTask.value) {
-          // 长时间任务期间，延长超时至180秒
-          timeout = 180000
-          console.log('[WebSocket] 长时间任务中，心跳超时延长至180秒')
+          // 长时间任务期间，延长超时至300秒（5分钟）
+          timeout = 300000
         }
         
         // 设置心跳超时
@@ -139,12 +134,10 @@ export function useWebSocket() {
     const delay = getReconnectDelay()
     reconnectAttempts.value++
     
-    console.log(`[WebSocket] 将在 ${delay}ms 后进行第 ${reconnectAttempts.value} 次重连`)
     connectionState.value = 'reconnecting'
     
     reconnectTimer.value = setTimeout(() => {
       if (currentUrl.value) {
-        console.log('[WebSocket] 执行重连')
         connectInternal(currentUrl.value, messageHandler.value)
       }
     }, delay)
@@ -155,8 +148,6 @@ export function useWebSocket() {
    */
   const flushOfflineQueue = () => {
     if (offlineQueue.value.length > 0) {
-      console.log(`[WebSocket] 发送 ${offlineQueue.value.length} 条离线消息`)
-      
       offlineQueue.value.forEach(data => {
         if (ws.value && ws.value.readyState === WebSocket.OPEN) {
           ws.value.send(JSON.stringify(data))
@@ -171,9 +162,18 @@ export function useWebSocket() {
    * 内部连接方法
    */
   const connectInternal = (url, onMessage) => {
-    if (ws.value && ws.value.readyState === WebSocket.OPEN) {
-      console.warn('[WebSocket] 已有活动连接，先关闭')
-      ws.value.close()
+    // 防止重复连接
+    if (ws.value) {
+      if (ws.value.readyState === WebSocket.OPEN) {
+        console.warn('[WebSocket] 已有活动连接，跳过重复连接')
+        return
+      } else if (ws.value.readyState === WebSocket.CONNECTING) {
+        console.warn('[WebSocket] 正在连接中，跳过重复连接')
+        return
+      } else {
+        console.log('[WebSocket] 清理旧连接')
+        ws.value.close()
+      }
     }
     
     connectionState.value = 'connecting'
@@ -209,11 +209,6 @@ export function useWebSocket() {
         if (message.type === 'pong') {
           handleHeartbeatResponse()
           return
-        }
-        
-        // 只在非流式消息时输出日志，减少冗余
-        if (message.type !== 'llm_stream') {
-          console.log('[WebSocket] 收到消息:', message.type)
         }
         
         if (messageHandler.value) {
@@ -269,12 +264,10 @@ export function useWebSocket() {
   const send = (data, queueIfOffline = true) => {
     if (ws.value && ws.value.readyState === WebSocket.OPEN) {
       ws.value.send(JSON.stringify(data))
-      console.log('[WebSocket] 发送消息:', data.type)
     } else {
       console.warn('[WebSocket] 连接未建立')
       
       if (queueIfOffline && connectionState.value === 'reconnecting') {
-        console.log('[WebSocket] 消息加入离线队列:', data.type)
         offlineQueue.value.push(data)
         
         // 限制队列大小
