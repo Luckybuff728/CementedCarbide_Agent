@@ -12,12 +12,10 @@ from .validator import create_validator_agent
 from .analyst import create_analyst_agent
 from .optimizer import create_optimizer_agent
 from .experimenter import create_experimenter_agent
-from .supervisor import create_supervisor
 
 __all__ = [
     "create_validator_agent",
     "create_analyst_agent",
     "create_optimizer_agent",
     "create_experimenter_agent",
-    "create_supervisor",
 ]

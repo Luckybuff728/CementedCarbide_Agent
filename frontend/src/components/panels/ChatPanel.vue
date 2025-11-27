@@ -63,13 +63,11 @@
               <div 
                 v-for="tool in msg.tools" 
                 :key="tool.name" 
-                class="tool-item"
-                :class="{ 'tool-running': tool.isRunning }"
+                class="tool-chip"
+                :class="{ 'running': tool.isRunning }"
               >
-                <component :is="Icon" :component="SettingsOutline" :size="14" class="tool-icon" :class="{ 'spinning': tool.isRunning }" />
-                <span class="tool-name">{{ tool.displayName }}</span>
-                <span v-if="!tool.isRunning" class="tool-done">✓</span>
-                <span v-else class="tool-loading">...</span>
+                <span class="tool-indicator" :class="{ 'running': tool.isRunning }"></span>
+                <span class="tool-label">{{ tool.displayName }}</span>
               </div>
             </div>
             
@@ -578,53 +576,52 @@ onUnmounted(() => {
   to { transform: rotate(360deg); }
 }
 
-/* 工具列表（嵌入在消息中） */
+/* 工具列表 */
 .tools-list {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   margin-bottom: 12px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid #e8eaed;
 }
 
-.tool-item {
+.tool-chip {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 12px;
+  padding: 5px 12px 5px 10px;
   background: #f8f9fa;
+  border: 1px solid #e8eaed;
   border-radius: 16px;
   font-size: 12px;
   color: #5f6368;
-  font-family: 'Roboto Mono', monospace;
 }
 
-.tool-item.tool-running {
+.tool-chip.running {
   background: #e8f0fe;
+  border-color: #d2e3fc;
   color: #1967d2;
 }
 
-.tool-name {
-  max-width: 200px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.tool-indicator {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #34a853;
+  flex-shrink: 0;
 }
 
-.tool-done {
-  color: #34a853;
-  font-weight: 500;
+.tool-chip.running .tool-indicator {
+  background: #1967d2;
+  animation: toolPulse 1s ease-in-out infinite;
 }
 
-.tool-loading {
-  color: #1967d2;
-  animation: pulse 1s ease-in-out infinite;
-}
-
-@keyframes pulse {
+@keyframes toolPulse {
   0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+  50% { opacity: 0.4; }
+}
+
+.tool-label {
+  font-weight: 500;
 }
 
 /* Typing指示器 */

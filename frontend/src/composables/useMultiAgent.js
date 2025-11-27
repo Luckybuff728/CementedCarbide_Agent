@@ -249,19 +249,20 @@ export function useMultiAgent() {
     })
   }
 
-  // 工具名称映射（只保留数据获取类工具）
-  // 优化方案、工单、分析报告等由 Agent 自己生成，不通过工具
+  // 工具名称映射 - 简洁中文名
   const toolNameMap = {
     // 验证工具
-    'validate_composition_tool': '🔬 验证成分配比',
-    'validate_process_params_tool': '⚙️ 验证工艺参数',
-    'normalize_composition_tool': '📊 归一化成分',
-    // 分析数据获取工具
-    'simulate_topphi_tool': '🧪 TopPhi 模拟',
-    'predict_ml_performance_tool': '📈 ML 性能预测',
-    'compare_historical_tool': '📚 历史案例对比',
-    // 实验数据工具
-    'analyze_experiment_results_tool': '📊 实验结果对比'
+    'validate_composition_tool': '验证成分配比',
+    'validate_process_params_tool': '验证工艺参数',
+    'normalize_composition_tool': '归一化成分',
+    // 分析工具
+    'simulate_topphi_tool': 'TopPhi 模拟',
+    'predict_ml_performance_tool': 'ML 性能预测',
+    'compare_historical_tool': '历史案例检索',
+    // 实验工具
+    'analyze_experiment_results_tool': '实验结果分析',
+    'show_performance_comparison_tool': '性能对比',
+    'request_experiment_input_tool': '实验数据录入'
   }
 
   /**
@@ -394,6 +395,12 @@ export function useMultiAgent() {
     if (!isConnected.value) {
       ElMessage.warning('未连接到服务器')
       return
+    }
+
+    // 首次发送消息时，清除欢迎消息（System 类型且 agent 为 'System' 的消息）
+    const hasUserMessage = messages.value.some(m => m.type === 'user')
+    if (!hasUserMessage) {
+      messages.value = messages.value.filter(m => !(m.type === 'agent' && m.agent === 'System'))
     }
 
     // 添加用户消息到列表

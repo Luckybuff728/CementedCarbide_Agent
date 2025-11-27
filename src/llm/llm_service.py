@@ -127,22 +127,28 @@ class QwenChatOpenAI(ChatOpenAI):
         # 构建 model_kwargs，用于传递额外参数
         model_kwargs = kwargs.pop("model_kwargs", {})
         
-        # 如果启用思考模式，添加 extra_body
+        # 如果启用思考模式，设置 extra_body（显式参数，避免警告）
+        extra_body = None
         if enable_thinking and model in THINKING_SUPPORTED_MODELS:
-            model_kwargs["extra_body"] = {"enable_thinking": True}
+            extra_body = {"enable_thinking": True}
             logger.info(f"[Qwen] 启用思考模式: model={model}")
         
         # 调用父类初始化
-        super().__init__(
-            model=model,
-            temperature=temperature,
-            openai_api_key=resolved_api_key,
-            openai_api_base=resolved_base_url,
-            streaming=streaming,
-            max_tokens=max_tokens,
-            model_kwargs=model_kwargs,
+        init_kwargs = {
+            "model": model,
+            "temperature": temperature,
+            "openai_api_key": resolved_api_key,
+            "openai_api_base": resolved_base_url,
+            "streaming": streaming,
+            "max_tokens": max_tokens,
             **kwargs
-        )
+        }
+        if model_kwargs:
+            init_kwargs["model_kwargs"] = model_kwargs
+        if extra_body:
+            init_kwargs["extra_body"] = extra_body
+        
+        super().__init__(**init_kwargs)
         
         # 在 super().__init__() 之后设置属性（Pydantic 要求）
         object.__setattr__(self, '_api_key', resolved_api_key)

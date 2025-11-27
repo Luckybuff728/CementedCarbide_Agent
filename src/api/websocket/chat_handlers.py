@@ -298,12 +298,16 @@ def _get_agent_display_name(agent: str) -> str:
 def _get_tool_display_name(tool: str) -> str:
     """获取工具显示名称"""
     names = {
+        # 验证工具
         "validate_composition_tool": "验证成分配比",
         "validate_process_params_tool": "验证工艺参数",
-        "run_topphi_simulation_tool": "TopPhi 模拟",
-        "predict_performance_tool": "ML 性能预测",
-        "optimize_composition_tool": "成分优化",
-        "optimize_process_tool": "工艺优化",
-        "generate_workorder_tool": "生成实验工单"
+        "normalize_composition_tool": "归一化成分",
+        # 分析工具
+        "simulate_topphi_tool": "TopPhi 相场模拟",
+        "predict_ml_performance_tool": "ML 性能预测",
+        "compare_historical_tool": "历史案例检索",
+        # 实验工具
+        "show_performance_comparison_tool": "性能对比",
+        "request_experiment_input_tool": "实验数据录入",
     }
     return names.get(tool, tool)
