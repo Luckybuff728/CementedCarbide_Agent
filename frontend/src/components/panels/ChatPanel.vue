@@ -15,7 +15,7 @@
     </div>
     
     <!-- 消息区域 -->
-    <div class="chat-messages" ref="messagesContainer">
+    <div class="chat-messages" ref="messagesContainer" @scroll="handleScroll">
       <div v-if="messages.length === 0" class="empty-state">
         <div class="empty-icon">
           <component :is="Icon" :component="ChatboxEllipsesOutline" :size="48" />
@@ -31,11 +31,11 @@
       >
         <!-- 只为agent消息显示头像 -->
         <div v-if="msg.type === 'agent'" class="message-avatar agent">
-          <img src="/1.svg" alt="Agent" class="avatar-image" />
+          <img src="/favicon.ico" alt="Agent" class="avatar-image" />
         </div>
         <div class="message-bubble-wrapper">
+          <!-- 简化：只显示时间 -->
           <div class="message-meta" v-if="msg.type === 'agent'">
-            <span class="message-agent">{{ msg.agent }}</span>
             <span class="message-time">{{ formatTime(msg.timestamp) }}</span>
           </div>
           
@@ -51,7 +51,11 @@
                 <span class="thinking-label">{{ msg.isThinking ? 'Thinking...' : 'Thought for a few seconds' }}</span>
                 <span class="thinking-toggle">{{ expandedThinking[index] ? '▼' : '▶' }}</span>
               </div>
-              <div v-show="expandedThinking[index] || msg.isThinking" class="thinking-text">{{ msg.thinking }}</div>
+              <div 
+                v-show="expandedThinking[index] || msg.isThinking" 
+                class="thinking-text"
+                :ref="el => { if (el && msg.isThinking) thinkingRefs[index] = el }"
+              >{{ msg.thinking }}</div>
             </div>
             
             <!-- 工具执行状态（嵌入在消息中） -->
@@ -128,7 +132,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick, h } from 'vue'
+import { ref, computed, watch, nextTick, h, onUnmounted } from 'vue'
 import { ElButton, ElInput, ElIcon } from 'element-plus'
 import { 
   ChatboxEllipsesOutline,
@@ -198,6 +202,9 @@ const stopGenerate = () => {
 
 const userInput = ref('')
 const messagesContainer = ref(null)
+
+// 思考区域的 refs（用于滚动到底部）
+const thinkingRefs = ref({})
 
 // 思考过程展开状态（默认收起）
 const expandedThinking = ref({})
@@ -273,21 +280,86 @@ const cleanContent = (content) => {
   return cleaned
 }
 
-// 自动滚动到底部
-watch(() => props.messages.length, () => {
-  nextTick(() => {
-    if (messagesContainer.value) {
-      messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
-    }
-  })
+// 用户是否在底部附近（允许 150px 的误差）
+const isNearBottom = ref(true)
+const SCROLL_THRESHOLD = 150
+
+// 检测用户滚动位置
+const handleScroll = () => {
+  if (!messagesContainer.value) return
+  const { scrollTop, scrollHeight, clientHeight } = messagesContainer.value
+  // 距离底部的距离
+  const distanceToBottom = scrollHeight - scrollTop - clientHeight
+  isNearBottom.value = distanceToBottom < SCROLL_THRESHOLD
+}
+
+// 滚动到底部（仅在用户在底部附近时）
+const scrollToBottom = (force = false) => {
+  if (!messagesContainer.value) return
+  // 如果用户向上滚动查看历史，不强制滚动（除非 force=true）
+  if (!force && !isNearBottom.value) return
+  messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
+}
+
+// 强制滚动到底部（用于用户发送消息时）
+const forceScrollToBottom = () => {
+  isNearBottom.value = true
+  nextTick(() => scrollToBottom(true))
+}
+
+// 流式滚动定时器
+let streamScrollTimer = null
+
+// 自动滚动到底部 - 消息数量变化
+watch(() => props.messages.length, (newLen, oldLen) => {
+  // 用户发送新消息时，强制滚动
+  const lastMsg = props.messages[props.messages.length - 1]
+  if (lastMsg && lastMsg.type === 'user') {
+    forceScrollToBottom()
+  } else {
+    nextTick(() => scrollToBottom())
+  }
 })
 
+// 自动滚动到底部 - 打字状态变化
 watch(() => props.isAgentTyping, () => {
-  nextTick(() => {
-    if (messagesContainer.value) {
-      messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
+  nextTick(() => scrollToBottom())
+})
+
+// 滚动所有正在输出的 thinking 区域到底部
+const scrollThinkingToBottom = () => {
+  Object.values(thinkingRefs.value).forEach(el => {
+    if (el) {
+      el.scrollTop = el.scrollHeight
     }
   })
+}
+
+// 流式生成期间持续滚动 - 解决内容更新但消息数量不变的问题
+watch(() => props.isGenerating, (isGenerating) => {
+  if (isGenerating) {
+    // 开始生成时，启动定时滚动（每 100ms 滚动一次）
+    streamScrollTimer = setInterval(() => {
+      scrollToBottom()  // 只在用户在底部时滚动
+      scrollThinkingToBottom()  // 滚动 thinking 区域
+    }, 100)
+  } else {
+    // 停止生成时，清除定时器和 thinking refs
+    if (streamScrollTimer) {
+      clearInterval(streamScrollTimer)
+      streamScrollTimer = null
+    }
+    thinkingRefs.value = {}  // 清理 refs
+    nextTick(() => scrollToBottom())
+  }
+})
+
+// 组件卸载时清理定时器
+onUnmounted(() => {
+  if (streamScrollTimer) {
+    clearInterval(streamScrollTimer)
+    streamScrollTimer = null
+  }
 })
 </script>
 
@@ -335,7 +407,24 @@ watch(() => props.isAgentTyping, () => {
   font-weight: 500;
   background: #e8f0fe;
   color: #1967d2;
-  transition: all 0.2s;
+}
+
+.agent-status.active {
+  background: #e6f4ea;
+  color: #28c05a;
+}
+
+.typing-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: typingPulse 1.2s ease-in-out infinite;
+}
+
+@keyframes typingPulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
 }
 
 /* 消息区域 */

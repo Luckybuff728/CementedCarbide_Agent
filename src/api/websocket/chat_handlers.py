@@ -8,6 +8,7 @@
 """
 import logging
 import uuid
+import asyncio
 from typing import Dict, Any, Optional
 from datetime import datetime
 
@@ -174,6 +175,12 @@ async def handle_user_message(data: Dict[str, Any], client_id: str, session_id: 
                 }, client_id)
         
         logger.info(f"[Chat] 消息处理完成: session={session_id}")
+    
+    except asyncio.CancelledError:
+        # 任务被取消（用户终止或发送新消息）
+        logger.info(f"[Chat] 任务被取消: session={session_id}")
+        # 不发送错误消息，前端已经处理了终止状态
+        raise  # 重新抛出以确保任务正确结束
         
     except Exception as e:
         logger.error(f"[Chat] 处理失败: {e}", exc_info=True)

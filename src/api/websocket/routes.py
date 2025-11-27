@@ -5,12 +5,16 @@ WebSocket 路由注册
 """
 import logging
 import uuid
+import asyncio
 from fastapi import WebSocket, WebSocketDisconnect
 from .manager import manager
 from .chat_handlers import handle_chat_message
 from ..security import decode_token
 
 logger = logging.getLogger(__name__)
+
+# 存储每个客户端的后台任务
+_client_tasks: dict = {}
 
 
 def setup_websocket_routes(app):
@@ -95,25 +99,69 @@ def setup_websocket_routes(app):
 或者，您可以先在左侧面板输入您的初始参数。"""
             }, client_id)
             
+            # 初始化客户端任务列表
+            _client_tasks[client_id] = []
+            
             # 消息处理循环
             while True:
                 data = await websocket.receive_json()
                 msg_type = data.get("type", "unknown")
                 logger.info(f"[Chat] 收到消息: {msg_type}")
                 
-                # ping/pong 心跳
+                # ping/pong 心跳 - 立即响应，不阻塞
                 if msg_type == "ping":
                     await manager.send_json({"type": "pong"}, client_id)
                     continue
                 
-                # 路由到对话处理器
-                await handle_chat_message(data, client_id, session_id)
+                # 终止生成 - 取消所有正在进行的任务
+                if msg_type == "stop_generate":
+                    cancelled_count = 0
+                    for task in _client_tasks.get(client_id, []):
+                        if not task.done():
+                            task.cancel()
+                            cancelled_count += 1
+                    _client_tasks[client_id] = []
+                    logger.info(f"[Chat] 终止生成: 取消了 {cancelled_count} 个任务")
+                    await manager.send_json({
+                        "type": "generate_stopped",
+                        "message": "生成已终止"
+                    }, client_id)
+                    continue
+                
+                # 发送新消息前，先取消之前未完成的任务（避免旧响应干扰新对话）
+                if msg_type == "chat_message":
+                    for task in _client_tasks.get(client_id, []):
+                        if not task.done():
+                            task.cancel()
+                            logger.info(f"[Chat] 发送新消息，取消之前的任务")
+                    _client_tasks[client_id] = []
+                
+                # 清理已完成的任务
+                _client_tasks[client_id] = [
+                    t for t in _client_tasks[client_id] if not t.done()
+                ]
+                
+                # 将消息处理放入后台任务，避免阻塞心跳响应
+                task = asyncio.create_task(
+                    handle_chat_message(data, client_id, session_id)
+                )
+                _client_tasks[client_id].append(task)
         
         except WebSocketDisconnect:
+            # 取消该客户端所有未完成的任务
+            for task in _client_tasks.get(client_id, []):
+                if not task.done():
+                    task.cancel()
+            _client_tasks.pop(client_id, None)
             manager.disconnect(client_id)
             logger.info(f"[Chat] 连接断开: {client_id}")
         except Exception as e:
             logger.error(f"[Chat] 错误: {str(e)}", exc_info=True)
+            # 取消该客户端所有未完成的任务
+            for task in _client_tasks.get(client_id, []):
+                if not task.done():
+                    task.cancel()
+            _client_tasks.pop(client_id, None)
             await manager.send_json({
                 "type": "error",
                 "message": f"发生错误: {str(e)}"

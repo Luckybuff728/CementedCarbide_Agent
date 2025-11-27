@@ -219,6 +219,19 @@ export function useMultiAgent() {
         // 心跳响应
         break
 
+      case 'generate_stopped':
+        // 后端确认生成已终止
+        console.log('[ChatAgent] 生成已终止')
+        if (streamingMessage.value) {
+          streamingMessage.value.isStreaming = false
+          streamingMessage.value.isThinking = false
+          streamingMessage.value = null
+        }
+        isAgentTyping.value = false
+        currentAgent.value = 'System'
+        activeTool.value = null
+        break
+
       default:
         console.log('[ChatAgent] 未处理的消息类型:', data.type)
     }

@@ -26,14 +26,6 @@
             </div>
           </template>
           
-          <!-- 当前Agent显示 -->
-          <template v-if="currentAgent !== '等待中'">
-            <div class="status-badge agent">
-              <el-icon :size="14"><RibbonOutline /></el-icon>
-              <span class="badge-value">{{ currentAgent }}</span>
-            </div>
-          </template>
-          
           <!-- 错误状态指示 -->
           <template v-if="hasError">
             <div class="status-badge error" @click="showErrorDetails">
@@ -411,7 +403,7 @@ watch(() => authStore.isAuthenticated, (authed) => {
 
 .connection-indicator.active {
   background: #e6f4ea;
-  color: #137333;
+  color: #1fc757;
 }
 
 .connection-dot {
