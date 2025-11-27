@@ -1,46 +1,28 @@
 """
-Agents 模块 - 多Agent系统（Supervisor-Workers模式）
+TopMat 多Agent系统 v2.0 - 对话式多Agent系统
+
+架构：
+- state.py: 统一状态定义
+- tools/: 原子工具定义
+- prompts/: Agent 提示词定义
+- graph.py: 对话式图构建
 """
-from .tools import (
-    validate_input_tool,
-    simulate_topphi_tool,
-    predict_ml_performance_tool,
-    compare_historical_tool,
-    analyze_root_cause_tool,
-    generate_p1_optimization_tool,
-    generate_p2_optimization_tool,
-    generate_p3_optimization_tool,
-    generate_workorder_tool,
-    ALL_TOOLS
+
+from .state import CoatingState, create_initial_state
+
+from .graph import (
+    create_conversational_graph,
+    ConversationalGraphManager,
+    get_conversational_manager,
 )
 
-# 原有的Agent节点（Supervisor-Workers模式）
-from .supervisor_agent import supervisor_node
-from .validator_agent import validator_agent_node
-from .analyst_agent import analyst_agent_node
-from .optimizer_agent import optimizer_agent_node
-from .experimenter_agent import experimenter_agent_node
-
-
 __all__ = [
-    # Tools
-    "validate_input_tool",
-    "simulate_topphi_tool",
-    "predict_ml_performance_tool",
-    "compare_historical_tool",
-    "analyze_root_cause_tool",
-    "generate_p1_optimization_tool",
-    "generate_p2_optimization_tool",
-    "generate_p3_optimization_tool",
-    "generate_workorder_tool",
-    "ALL_TOOLS",
+    # 状态
+    "CoatingState",
+    "create_initial_state",
     
-    # 原有Agent节点
-    "supervisor_node",
-    "validator_agent_node",
-    "analyst_agent_node",
-    "optimizer_agent_node",
-    "experimenter_agent_node",
-    
+    # 对话式系统
+    "create_conversational_graph",
+    "ConversationalGraphManager",
+    "get_conversational_manager",
 ]
-

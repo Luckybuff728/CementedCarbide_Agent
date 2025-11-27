@@ -434,10 +434,11 @@ onUnmounted(() => {
 
 <style scoped>
 .performance-comparison-chart {
-  background: white;
-  border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  border: 1px solid #e5e7eb;
   margin-top: 16px;
 }
 
@@ -445,9 +446,9 @@ onUnmounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
-  padding-bottom: 12px;
-  border-bottom: 2px solid #e5e7eb;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #f3f4f6;
 }
 
 .header-left {
@@ -459,8 +460,8 @@ onUnmounted(() => {
 .header-left h4 {
   margin: 0;
   font-size: 18px;
-  font-weight: 700;
-  color: #1f2937;
+  font-weight: 600;
+  color: #111827;
 }
 
 .chart-legend {
@@ -472,14 +473,14 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   color: #4b5563;
 }
 
 .legend-dot {
-  width: 14px;
-  height: 14px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
   flex-shrink: 0;
 }
@@ -507,8 +508,8 @@ onUnmounted(() => {
 .chart-actions {
   display: flex;
   justify-content: center;
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid #e5e7eb;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #f3f4f6;
 }
 </style>

@@ -255,13 +255,13 @@ const handleCancel = () => {
 
 <style scoped>
 .experiment-input-card {
-  background: white;
+  background: #ffffff;
   border-radius: 16px;
   padding: 24px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  border: 1px solid var(--border-color);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  border: 1px solid #e5e7eb;
   max-width: 100%;
-  overflow-x: hidden; /* Prevent overflow */
+  overflow-x: hidden;
   box-sizing: border-box;
 }
 
@@ -271,15 +271,15 @@ const handleCancel = () => {
   align-items: flex-start;
   margin-bottom: 24px;
   padding-bottom: 16px;
-  border-bottom: 1px solid var(--border-light);
-  flex-wrap: wrap; /* Allow wrapping */
+  border-bottom: 1px solid #f3f4f6;
+  flex-wrap: wrap;
   gap: 12px;
 }
 
 .header-left {
   display: flex;
   gap: 12px;
-  min-width: 0; /* Allow text truncation */
+  min-width: 0;
   flex: 1;
 }
 
@@ -287,7 +287,7 @@ const handleCancel = () => {
   width: 40px;
   height: 40px;
   border-radius: 10px;
-  background: var(--primary-lighter);
+  background: #eff6ff;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -295,14 +295,14 @@ const handleCancel = () => {
 }
 
 .header-text {
-  min-width: 0; /* Allow text truncation */
+  min-width: 0;
 }
 
 .header-text h3 {
   margin: 0 0 4px 0;
   font-size: 18px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: #111827;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -310,7 +310,7 @@ const handleCancel = () => {
 
 .subtitle {
   font-size: 13px;
-  color: var(--text-secondary);
+  color: #6b7280;
   display: block;
   white-space: nowrap;
   overflow: hidden;
@@ -336,18 +336,18 @@ const handleCancel = () => {
   margin: 0;
   font-size: 15px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: #1f2937;
   white-space: nowrap;
 }
 
 .section-desc {
   font-size: 12px;
-  color: var(--text-secondary);
+  color: #6b7280;
 }
 
 .form-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); /* Flexible grid */
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 16px;
   margin-bottom: 16px;
 }
@@ -356,18 +356,18 @@ const handleCancel = () => {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  min-width: 0; /* Prevent flex item overflow */
+  min-width: 0;
 }
 
 .input-label {
   font-size: 13px;
   font-weight: 500;
-  color: var(--text-secondary);
+  color: #6b7280;
   white-space: nowrap;
 }
 
 .required {
-  color: var(--danger);
+  color: #ef4444;
 }
 
 .input-with-unit {
@@ -383,46 +383,54 @@ const handleCancel = () => {
 
 .input-with-unit :deep(.el-input__inner) {
   text-align: left;
-  padding-right: 45px; /* Space for unit */
+  padding-right: 45px;
   width: 100%;
+  border-radius: 8px;
+  border-color: #e5e7eb;
+}
+
+.input-with-unit :deep(.el-input__inner:focus) {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 1px #3b82f6;
 }
 
 .unit {
   position: absolute;
   right: 12px;
   font-size: 12px;
-  color: var(--text-secondary);
+  color: #9ca3af;
   font-weight: 500;
   pointer-events: none;
   background: transparent;
 }
 
 .notes-section :deep(.el-textarea__inner) {
-  background: var(--bg-secondary);
-  border: 1px solid transparent;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
   transition: all 0.2s;
+  border-radius: 8px;
 }
 
 .notes-section :deep(.el-textarea__inner):focus {
-  background: white;
-  border-color: var(--primary);
-  box-shadow: 0 0 0 2px var(--primary-lighter);
+  background: #ffffff;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 1px #3b82f6;
 }
 
 /* Reference Section */
 .reference-section {
-  background: linear-gradient(to right, var(--primary-lighter), white);
+  background: linear-gradient(to right, #eff6ff, #ffffff);
   border-radius: 12px;
   padding: 16px;
-  border: 1px solid var(--primary-light);
-  overflow-x: auto; /* Allow scroll if needed */
+  border: 1px solid #dbeafe;
+  overflow-x: auto;
 }
 
 .comparison-row {
   display: flex;
   align-items: center;
   gap: 24px;
-  min-width: max-content; /* Ensure content fits */
+  min-width: max-content;
 }
 
 .stat-item {
@@ -433,7 +441,7 @@ const handleCancel = () => {
 
 .stat-label {
   font-size: 12px;
-  color: var(--text-secondary);
+  color: #6b7280;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -451,20 +459,20 @@ const handleCancel = () => {
   margin-left: 2px;
 }
 
-.stat-value.current { color: var(--primary); }
-.stat-value.historical { color: var(--success); }
-.stat-value.target { color: var(--warning); }
+.stat-value.current { color: #3b82f6; }
+.stat-value.historical { color: #10b981; }
+.stat-value.target { color: #f59e0b; }
 
 .stat-divider {
   width: 1px;
   height: 32px;
-  background: var(--border-color);
+  background: #e5e7eb;
 }
 
 /* Decision Section */
 .decision-radio-group {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); /* Flexible grid */
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 16px;
   width: 100%;
 }
@@ -475,6 +483,13 @@ const handleCancel = () => {
   height: auto !important;
   padding: 12px !important;
   box-sizing: border-box;
+  border-radius: 12px !important;
+  border-color: #e5e7eb !important;
+}
+
+.decision-radio.is-checked {
+  border-color: #3b82f6 !important;
+  background-color: #eff6ff !important;
 }
 
 .radio-inner {
@@ -486,19 +501,19 @@ const handleCancel = () => {
 
 .radio-icon {
   font-size: 20px;
-  color: var(--text-secondary);
+  color: #9ca3af;
   flex-shrink: 0;
 }
 
 .decision-radio.is-checked .radio-icon {
-  color: var(--primary);
+  color: #3b82f6;
 }
 
 .radio-text {
   display: flex;
   flex-direction: column;
   line-height: 1.2;
-  min-width: 0; /* Allow text truncation */
+  min-width: 0;
 }
 
 .radio-label {
@@ -507,11 +522,16 @@ const handleCancel = () => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  color: #374151;
+}
+
+.decision-radio.is-checked .radio-label {
+  color: #1d4ed8;
 }
 
 .radio-sub {
   font-size: 12px;
-  color: var(--text-secondary);
+  color: #6b7280;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -524,12 +544,13 @@ const handleCancel = () => {
   gap: 12px;
   margin-top: 32px;
   padding-top: 20px;
-  border-top: 1px solid var(--border-light);
+  border-top: 1px solid #f3f4f6;
   flex-wrap: wrap;
 }
 
 .submit-btn {
   min-width: 140px;
+  border-radius: 8px;
 }
 
 /* Responsive */
@@ -538,13 +559,11 @@ const handleCancel = () => {
     padding: 16px;
   }
   
-  /* Auto-fit handles grid columns now, so we don't need explicit media queries for that */
-  
   .comparison-row {
     flex-direction: column;
     align-items: flex-start;
     gap: 16px;
-    min-width: 0; /* Reset min-width */
+    min-width: 0;
   }
   
   .stat-divider {

@@ -27,8 +27,9 @@ export const WS_BASE_URL = import.meta.env.VITE_WS_BASE_URL || (
 
 // WebSocket端点
 export const WS_ENDPOINTS = {
-  coating: `${WS_BASE_URL}/ws/coating/agent`,  // 多Agent模式
-  coatingLegacy: `${WS_BASE_URL}/ws/coating`   // 原工作流模式（备用）
+  chat: `${WS_BASE_URL}/ws/coating/chat`,       // 对话式模式（v2.0 推荐）
+  coating: `${WS_BASE_URL}/ws/coating/agent`,   // 多Agent模式（旧版）
+  coatingLegacy: `${WS_BASE_URL}/ws/coating`    // 原工作流模式（备用）
 }
 
 // API端点

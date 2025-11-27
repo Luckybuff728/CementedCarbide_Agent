@@ -1,16 +1,80 @@
 /**
- * PDF导出工具 - 使用html2canvas + jsPDF
- * 支持中文显示和智能分页，避免表格断裂
+ * 实验工单 PDF 导出工具
+ * 
+ * 专门处理实验工单的 Markdown 格式，手动解析并转换为格式化 HTML
+ * 支持：标题、表格、列表、粗体等格式
  */
 
 import html2canvas from 'html2canvas'
 import { jsPDF } from 'jspdf'
-import MarkdownIt from 'markdown-it'
 
 /**
- * 生成工单PDF（支持中文，智能分页）
- * @param {string} markdownContent - Markdown格式的工单内容
- * @param {string} workorderNumber - 工单编号
+ * 手动解析 Markdown 为 HTML（专门针对实验工单格式）
+ * @param {string} markdown - Markdown 文本
+ * @returns {string} HTML 字符串
+ */
+function parseMarkdownToHTML(markdown) {
+  if (!markdown) return ''
+  
+  let html = markdown
+  
+  // 1. 处理表格（必须在其他处理之前）
+  html = html.replace(/\|(.+)\|\n\|[-:\s|]+\|\n((?:\|.+\|\n?)+)/g, (match, header, body) => {
+    const headerCells = header.split('|').map(cell => cell.trim()).filter(Boolean)
+    const headerRow = headerCells.map(cell => `<th>${cell}</th>`).join('')
+    
+    const bodyRows = body.trim().split('\n').map(row => {
+      const cells = row.split('|').map(cell => cell.trim()).filter(Boolean)
+      return `<tr>${cells.map(cell => `<td>${cell}</td>`).join('')}</tr>`
+    }).join('')
+    
+    return `<table><thead><tr>${headerRow}</tr></thead><tbody>${bodyRows}</tbody></table>`
+  })
+  
+  // 2. 处理标题
+  html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>')
+  html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>')
+  html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>')
+  
+  // 3. 处理粗体
+  html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+  
+  // 4. 处理有序列表（数字开头）
+  html = html.replace(/^(\d+)\.\s+(.+)$/gm, '<li class="ordered">$2</li>')
+  
+  // 5. 处理无序列表（- 开头）
+  html = html.replace(/^-\s+(.+)$/gm, '<li>$1</li>')
+  
+  // 6. 处理缩进的子列表项（以空格或 tab 开头的 -）
+  html = html.replace(/^\s+-\s+(.+)$/gm, '<li class="sub">$1</li>')
+  
+  // 7. 将连续的 li 包装成 ul/ol
+  html = html.replace(/((?:<li[^>]*>.*?<\/li>\s*)+)/g, (match) => {
+    if (match.includes('class="ordered"')) {
+      return `<ol>${match.replace(/ class="ordered"/g, '')}</ol>`
+    }
+    return `<ul>${match}</ul>`
+  })
+  
+  // 8. 处理段落（非空行且不是已处理的标签）
+  const lines = html.split('\n')
+  html = lines.map(line => {
+    const trimmed = line.trim()
+    if (!trimmed) return ''
+    if (trimmed.startsWith('<')) return line  // 已经是 HTML 标签
+    return `<p>${trimmed}</p>`
+  }).join('\n')
+  
+  // 9. 清理多余空行
+  html = html.replace(/\n{2,}/g, '\n')
+  
+  return html
+}
+
+/**
+ * 生成工单 PDF（支持中文，智能分页）
+ * @param {string} markdownContent - Markdown 格式的工单内容
+ * @param {string} workorderNumber - 工单编号（系统自动生成）
  * @param {string} solutionName - 方案名称
  * @returns {Promise<string>} 文件名
  */
@@ -18,22 +82,28 @@ export async function generateWorkorderPDF(markdownContent, workorderNumber, sol
   // 获取当前时间
   const dateStr = new Date().toLocaleString('zh-CN')
   
-  // 清理Markdown内容，移除重复的标题和工单信息
+  // 清理 Markdown 内容，移除会在 PDF 头部重复显示的信息
   let cleanedContent = markdownContent
-    // 移除 "# 实验工单" 或 "## 实验工单" 标题
-    .replace(/^#+ *实验工单\s*$/gm, '')
-    // 移除 "## 实验名称" 章节（包括标题和下一行内容）
-    .replace(/^##\s*实验名称\s*\n[^\n#]+/gm, '')
-    // 移除 "**实验名称**: XXX" 行（旧格式兼容）
-    .replace(/^\*?\*?实验名称\*?\*?\s*[:：]\s*[^\n]+$/gm, '')
-    // 移除 "工单编号: XXX" 行
-    .replace(/^\*?\*?工单编号\*?\*?\s*[:：]\s*[^\n]+$/gm, '')
-    // 移除 "**工单编号**: XXX" 格式
-    .replace(/\*\*工单编号\*\*\s*[:：]\s*[^\n]+/g, '')
-    // 移除空行（连续的换行符）
+    // 移除代码块标记 ```markdown 和 ```
+    .replace(/```markdown\s*/gi, '')
+    .replace(/```\s*/g, '')
+    // 移除 "# 实验工单" 标题
+    .replace(/^#\s*实验工单\s*$/gm, '')
+    // 移除整个基本信息章节
+    .replace(/^##\s*基本信息[\s\S]*?(?=##\s*实验目的|##\s*涂层配方|$)/m, '')
+    // 移除单独的优化方案和方案名称行（已在头部显示）
+    .replace(/^-\s*优化方案[：:]\s*.+$/gm, '')
+    .replace(/^-\s*方案名称[：:]\s*.+$/gm, '')
+    // 移除"数据记录"章节（不需要打印）
+    .replace(/^##\s*数据记录[\s\S]*$/m, '')
+    // 移除空行
     .replace(/\n{3,}/g, '\n\n')
-    // 移除开头的空白
     .trim()
+  
+  // 手动解析 Markdown 为 HTML
+  const htmlContent = parseMarkdownToHTML(cleanedContent)
+  
+  console.log('[PDF] 转换后 HTML:', htmlContent.substring(0, 500))
   
   // 创建临时容器（优化尺寸以适应A4纸张）
   const container = document.createElement('div')
@@ -47,11 +117,7 @@ export async function generateWorkorderPDF(markdownContent, workorderNumber, sol
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', 'PingFang SC', sans-serif;
   `
   
-  // 解析Markdown（使用清理后的内容）
-  const md = new MarkdownIt()
-  const htmlContent = md.render(cleanedContent)
-  
-  // 构建HTML内容
+  // 构建 HTML 内容（头部 + 渲染后的 Markdown）
   container.innerHTML = `
     <style>
       * {
@@ -136,6 +202,10 @@ export async function generateWorkorderPDF(markdownContent, workorderNumber, sol
         margin: 3px 0;
         line-height: 1.5;
       }
+      .pdf-content li.sub {
+        margin-left: 20px;
+        list-style-type: circle;
+      }
       .pdf-content table {
         width: 100%;
         border-collapse: collapse;
@@ -168,11 +238,11 @@ export async function generateWorkorderPDF(markdownContent, workorderNumber, sol
     </style>
     <div class="pdf-header">
       <h1>TopMat 实验工单</h1>
-      <h2>${solutionName}</h2>
+      <h2>${solutionName || '涂层优化实验'}</h2>
       <div class="meta-info">
         <div class="meta">
           <span class="meta-label">工单编号</span>
-          <span>${workorderNumber}</span>
+          <span style="font-family: Consolas, monospace; color: #2980b9;">${workorderNumber}</span>
         </div>
         <div class="meta">
           <span class="meta-label">生成时间</span>
@@ -183,11 +253,11 @@ export async function generateWorkorderPDF(markdownContent, workorderNumber, sol
     <div class="pdf-content">${htmlContent}</div>
   `
   
-  // 添加到DOM
+  // 添加到 DOM
   document.body.appendChild(container)
   
-  // 等待渲染
-  await new Promise(resolve => setTimeout(resolve, 100))
+  // 等待渲染完成（增加等待时间确保复杂内容渲染完毕）
+  await new Promise(resolve => setTimeout(resolve, 300))
   
   // 使用html2canvas截图（高质量）
   const canvas = await html2canvas(container, {

@@ -15,7 +15,7 @@ const RECONNECT_CONFIG = {
 // 心跳配置
 const HEARTBEAT_CONFIG = {
   interval: 30000,          // 心跳间隔（30秒）
-  timeout: 20000            // 心跳超时（20秒，长任务时延长至180秒）
+  timeout: 600000            // 心跳超时（60秒，长任务时延长至300秒）
 }
 
 export function useWebSocket() {
@@ -69,8 +69,8 @@ export function useWebSocket() {
         // 根据任务状态动态调整超时时间
         let timeout = HEARTBEAT_CONFIG.timeout
         if (isProcessingLongTask.value) {
-          // 长时间任务期间，延长超时至180秒
-          timeout = 180000
+          // 长时间任务期间，延长超时至300秒（5分钟）
+          timeout = 300000
         }
         
         // 设置心跳超时

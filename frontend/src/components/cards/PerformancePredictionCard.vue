@@ -102,7 +102,7 @@ const confidenceBadge = computed(() => {
 .prediction-summary {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
 }
 
 .key-metric {
@@ -110,48 +110,47 @@ const confidenceBadge = computed(() => {
   flex-direction: column;
   gap: 4px;
   padding: 16px;
-  background: var(--bg-tertiary);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--border-light);
+  background: #f9fafb;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
 }
 
 .metric-label {
-  font-size: var(--font-sm);
-  color: var(--text-secondary);
+  font-size: 12px;
+  color: #6b7280;
   font-weight: 500;
 }
 
 .metric-value {
-  font-size: var(--font-3xl);
+  font-size: 24px;
   font-weight: 700;
+  color: #1f2937;
 }
 
 .metric-value.highlight {
-  color: var(--primary);
+  color: #1967d2;
 }
 
 .metrics-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px;
+  gap: 12px;
 }
 
 .metric-item {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  font-size: var(--font-sm);
+  gap: 2px;
+  font-size: 13px;
 }
 
 .metric-item span:first-child {
   font-weight: 500;
-}
-
-.metric-item span:first-child {
-  color: var(--text-secondary);
+  color: #6b7280;
 }
 
 .metric-item span:last-child {
   font-weight: 600;
+  color: #111827;
 }
 </style>

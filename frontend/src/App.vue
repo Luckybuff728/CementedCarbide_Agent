@@ -3,28 +3,20 @@ import { onMounted } from 'vue'
 import { useAuthStore } from './stores/auth'
 import { CONFIG } from './config'
 
-import ErrorBoundary from './components/layout/ErrorBoundary.vue'
-import LoginPanel from './components/auth/LoginPanel.vue'
+import LoginPanel from './components/panels/LoginPanel.vue'
 import MultiAgentView from './views/MultiAgentView.vue'
 
-// ==================== 初始化 ====================
 const authStore = useAuthStore()
 
-// ==================== 生命周期 ====================
 onMounted(() => {
   authStore.init()
   console.log(`[App] TopMat v${CONFIG.version} - ${CONFIG.mode} 模式`)
 })
-
-// 注意：WebSocket连接管理已移至 MultiAgentView.vue
-// 避免在 App.vue 中重复创建连接
 </script>
 
 <template>
-  <ErrorBoundary>
-    <LoginPanel v-if="!authStore.isAuthenticated" />
-    <MultiAgentView v-else />
-  </ErrorBoundary>
+  <LoginPanel v-if="!authStore.isAuthenticated" />
+  <MultiAgentView v-else />
 </template>
 
 <style>

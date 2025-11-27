@@ -1,17 +1,17 @@
-# TopMat Agent - 硬质合金涂层智能优化系统
+# TopMat Agent - 硬质合金涂层智能研发助手
 
 ## 📋 项目简介
 
-TopMat Agent 是一个基于 **LangGraph** 的智能涂层优化系统，专注于硬质合金涂层的成分设计、结构优化和工艺改进。集成阿里云百炼大模型，为材料研发提供实时、智能的决策支持。
+TopMat Agent 是一个基于 **LangGraph** 的对话式多 Agent 智能系统，专注于硬质合金涂层（AlTiN 等）的研发优化。通过自然语言对话，为材料研发提供参数验证、性能预测、方案优化、实验管理等全流程支持。
 
 ### ✨ 核心特点
 
-- 🤖 **AI驱动**: 集成阿里云百炼Qwen大模型，智能分析预测
-- 📊 **实时交互**: WebSocket流式输出，即时反馈分析过程
-- 🔄 **迭代优化**: 支持多轮实验闭环，持续改进性能
-- 💡 **三维优化**: 成分/结构/工艺三个维度的优化建议
-- 🎨 **现代化界面**: Vue 3 + Element Plus，直观易用
-- 📈 **VTK可视化**: TopPhi模拟结果3D可视化展示
+- 🤖 **对话式交互**: 自然语言驱动，智能理解用户意图
+- 🧠 **多 Agent 协作**: 验证/分析/优化/实验专家智能路由
+- 💭 **思考过程可见**: 展示 AI 推理过程，提升可解释性
+- 📊 **实时流式输出**: WebSocket 双向通信，打字机效果
+- 🔬 **专业工具集成**: TopPhi 模拟、ML 预测、历史案例检索
+- 🎨 **现代化界面**: Vue 3 + Element Plus，简洁专业
 
 ## 🚀 快速开始
 
@@ -163,51 +163,45 @@ npm run dev
 TopMat_Agent/
 ├── frontend/                      # Vue 3 前端
 │   ├── src/
-│   │   ├── components/            # UI组件
+│   │   ├── components/            # UI 组件
+│   │   │   ├── chat/              # 聊天面板
+│   │   │   ├── params/            # 参数输入
+│   │   │   └── results/           # 结果展示
 │   │   ├── composables/           # 组合式函数
-│   │   ├── stores/                # Pinia状态管理
-│   │   ├── config/                # 配置文件
-│   │   └── App.vue                # 主应用
-│   ├── .env                       # 前端环境变量
-│   └── package.json               # 前端依赖
+│   │   │   └── useMultiAgentV2.js # 多 Agent 通信
+│   │   └── views/                 # 页面视图
+│   └── package.json
 ├── src/                           # 后端源码
-│   ├── api/                       # FastAPI后端
-│   │   ├── main.py                # FastAPI主应用
-│   │   ├── routes/                # REST API路由
-│   │   │   ├── auth_routes.py     # 认证路由
-│   │   │   └── vtk_routes.py      # VTK数据路由
-│   │   └── websocket/             # WebSocket处理
-│   │       ├── handlers.py        # 消息处理器
-│   │       ├── manager.py         # 连接管理器
-│   │       ├── executors.py       # 任务执行器
-│   │       ├── routes.py          # WebSocket路由
-│   │       └── serializers.py     # 数据序列化
-│   ├── graph/                     # LangGraph工作流
-│   │   ├── workflow.py            # 工作流定义与编排
-│   │   ├── workflow_manager.py    # 工作流管理器
-│   │   ├── nodes.py               # 节点实现
-│   │   ├── state.py               # 状态定义
-│   │   └── stream_callback.py     # 流式输出回调
-│   ├── services/                  # 业务服务层
-│   │   ├── coating_service.py     # 涂层优化核心服务
-│   │   ├── optimization_service.py# 优化建议服务
-│   │   ├── validation_service.py  # 输入验证服务
-│   │   ├── topphi_service.py      # TopPhi模拟服务
-│   │   ├── ml_prediction_service.py# ML预测服务
-│   │   ├── historical_data_service.py# 历史数据服务
-│   │   └── workorder_service.py   # 工单生成服务
-│   ├── llm/                       # LLM服务
-│   │   └── llm_service.py         # 统一LLM服务（阿里云百炼）
-│   ├── models/                    # 数据模型
-│   │   ├── coating_models.py      # 涂层数据模型
-│   │   └── user.py                # 用户模型
-│   ├── db/                        # 数据库
-│   └── utils/                     # 工具函数
-├── docs/                          # 文档
-├── .env                           # 后端环境变量
-├── .env.example                   # 环境变量示例
+│   ├── agents/                    # 多 Agent 系统
+│   │   ├── graph.py               # 对话式图构建
+│   │   ├── state.py               # 状态定义 (TypedDict)
+│   │   ├── prompts/               # Agent 提示词
+│   │   │   ├── validator.py       # 参数验证专家
+│   │   │   ├── analyst.py         # 性能分析专家
+│   │   │   ├── optimizer.py       # 优化建议专家
+│   │   │   └── experimenter.py    # 实验方案专家
+│   │   └── tools/                 # Agent 工具
+│   │       ├── validation_tools.py
+│   │       ├── analysis_tools.py
+│   │       └── experiment_tools.py
+│   ├── api/                       # FastAPI 后端
+│   │   ├── main.py                # 应用入口
+│   │   ├── routes/                # REST API
+│   │   └── websocket/             # WebSocket
+│   │       ├── routes.py          # 路由注册
+│   │       ├── chat_handlers.py   # 对话处理
+│   │       └── manager.py         # 连接管理
+│   ├── llm/                       # LLM 服务
+│   │   └── llm_service.py         # Qwen + 思考模式
+│   ├── services/                  # 业务服务
+│   │   ├── validation_service.py
+│   │   ├── topphi_service.py
+│   │   ├── ml_prediction_service.py
+│   │   └── optimization_service.py
+│   └── models/                    # 数据模型
+├── .env                           # 环境变量
 ├── run.py                         # 启动脚本
-└── requirements.txt               # Python依赖
+└── requirements.txt
 ```
 
 ### 技术栈
@@ -230,251 +224,145 @@ TopMat_Agent/
 - 环境变量配置
 - 统一配置管理
 
-## 🔧 后端架构与流程设计
+## 🔧 多 Agent 架构设计
 
-### 架构设计
+### 系统架构
 
-**分层架构**
 ```
-┌─────────────────────────────────────────────┐
-│  FastAPI Web层 (api/)                       │
-│  ├── main.py          - 应用入口            │
-│  ├── routes/          - REST API路由        │
-│  └── websocket/       - WebSocket通信层     │
-│      ├── handlers.py  - 消息分发与处理      │
-│      ├── manager.py   - 连接管理            │
-│      └── executors.py - 任务执行器          │
-├─────────────────────────────────────────────┤
-│  LangGraph工作流层 (graph/)                 │
-│  ├── workflow.py      - 工作流定义          │
-│  ├── nodes.py         - 节点实现            │
-│  ├── state.py         - 状态管理            │
-│  └── stream_callback.py - 流式输出         │
-├─────────────────────────────────────────────┤
-│  业务服务层 (services/)                     │
-│  ├── coating_service.py - 核心业务逻辑     │
-│  ├── optimization_service.py - 优化建议    │
-│  ├── validation_service.py - 输入验证      │
-│  ├── topphi_service.py - TopPhi模拟        │
-│  ├── ml_prediction_service.py - ML预测     │
-│  └── historical_data_service.py - 历史数据 │
-├─────────────────────────────────────────────┤
-│  LLM服务层 (llm/)                           │
-│  └── llm_service.py   - 阿里云百炼封装      │
-└─────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                      用户对话界面                            │
+│                    (Vue 3 + WebSocket)                      │
+└───────────────────────────┬─────────────────────────────────┘
+                            │ WebSocket
+┌───────────────────────────▼─────────────────────────────────┐
+│                      智能路由 (Router)                       │
+│              根据用户意图分发到合适的专家                      │
+└───────┬───────────┬───────────┬───────────┬─────────────────┘
+        │           │           │           │
+   ┌────▼────┐ ┌────▼────┐ ┌────▼────┐ ┌────▼────┐
+   │Validator│ │ Analyst │ │Optimizer│ │Experimenter│
+   │参数验证  │ │性能预测  │ │方案优化  │ │实验管理   │
+   └────┬────┘ └────┬────┘ └────┬────┘ └────┬────┘
+        │           │           │           │
+   ┌────▼───────────▼───────────▼───────────▼────┐
+   │              Tools (工具层)                  │
+   │  验证工具 | 分析工具 | 优化工具 | 实验工具   │
+   └────────────────────┬────────────────────────┘
+                        │
+   ┌────────────────────▼────────────────────────┐
+   │            Services (业务服务层)             │
+   │  ValidationService | TopPhiService | ...    │
+   └─────────────────────────────────────────────┘
 ```
 
-### LangGraph 工作流详解
+### Agent 角色说明
 
-**节点与数据流**
+| Agent | 职责 | 工具 |
+|-------|------|------|
+| **Router** | 智能路由，理解用户意图 | - |
+| **Assistant** | 通用对话，解释性问题（带思考模式） | - |
+| **Validator** | 参数验证，成分/工艺合理性检查 | 成分验证、工艺验证、归一化 |
+| **Analyst** | 性能预测，调用模拟和 ML 工具 | TopPhi 模拟、ML 预测、历史案例 |
+| **Optimizer** | 优化建议，生成 P1/P2/P3 方案 | - (Agent 自主生成) |
+| **Experimenter** | 实验管理，工单生成和结果分析 | 性能对比、数据采集 |
+
+### 对话流程
 
 ```mermaid
 graph TD
-    A[1. input_validation<br/>输入验证] --> B{验证通过?}
-    B -->|Yes| C[2. topphi_simulation<br/>TopPhi模拟]
-    B -->|No| Z[error_handler<br/>错误处理]
-    C --> D[3. ml_prediction<br/>ML预测]
-    D --> E[4. historical_comparison<br/>历史数据对比]
-    E --> F[5. integrated_analysis<br/>根因分析]
-    F --> G[6. P1成分优化]
-    F --> H[7. P2结构优化]
-    F --> I[8. P3工艺优化]
-    G --> J[9. optimization_summary<br/>优化汇总]
-    H --> J
-    I --> J
-    J --> K[10. await_user_selection<br/>等待用户选择<br/>⏸️ interrupt]
-    K --> L[11. experiment_workorder<br/>生成实验工单]
-    L --> M[12. await_experiment_results<br/>等待实验结果<br/>⏸️ interrupt]
-    M --> N{继续迭代?}
-    N -->|Yes| E
-    N -->|No| O[END<br/>完成]
+    A[用户消息] --> B[Router 路由]
+    B --> C{意图判断}
+    C -->|解释/问答| D[Assistant<br/>💭 思考模式]
+    C -->|验证参数| E[Validator]
+    C -->|预测性能| F[Analyst]
+    C -->|优化方案| G[Optimizer]
+    C -->|实验管理| H[Experimenter]
+    D --> I[流式响应]
+    E --> I
+    F --> I
+    G --> I
+    H --> I
 ```
 
-**工作流节点说明**
-
-**阶段一：性能分析**（顺序执行）
-
-1. **input_validation** - 输入参数验证
-   - 验证成分配比、工艺参数、结构设计
-   - 归一化成分数据
-   - 流式输出验证结果
-
-2. **topphi_simulation** - TopPhi第一性原理模拟
-   - 模拟涂层沉积过程
-   - 预测微观结构
-   - 生成VTK可视化数据
-
-3. **ml_prediction** - ML模型预测
-   - 预测硬度、弹性模量等性能指标
-   - 基于历史数据训练的模型
-   - 提供预测置信度
-
-4. **historical_comparison** - 历史数据对比
-   - 检索相似配方的历史实验数据
-   - 对比分析性能差异
-   - 提供参考案例
-
-5. **integrated_analysis** - 综合根因分析
-   - 融合TopPhi、ML、历史数据
-   - LLM分析性能问题根因
-   - 生成结构化分析报告
-
-**阶段二：优化建议**（并行执行）
-
-6-8. **P1/P2/P3优化节点** - 三维优化建议
-   - **P1_composition_optimization**: 成分优化（元素配比、微量添加）
-   - **P2_structure_optimization**: 结构优化（多层、梯度、纳米复合）
-   - **P3_process_optimization**: 工艺优化（温度、气压、偏压等）
-   - 三个节点并行执行，独立调用LLM生成建议
-
-9. **optimization_summary** - 优化方案汇总
-   - 汇总P1/P2/P3建议
-   - LLM生成综合推荐方案
-   - 流式输出汇总结果
-
-**阶段三：实验迭代**（用户交互）
-
-10. **await_user_selection** - 等待用户选择 ⏸️
-    - 使用 `interrupt()` 暂停工作流
-    - 前端展示P1/P2/P3方案供用户选择
-    - 用户选择后通过WebSocket恢复执行
-
-11. **experiment_workorder** - 生成实验工单
-    - 根据用户选择的方案生成详细工单
-    - 包含具体的配方和工艺参数
-    - 流式输出工单内容
-
-12. **await_experiment_results** - 等待实验结果 ⏸️
-    - 再次使用 `interrupt()` 暂停
-    - 前端提交实验数据（硬度、磨损率等）
-    - 用户决定是否继续迭代
-
-**迭代循环**
-- 若用户选择继续：回到 **historical_comparison** 节点，开始新一轮优化
-- 若用户选择完成：工作流结束
-
-### 关键技术特性
-
-**1. 流式输出 (Stream Callback)**
-
-所有LLM生成节点都支持流式输出，实时反馈给前端：
-
-```python
-def stream_callback(node: str, content: str):
-    send_stream_chunk_sync(node, content)
-    
-# 在服务中调用
-result = llm_service.generate_stream(
-    prompt=prompt,
-    stream_callback=stream_callback
-)
-```
-
-**2. 工作流暂停与恢复 (Interrupt & Resume)**
-
-使用LangGraph的 `interrupt()` 机制实现人机交互：
-
-```python
-# 暂停工作流，等待用户输入
-user_input = interrupt({
-    "type": "await_user_selection",
-    "options": ["P1", "P2", "P3"]
-})
-
-# 前端提交后，使用Command恢复
-command = Command(resume=user_data)
-workflow.astream(command, config)
-```
-
-**3. 状态管理 (State)**
-
-工作流状态 (`CoatingWorkflowState`) 贯穿整个流程：
-- 输入参数：成分、工艺、结构、目标需求
-- 中间结果：TopPhi、ML预测、历史数据
-- 优化建议：P1/P2/P3内容
-- 迭代历史：实验结果、选择记录
-
-**4. WebSocket消息协议**
-
-前后端通过WebSocket实时通信，主要消息类型：
+### WebSocket 消息协议
 
 | 消息类型 | 方向 | 说明 |
 |---------|------|------|
-| `start_workflow` | 前→后 | 启动新任务 |
-| `llm_stream` | 后→前 | LLM流式输出 |
-| `node_output` | 后→前 | 节点执行结果 |
-| `workflow_paused` | 后→前 | 工作流暂停（interrupt） |
-| `select_optimization` | 前→后 | 用户选择方案 |
-| `submit_experiment_results` | 前→后 | 提交实验数据 |
-| `optimization_completed` | 后→前 | 优化流程完成 |
+| `chat_message` | 前→后 | 用户发送消息 |
+| `chat_start` | 后→前 | 开始处理 |
+| `agent_start` | 后→前 | Agent 开始工作 |
+| `thinking_token` | 后→前 | 思考过程流式输出 |
+| `chat_token` | 后→前 | 回复内容流式输出 |
+| `tool_start/end` | 后→前 | 工具调用状态 |
+| `tool_result` | 后→前 | 工具返回结果 |
+| `chat_complete` | 后→前 | 处理完成 |
 
-**5. Service层模式**
+### 关键技术特性
 
-业务逻辑封装在独立的Service类中，节点只负责调用：
-- ✅ 代码复用（P1/P2/P3共用 `OptimizationService`）
-- ✅ 职责分离（节点层 vs 业务层）
-- ✅ 易于测试和维护
+**1. 思考模式 (Thinking Mode)**
 
-### 数据流示意
+Assistant 使用 Qwen 的 `enable_thinking` 模式，展示推理过程：
 
-```
-用户输入 → WebSocket → FastAPI
-    ↓
-  创建任务 → LangGraph Workflow
-    ↓
-  节点1: input_validation → ValidationService
-    ↓ (流式输出)
-  节点2: topphi_simulation → TopPhiService
-    ↓ (流式输出)
-  节点3: ml_prediction → MLPredictionService
-    ↓ (流式输出)
-  节点4: historical_comparison → HistoricalDataService
-    ↓ (流式输出)
-  节点5: integrated_analysis → LLMService (根因分析)
-    ↓ (流式输出)
-  并行节点6-8:
-    ├─ P1 → OptimizationService → LLMService
-    ├─ P2 → OptimizationService → LLMService
-    └─ P3 → OptimizationService → LLMService
-    ↓ (流式输出)
-  节点9: optimization_summary → LLMService
-    ↓ (流式输出)
-  节点10: await_user_selection → interrupt ⏸️
-    ↓ (等待前端提交)
-  节点11: experiment_workorder → WorkorderService
-    ↓ (流式输出)
-  节点12: await_experiment_results → interrupt ⏸️
-    ↓ (等待前端提交)
-  条件判断: 继续迭代?
-    ├─ Yes → 回到节点4 (新一轮迭代)
-    └─ No → END
+```python
+thinking_llm = QwenChatOpenAI(
+    model="qwen-plus",
+    enable_thinking=True  # 启用思考模式
+)
 ```
 
-### API文档
+**2. ReAct Agent 模式**
 
-启动后访问 http://localhost:8000/docs 查看完整的 Swagger 文档。
+使用 LangGraph 的 `create_react_agent` 创建工具调用 Agent：
+
+```python
+expert_agent = create_react_agent(
+    model=llm,
+    tools=tools,
+    state_schema=CoatingState,
+    prompt=expert_prompt,
+)
+```
+
+**3. 流式事件处理**
+
+通过 `astream_events` 捕获所有事件并实时发送：
+
+```python
+async for event in graph.astream_events(state, config):
+    if event["event"] == "on_chat_model_stream":
+        yield {"type": "token", "content": chunk.content}
+```
+
+### API 文档
+
+启动后访问 http://localhost:8000/docs 查看 Swagger 文档。
 
 ## 🎯 核心功能
 
-**1. 智能分析**
-- 多源数据融合（TopPhi + ML + 历史数据）
-- 根因分析，解释性能背后的物理机制
-- 流式输出，实时展示分析过程
+**1. 对话式交互**
+- 自然语言输入，无需复杂表单
+- 智能理解意图，自动路由到合适专家
+- 支持追问和解释性问题
 
-**2. 三维优化**
-- **P1 成分优化**: 元素配比、微量元素添加
-- **P2 结构优化**: 多层/梯度/纳米复合结构
-- **P3 工艺优化**: 温度/气压/偏压等参数
+**2. 参数验证**
+- 涂层成分合理性检查
+- 工艺参数范围验证
+- 自动归一化处理
 
-**3. 实验闭环**
-- 生成详细实验工单
-- 分析实验结果
-- 智能决策下一步行动
+**3. 性能预测**
+- TopPhi 第一性原理模拟
+- ML 模型预测（硬度、结合力等）
+- 历史相似案例检索
 
-**4. 可视化**
-- TopPhi模拟结果VTK 3D可视化
-- 时间序列动画播放
-- 历史迭代记录查看
+**4. 方案优化**
+- **P1 成分优化**: Al/Ti 比例、微量元素
+- **P2 结构优化**: 多层/梯度/纳米复合
+- **P3 工艺优化**: 温度/气压/偏压调整
+
+**5. 实验管理**
+- 自动生成实验工单
+- 实验结果分析
+- 迭代优化建议
 
 ## 🐛 常见问题
 
