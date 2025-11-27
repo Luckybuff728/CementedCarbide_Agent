@@ -11,14 +11,8 @@ export default defineConfig({
     outDir: 'dist',
     // 启用CSS代码分割
     cssCodeSplit: true,
-    // 构建优化
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: true, // 移除console
-        drop_debugger: true
-      }
-    },
+    // 构建优化 - 使用默认压缩器
+    minify: true,
     // chunk大小警告限制
     chunkSizeWarningLimit: 1000,
     // rollup配置
@@ -29,9 +23,13 @@ export default defineConfig({
         entryFileNames: 'js/[name]-[hash].js',
         assetFileNames: '[ext]/[name]-[hash].[ext]',
         // 代码分割
-        manualChunks: {
-          'element-plus': ['element-plus'],
-          'vue-vendor': ['vue', 'pinia']
+        manualChunks(id) {
+          if (id.includes('element-plus')) {
+            return 'element-plus'
+          }
+          if (id.includes('vue') || id.includes('pinia')) {
+            return 'vue-vendor'
+          }
         }
       }
     }
@@ -44,11 +42,11 @@ export default defineConfig({
     // API代理（开发环境）
     proxy: {
       '/api': {
-        target: 'http://localhost:8000',
+        target: 'http://192.168.6.108:8000',
         changeOrigin: true
       },
       '/ws': {
-        target: 'ws://localhost:8000',
+        target: 'ws://192.168.6.108:8000',
         ws: true
       }
     }
