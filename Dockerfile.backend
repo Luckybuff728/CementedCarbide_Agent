@@ -3,13 +3,14 @@
 # 预期大小: ~250 MB (相比原版~500MB减少50%)
 # ============================================
 
-# 第一阶段: 构建环境
-FROM python:3.11-alpine AS builder
+# 第一阶段: 构建环境（使用slim镜像保证二进制兼容性）
+FROM python:3.11-slim AS builder
 
 WORKDIR /app
 
-# 安装构建依赖并立即清理
-RUN apk add --no-cache --virtual .build-deps gcc musl-dev
+# 安装构建依赖
+RUN apt-get update && apt-get install -y --no-install-recommends gcc && \
+    rm -rf /var/lib/apt/lists/*
 
 # 复制精简的依赖文件
 COPY requirements.txt .
