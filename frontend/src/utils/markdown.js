@@ -20,6 +20,9 @@ hljs.registerLanguage('bash', bash)
 hljs.registerLanguage('shell', bash)
 hljs.registerLanguage('sql', sql)
 
+// Mermaid 图表计数器（用于生成唯一 ID）
+let mermaidCounter = 0
+
 // 创建Markdown实例
 const md = new MarkdownIt({
   html: true,        // 允许HTML标签
@@ -27,6 +30,12 @@ const md = new MarkdownIt({
   typographer: true, // 启用排版优化
   breaks: true,      // 转换换行符为<br>
   highlight: function (str, lang) {
+    // Mermaid 图表特殊处理（使用 div 避免 pre 默认样式）
+    if (lang === 'mermaid') {
+      const id = `mermaid-${++mermaidCounter}`
+      return `<div class="mermaid-wrapper"><div class="mermaid" id="${id}">${md.utils.escapeHtml(str)}</div></div>`
+    }
+    
     // 代码高亮
     if (lang && hljs.getLanguage(lang)) {
       try {

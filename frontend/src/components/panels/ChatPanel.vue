@@ -810,10 +810,9 @@ onUnmounted(() => {
 }
 
 .thinking-label {
-  font-size: 12px;
-  color: #999;
+  font-size: 13px;
+  color: #888;
   flex: 1;
-  font-style: italic;
 }
 
 .thinking-toggle {
@@ -845,15 +844,15 @@ onUnmounted(() => {
 }
 
 .thinking-text {
-  padding: 6px 0 8px 11px;
-  font-size: 12px;
-  color: #888;
-  line-height: 1.5;
+  padding: 8px 0 10px 12px;
+  font-size: 14px;
+  color: #666;
+  line-height: 1.6;
   white-space: pre-wrap;
   word-break: break-word;
-  max-height: 180px;
+  max-height: 200px;
   overflow-y: auto;
-  border-left: 2px solid #e5e5e5;
+  border-left: 2px solid #ddd;
   margin-left: 2px;
 }
 

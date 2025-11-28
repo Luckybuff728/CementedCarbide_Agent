@@ -1,10 +1,26 @@
 <template>
-  <div :class="['markdown-content', { streaming }]" v-html="renderedHtml"></div>
+  <div ref="containerRef" :class="['markdown-content', { streaming }]" v-html="renderedHtml"></div>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, watch, onMounted, nextTick } from 'vue'
 import { renderMarkdown } from '../../utils/markdown'
+import mermaid from 'mermaid'
+
+// 初始化 Mermaid 配置（简洁风格）
+mermaid.initialize({
+  startOnLoad: false,
+  theme: 'neutral',  // 使用中性主题，颜色更统一
+  securityLevel: 'loose',
+  flowchart: {
+    useMaxWidth: false,  // 不限制宽度，避免截断
+    htmlLabels: true,
+    curve: 'basis',
+    padding: 20,
+    nodeSpacing: 50,
+    rankSpacing: 50
+  }
+})
 
 const props = defineProps({
   content: {
@@ -17,10 +33,64 @@ const props = defineProps({
   }
 })
 
+const containerRef = ref(null)
+
 // 渲染Markdown为HTML
 const renderedHtml = computed(() => {
   if (!props.content) return ''
   return renderMarkdown(props.content)
+})
+
+// 渲染 Mermaid 图表
+const renderMermaidCharts = async () => {
+  if (!containerRef.value) return
+  
+  const mermaidElements = containerRef.value.querySelectorAll('.mermaid:not([data-processed])')
+  if (mermaidElements.length === 0) return
+  
+  for (const el of mermaidElements) {
+    try {
+      const code = el.textContent || ''
+      if (!code.trim()) continue
+      
+      // 生成唯一 ID
+      const id = el.id || `mermaid-${Date.now()}`
+      
+      // 渲染图表
+      const { svg } = await mermaid.render(id + '-svg', code)
+      
+      // 替换内容
+      el.innerHTML = svg
+      el.setAttribute('data-processed', 'true')
+    } catch (err) {
+      console.warn('Mermaid render error:', err)
+      // 渲染失败时保持代码显示
+      el.classList.add('mermaid-error')
+    }
+  }
+}
+
+// 监听内容变化并渲染 Mermaid（非流式时）
+watch(() => props.content, async () => {
+  if (!props.streaming) {
+    await nextTick()
+    renderMermaidCharts()
+  }
+})
+
+// 监听流式状态，流式结束后渲染 Mermaid
+watch(() => props.streaming, async (isStreaming, wasStreaming) => {
+  if (wasStreaming && !isStreaming) {
+    // 流式输出结束，渲染 Mermaid
+    await nextTick()
+    renderMermaidCharts()
+  }
+})
+
+// 组件挂载后渲染
+onMounted(async () => {
+  await nextTick()
+  renderMermaidCharts()
 })
 </script>
 
@@ -346,5 +416,59 @@ const renderedHtml = computed(() => {
   height: 2px;
   border: none;
   margin: 32px 0;
+}
+
+/* Mermaid 图表样式 - 简洁无边框 */
+:deep(.mermaid-wrapper) {
+  margin: 12px 0;
+  padding: 0;
+  background: transparent;
+  border: none !important;
+  border-left: none !important;
+}
+
+:deep(.mermaid) {
+  display: block;
+  text-align: center;
+  background: transparent;
+  border: none !important;
+  padding: 0;
+  margin: 0;
+}
+
+:deep(.mermaid svg) {
+  max-width: 100%;
+  height: auto !important;
+  display: block;
+  margin: 0 auto;
+}
+
+/* 确保 mermaid 内部元素无边框 */
+:deep(.mermaid *) {
+  border-left: none !important;
+}
+
+/* Mermaid 渲染失败时显示代码 */
+:deep(.mermaid-error) {
+  background: #f5f5f5;
+  color: #666;
+  padding: 12px;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+}
+
+/* 如果 mermaid 在 blockquote 内，移除边框 */
+:deep(blockquote:has(.mermaid-wrapper)) {
+  border-left: none;
+  padding-left: 0;
+  background: transparent;
+}
+
+/* 确保包含 mermaid 的容器无边框 */
+:deep(p:has(.mermaid-wrapper)),
+:deep(div:has(.mermaid-wrapper)) {
+  border: none !important;
 }
 </style>
