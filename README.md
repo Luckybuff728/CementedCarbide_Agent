@@ -168,19 +168,25 @@ TopMat_Agent/
 │   │   │   ├── params/            # 参数输入
 │   │   │   └── results/           # 结果展示
 │   │   ├── composables/           # 组合式函数
-│   │   │   └── useMultiAgentV2.js # 多 Agent 通信
+│   │   │   ├── useMultiAgent.js   # 多 Agent 通信
+│   │   │   └── useWebSocket.js    # WebSocket 封装
 │   │   └── views/                 # 页面视图
 │   └── package.json
 ├── src/                           # 后端源码
 │   ├── agents/                    # 多 Agent 系统
 │   │   ├── graph.py               # 对话式图构建
 │   │   ├── state.py               # 状态定义 (TypedDict)
+│   │   ├── content_extractor.py   # 结构化内容提取
+│   │   ├── middleware/            # Agent 中间件
+│   │   │   ├── config.py          # 中间件配置
+│   │   │   └── context_middleware.py  # 上下文注入
 │   │   ├── prompts/               # Agent 提示词
 │   │   │   ├── validator.py       # 参数验证专家
 │   │   │   ├── analyst.py         # 性能分析专家
 │   │   │   ├── optimizer.py       # 优化建议专家
 │   │   │   └── experimenter.py    # 实验方案专家
 │   │   └── tools/                 # Agent 工具
+│   │       ├── state_tools.py     # 状态更新工具 (Command)
 │   │       ├── validation_tools.py
 │   │       ├── analysis_tools.py
 │   │       └── experiment_tools.py
