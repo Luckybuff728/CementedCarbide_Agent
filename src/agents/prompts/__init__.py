@@ -1,11 +1,11 @@
 """
-Agent 模块 - 基于 create_react_agent 创建真正的 Agent
+Agent 模块 - 基于 create_agent 创建真正的 Agent (v2.1)
 
 设计原则：
 1. 每个 Agent 是一个独立的 ReAct Agent，拥有自己的工具集
 2. Agent 可以自主决定调用哪些工具、调用顺序
-3. 使用官方 create_react_agent 而非纯函数节点
-4. 支持 Handoff 工具进行 Agent 间任务转交
+3. 使用 LangChain 1.0 官方 create_agent（替代废弃的 create_react_agent）
+4. 工具使用 ToolRuntime 自动获取状态
 """
 
 from .validator import create_validator_agent

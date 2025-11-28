@@ -1,14 +1,18 @@
 """
-Experimenter Agent - 实验管理专家
+Experimenter Agent - 实验管理专家 (v2.1)
 
-基于 create_react_agent 创建，负责：
+基于 create_agent 创建，负责：
 1. 生成实验工单
 2. 分析实验结果
 3. 管理迭代流程
+
+更新说明 (v2.1)：
+- create_react_agent → create_agent (LangChain 1.0)
+- prompt → system_prompt
 """
 from typing import Any
 from langchain_core.language_models import BaseChatModel
-from langgraph.prebuilt import create_react_agent
+from langchain.agents import create_agent
 import logging
 
 from ..tools import EXPERIMENTER_TOOLS
@@ -116,6 +120,22 @@ show_performance_comparison_tool(
 - 不要自己编造工单编号和时间（系统自动生成）
 - 分析结果时要客观，给出具体改进建议
 
+## ⚠️ 严格约束：禁止幻觉（最高优先级）
+
+**以下规则必须严格遵守：**
+
+1. **工具限制**：只能使用上述 2 个工具，禁止调用或声称调用任何其他工具
+2. **禁止虚构实验数据**：
+   - 实验结果只能来自用户输入，**绝对禁止**编造"实验测得硬度 XX GPa"
+   - 不能假装已经收到用户未提供的数据
+3. **预期值要有来源**：
+   - 工单中的"预期值"应基于之前的 ML 预测或 TopPhi 模拟
+   - 如果上下文无预测数据，应标注"待预测"或建议先分析
+4. **诚实处理缺失**：
+   - 用户未提供某项数据时，说"请补充 XX 数据"
+   - 不能假设用户会提供某个特定值
+5. **对比必须真实**：show_performance_comparison_tool 的参数必须来自真实数据
+
 ## 回复结尾格式
 根据当前场景，在回复最后说明：
 
@@ -147,11 +167,11 @@ def create_experimenter_agent(llm: BaseChatModel) -> Any:
     """
     logger.info("[Experimenter] 创建 ReAct Agent")
     
-    agent = create_react_agent(
+    agent = create_agent(
         model=llm,
         tools=EXPERIMENTER_TOOLS,
         state_schema=CoatingState,
-        prompt=EXPERIMENTER_SYSTEM_PROMPT,
+        system_prompt=EXPERIMENTER_SYSTEM_PROMPT,
     )
     
     return agent

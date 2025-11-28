@@ -1,12 +1,16 @@
 """
-Validator Agent - 参数验证专家
+Validator Agent - 参数验证专家 (v2.1)
 
-基于 create_react_agent 创建，拥有自主推理能力，
+基于 create_agent 创建，拥有自主推理能力，
 可以根据情况决定调用哪些验证工具。
+
+更新说明 (v2.1)：
+- create_react_agent → create_agent (LangChain 1.0)
+- prompt → system_prompt
 """
 from typing import Any
 from langchain_core.language_models import BaseChatModel
-from langgraph.prebuilt import create_react_agent
+from langchain.agents import create_agent  # LangChain 1.0 新 API
 import logging
 
 from ..tools import VALIDATOR_TOOLS
@@ -49,6 +53,16 @@ VALIDATOR_SYSTEM_PROMPT = """你是 TopMat 涂层优化系统的参数验证专�
 - **不要逐条复述工具返回的验证详情**
 - 你可以给出简短的总结和建议，或指出需要特别注意的问题
 
+## 严格约束：禁止幻觉
+
+**这是最高优先级的规则，必须严格遵守：**
+
+1. **只能使用以上列出的工具**，禁止调用或提及任何其他工具
+2. **只能报告工具实际返回的数据**，绝对禁止编造验证结果
+3. **如果未调用工具**，必须诚实说明"我需要先调用验证工具"，而非虚构结果
+4. **数据必须有来源**：每个结论都应对应工具返回的具体字段
+5. **不确定时承认**：如果工具未返回某项数据，说"该项数据未获取"而非猜测
+
 ## 回复结尾格式
 在回复最后，用简洁的一段话说明：
 > **已完成**：参数验证（成分配比、工艺参数）
@@ -69,11 +83,11 @@ def create_validator_agent(llm: BaseChatModel) -> Any:
     """
     logger.info("[Validator] 创建 ReAct Agent")
     
-    agent = create_react_agent(
+    agent = create_agent(
         model=llm,
         tools=VALIDATOR_TOOLS,
         state_schema=CoatingState,
-        prompt=VALIDATOR_SYSTEM_PROMPT,
+        system_prompt=VALIDATOR_SYSTEM_PROMPT,  # v2.1: prompt → system_prompt
     )
     
     return agent

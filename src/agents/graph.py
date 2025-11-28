@@ -1,11 +1,15 @@
 """
-涂层研发对话式多Agent系统 (v2.0)
+涂层研发对话式多Agent系统 (v2.1)
 
 设计理念：
 - 对话驱动，而非流程驱动
 - Agent 主动与用户沟通，而非无脑执行
 - 用户可以随时介入、修改方向
 - 智能路由，根据对话内容决定调用哪个专家
+
+更新说明 (v2.1)：
+- 简化会话管理，依赖 Checkpointer 自动持久化
+- 工具使用 ToolRuntime 访问状态
 """
 import logging
 import json
@@ -193,32 +197,40 @@ def create_conversational_graph(
                 "current_agent": "assistant"
             }
     
-    # ==================== 专家节点（带对话能力） ====================
+    # ==================== 专家节点（使用中间件简化） ====================
     def create_expert_node(expert_name: str, expert_prompt: str, tools: list):
-        """创建专家节点（支持对话+工具调用）"""
-        from langgraph.prebuilt import create_react_agent
+        """
+        创建专家节点（支持对话+工具调用）
         
-        # 创建 ReAct Agent
-        expert_agent = create_react_agent(
+        v2.1 更新：
+        - 使用中间件注入上下文，替代手动构建
+        - 支持对话摘要，优化长对话
+        """
+        from langchain.agents import create_agent
+        from .middleware import get_middleware_stack
+        
+        # 获取预配置的中间件栈（上下文注入 + 对话摘要 + 调用限制）
+        middleware = get_middleware_stack(
+            expert_name=expert_name,
+            enable_summarization=True,   # 启用对话摘要
+            enable_model_limit=True,     # 启用调用限制
+            enable_tool_retry=False,     # 暂不启用重试
+        )
+        
+        # 创建 Agent（中间件自动处理上下文注入和摘要）
+        expert_agent = create_agent(
             model=llm,
             tools=tools,
             state_schema=CoatingState,
-            prompt=expert_prompt,
+            system_prompt=expert_prompt,
+            middleware=middleware,  # v2.1: 使用中间件栈
         )
         
         def expert_node_func(state: CoatingState) -> dict:
             logger.info(f"[{expert_name}] 开始处理")
             try:
-                # 构建上下文消息
-                context_msg = _build_expert_context(state, expert_name)
-                
-                agent_state = dict(state)
-                if context_msg:
-                    current_messages = list(state.get("messages", []))
-                    current_messages.append(HumanMessage(content=context_msg))
-                    agent_state["messages"] = current_messages
-                
-                result = expert_agent.invoke(agent_state)
+                # 直接传递状态，中间件自动处理上下文注入
+                result = expert_agent.invoke(dict(state))
                 logger.info(f"[{expert_name}] 处理完成")
                 
                 # 更新状态
@@ -362,190 +374,76 @@ def _build_state_summary(state: CoatingState) -> str:
     return "\n".join(parts) if parts else "暂无数据"
 
 
+# ==================== 废弃函数（保留兼容性） ====================
+# 注意：此函数已被 middleware/context_middleware.py 中的 CoatingContextMiddleware 替代
+# 保留仅用于向后兼容，新代码应使用中间件
+
 def _build_expert_context(state: CoatingState, expert_name: str) -> str:
     """
-    为专家构建完整的上下文
+    [已废弃] 为专家构建上下文 - 请使用 CoatingContextMiddleware 替代
     
-    字段名与 validation_service.py 保持一致：
-    - 成分: al_content, ti_content, n_content, other_elements
-    - 工艺: process_type, deposition_temperature, deposition_pressure, bias_voltage, n2_flow, other_gases
-    - 结构: structure_type, total_thickness, layers
+    此函数保留仅用于向后兼容。新代码应使用：
+    
+        from .middleware import CoatingContextMiddleware
+        
+        middleware = [CoatingContextMiddleware(expert_name="Validator")]
+    
+    中间件方式的优势：
+    - 声明式上下文管理
+    - 自动注入到系统消息
+    - 与对话摘要等其他中间件协同工作
     """
-    parts = []
+    import warnings
+    warnings.warn(
+        "_build_expert_context 已废弃，请使用 CoatingContextMiddleware 中间件",
+        DeprecationWarning,
+        stacklevel=2
+    )
     
+    # 简化的兼容实现
     comp = state.get("coating_composition", {})
     proc = state.get("process_params", {})
-    struct = state.get("structure_design", {})
-    target = state.get("target_requirements", "")
     
-    if expert_name == "Validator":
-        # 构建与 validation_service.py 格式一致的参数描述
-        parts.append("【待验证参数】\n")
-        
-        # 成分配比
-        if comp:
-            al = comp.get('al_content', 0) or 0
-            ti = comp.get('ti_content', 0) or 0
-            n = comp.get('n_content', 0) or 0
-            comp_text = f"Al {al:.1f} at.%, Ti {ti:.1f} at.%, N {n:.1f} at.%"
-            
-            # 其他元素
-            if comp.get('other_elements'):
-                other_elems = ', '.join([f"{e.get('name', e.get('element', ''))} {e.get('content', 0):.1f} at.%" 
-                                        for e in comp.get('other_elements', [])])
-                comp_text += f", {other_elems}"
-            parts.append(f"**成分配比：** {comp_text}")
-        
-        # 工艺参数
-        if proc:
-            process_text = f"工艺类型: {proc.get('process_type', '磁控溅射')}, "
-            process_text += f"沉积温度: {proc.get('deposition_temperature', 0)}°C, "
-            process_text += f"沉积气压: {proc.get('deposition_pressure', 0)} Pa, "
-            process_text += f"偏压: {proc.get('bias_voltage', 0)} V, "
-            process_text += f"N₂流量: {proc.get('n2_flow', 0)} sccm"
-            
-            # 其他气体
-            if proc.get('other_gases'):
-                other_gases = ', '.join([f"{g.get('type', '')} {g.get('flow', 0)} sccm" 
-                                        for g in proc.get('other_gases', [])])
-                process_text += f", 其他气体: {other_gases}"
-            parts.append(f"**工艺参数：** {process_text}")
-        
-        # 结构设计
-        if struct:
-            structure_text = f"结构类型: {struct.get('structure_type', '单层')}, "
-            structure_text += f"总厚度: {struct.get('total_thickness', 0)} μm"
-            
-            # 多层结构
-            if struct.get('structure_type') == 'multi' and struct.get('layers'):
-                layers_info = '; '.join([f"{l.get('type', '')} {l.get('thickness', 0)}μm" 
-                                        for l in struct.get('layers', [])])
-                structure_text += f", 层结构: {layers_info}"
-            parts.append(f"**结构设计：** {structure_text}")
-        
-        # 性能需求
-        if target:
-            parts.append(f"**性能需求：** {target}")
-        
-        parts.append("\n请使用验证工具检查这些参数，然后向用户反馈验证结果。")
+    if not comp and not proc:
+        return ""
     
-    elif expert_name == "Analyst":
-        if state.get("validation_passed"):
-            parts.append("【参数验证已通过】\n")
-        
-        # 提供当前涂层参数（供工具调用使用）
-        if comp:
-            al = comp.get('al_content', 0) or 0
-            ti = comp.get('ti_content', 0) or 0
-            n = comp.get('n_content', 0) or 0
-            temp = proc.get('deposition_temperature', 450) if proc else 450
-            pressure = proc.get('deposition_pressure', 0.5) if proc else 0.5
-            
-            parts.append(f"**当前成分：** Al {al:.1f}%, Ti {ti:.1f}%, N {n:.1f}%")
-            parts.append(f"**当前工艺：** 温度 {temp}°C, 压力 {pressure} Pa")
-            
-            # 提供工具参数参考
-            parts.append("\n**工具参数参考：**")
-            parts.append(f"- composition: {json.dumps(comp, ensure_ascii=False)}")
-            parts.append(f"- process_params: {json.dumps(proc, ensure_ascii=False)}")
-            parts.append(f"- structure_design: {json.dumps(struct, ensure_ascii=False)}")
-            
-            if target:
-                parts.append(f"\n**用户性能目标：** {json.dumps(target, ensure_ascii=False)}")
-        
-        # 强调工具选择规则
-        parts.append("\n**重要：精准选择工具**")
-        parts.append("- 用户说'预测'/'性能预测' → 只调 predict_ml_performance_tool")
-        parts.append("- 用户说'模拟'/'TopPhi' → 只调 simulate_topphi_tool")
-        parts.append("- 用户说'历史'/'案例' → 只调 compare_historical_tool")
-        parts.append("- 只有'全面分析'/'综合分析'才调用全部工具")
-        parts.append("- 仔细阅读用户消息，不要多调用工具！")
+    parts = [f"【{expert_name} 上下文】"]
     
-    elif expert_name == "Optimizer":
-        parts.append("【优化方案生成】\n")
-        
-        if comp:
-            al = comp.get('al_content', 0) or 0
-            ti = comp.get('ti_content', 0) or 0
-            n = comp.get('n_content', 0) or 0
-            parts.append(f"**当前成分：** Al {al:.1f}%, Ti {ti:.1f}%, N {n:.1f}%")
-        
-        if proc:
-            temp = proc.get('deposition_temperature', 450)
-            bias = proc.get('bias_voltage', -100)
-            parts.append(f"**当前工艺：** 温度 {temp}°C, 偏压 {bias}V")
-        
-        if struct:
-            struct_type = struct.get('structure_type', '单层')
-            thickness = struct.get('total_thickness', 0)
-            parts.append(f"**当前结构：** {struct_type}, 厚度 {thickness}μm")
-        
-        if target:
-            parts.append(f"**用户目标：** {json.dumps(target, ensure_ascii=False)}")
-        
-        # 从状态获取分析结果
-        ml_pred = state.get('ml_prediction', {})
-        if ml_pred:
-            hardness = ml_pred.get('hardness', 'N/A')
-            adhesion = ml_pred.get('adhesion_strength', 'N/A')
-            parts.append(f"\n**性能预测：** 硬度 {hardness} GPa, 结合力 {adhesion} N")
-        
-        parts.append("\n请根据用户请求，智能选择生成哪些优化方案（P1成分/P2结构/P3工艺）。")
+    if comp:
+        al = comp.get('al_content', 0) or 0
+        ti = comp.get('ti_content', 0) or 0
+        n = comp.get('n_content', 0) or 0
+        parts.append(f"成分: Al {al:.1f}%, Ti {ti:.1f}%, N {n:.1f}%")
     
-    elif expert_name == "Experimenter":
-        parts.append("【实验管理】\n")
-        
-        # 检查是否有选择的优化方案
-        selected_opt = state.get('selected_optimization')
-        if selected_opt:
-            parts.append(f"用户选择了 **{selected_opt}** 优化方案。")
-            parts.append("请根据优化方案生成详细的实验工单。")
-            
-            if comp:
-                parts.append(f"\n成分: {json.dumps(comp, ensure_ascii=False)}")
-            if proc:
-                parts.append(f"工艺: {json.dumps(proc, ensure_ascii=False)}")
-        else:
-            parts.append("等待用户选择优化方案（P1/P2/P3）或提交实验数据。")
+    if proc:
+        temp = proc.get('deposition_temperature', 0)
+        parts.append(f"工艺: {temp}°C")
     
-    return "\n".join(parts) if parts else ""
+    return "\n".join(parts)
 
 
-# ==================== 对话式管理器 ====================
+# ==================== 对话式管理器（简化版，依赖 Checkpointer） ====================
 
 class ConversationalGraphManager:
     """
-    对话式图管理器
+    对话式图管理器 (v2.1 简化版)
     
     核心特点：
     - 每条用户消息触发一次图执行
-    - 支持多轮对话
-    - 自动管理会话状态
+    - 依赖 Checkpointer 自动管理会话状态
+    - 无需手动维护会话字典
     """
     
     def __init__(self, use_memory: bool = True):
+        """
+        初始化管理器
+        
+        Args:
+            use_memory: 是否启用持久化（默认 True）
+        """
         self.graph = create_conversational_graph(use_memory=use_memory)
-        self.sessions: Dict[str, Dict[str, Any]] = {}
-        logger.info("[Manager] 对话式管理器初始化完成")
-    
-    def get_or_create_session(self, session_id: str) -> Dict[str, Any]:
-        """获取或创建会话"""
-        if session_id not in self.sessions:
-            self.sessions[session_id] = {
-                "thread_id": session_id,
-                "messages": [],
-                "coating_composition": {},
-                "process_params": {},
-                "structure_design": {},
-                "target_requirements": "",
-                "validation_passed": False,
-                "validation_result": None,
-                "performance_prediction": None,
-                "remaining_steps": 25,
-                "next": None,
-            }
-            logger.info(f"[Manager] 创建新会话: {session_id}")
-        return self.sessions[session_id]
+        self.use_memory = use_memory
+        logger.info("[Manager] 对话式管理器初始化完成（依赖 Checkpointer 自动管理会话）")
     
     async def chat(
         self,
@@ -556,33 +454,49 @@ class ConversationalGraphManager:
         """
         处理用户消息并流式返回响应
         
+        Checkpointer 自动管理会话状态，无需手动维护。
+        
         Args:
-            session_id: 会话ID
+            session_id: 会话ID（作为 thread_id 传递给 Checkpointer）
             user_message: 用户消息
             context_data: 额外的上下文数据（如涂层参数）
         
         Yields:
             事件流（token、工具调用、完成等）
         """
-        session = self.get_or_create_session(session_id)
-        
-        # 添加用户消息
-        session["messages"].append(HumanMessage(content=user_message))
-        
-        # 如果有额外数据，更新会话状态
-        if context_data:
-            if "coating_composition" in context_data and context_data["coating_composition"]:
-                session["coating_composition"] = context_data["coating_composition"]
-            if "process_params" in context_data and context_data["process_params"]:
-                session["process_params"] = context_data["process_params"]
-            if "structure_design" in context_data and context_data["structure_design"]:
-                session["structure_design"] = context_data["structure_design"]
-            if "target_requirements" in context_data and context_data["target_requirements"]:
-                session["target_requirements"] = context_data["target_requirements"]
-        
-        logger.info(f"[Manager] 会话参数: comp={session.get('coating_composition')}, proc={session.get('process_params')}")
-        
+        # 配置 thread_id，Checkpointer 会自动根据此 ID 恢复/保存状态
         config = {"configurable": {"thread_id": session_id}}
+        
+        # 构建输入状态
+        input_state = {
+            "messages": [HumanMessage(content=user_message)],
+            "remaining_steps": 25,
+        }
+        
+        # 优先使用临时缓存的参数（来自 get_or_create_session / set_parameters）
+        pending = getattr(self, '_pending_params', {}).get(session_id, {})
+        if pending:
+            if pending.get("coating_composition"):
+                input_state["coating_composition"] = pending["coating_composition"]
+            if pending.get("process_params"):
+                input_state["process_params"] = pending["process_params"]
+            if pending.get("structure_design"):
+                input_state["structure_design"] = pending["structure_design"]
+            if pending.get("target_requirements"):
+                input_state["target_requirements"] = pending["target_requirements"]
+        
+        # 如果有额外的 context_data，覆盖
+        if context_data:
+            if context_data.get("coating_composition"):
+                input_state["coating_composition"] = context_data["coating_composition"]
+            if context_data.get("process_params"):
+                input_state["process_params"] = context_data["process_params"]
+            if context_data.get("structure_design"):
+                input_state["structure_design"] = context_data["structure_design"]
+            if context_data.get("target_requirements"):
+                input_state["target_requirements"] = context_data["target_requirements"]
+        
+        logger.info(f"[Manager] 会话参数: comp={input_state.get('coating_composition')}, proc={input_state.get('process_params')}")
         
         # 用于收集完整输出内容（用于内容提取）
         collected_content = []
@@ -591,9 +505,9 @@ class ConversationalGraphManager:
         # 当前节点名（用于判断是否显示思考内容）
         current_node = None
         
-        # 流式执行
+        # 流式执行（使用 input_state，Checkpointer 自动合并历史状态）
         try:
-            async for event in self.graph.astream_events(session, config=config, version="v2"):
+            async for event in self.graph.astream_events(input_state, config=config, version="v2"):
                 event_type = event.get("event")
                 
                 # 节点开始/结束（不发送 router 的事件，避免显示空消息）
@@ -680,10 +594,11 @@ class ConversationalGraphManager:
                             "result": result_data
                         }
             
-            # 更新会话状态
+            # Checkpointer 已自动保存状态，无需手动更新
+            # 可以通过 get_state 获取最新状态用于日志或调试
             final_state = self.graph.get_state(config)
             if final_state and final_state.values:
-                session.update(final_state.values)
+                logger.debug(f"[Manager] 最终状态已由 Checkpointer 保存")
             
             # 提取结构化内容（优化方案摘要、工单信息等）
             if current_agent and collected_content:
@@ -699,15 +614,78 @@ class ConversationalGraphManager:
             logger.error(f"[Manager] 执行失败: {e}")
             yield {"type": "error", "message": str(e)}
     
+    def get_or_create_session(self, session_id: str) -> Dict[str, Any]:
+        """
+        获取或创建会话状态（兼容旧 API）
+        
+        由于使用 Checkpointer 自动管理，此方法主要用于：
+        - 获取已有会话的状态
+        - 为新会话返回初始状态结构
+        
+        Args:
+            session_id: 会话 ID
+        
+        Returns:
+            会话状态字典（可变，用于设置参数）
+        """
+        # 先尝试从 Checkpointer 获取
+        state = self.get_session_state(session_id)
+        
+        # 如果没有状态，返回初始结构
+        if not state:
+            state = {
+                "messages": [],
+                "coating_composition": {},
+                "process_params": {},
+                "structure_design": {},
+                "target_requirements": {},
+            }
+        
+        # 存储到临时缓存，以便 chat() 时使用
+        if not hasattr(self, '_pending_params'):
+            self._pending_params = {}
+        self._pending_params[session_id] = state
+        
+        return state
+    
     def get_session_state(self, session_id: str) -> Dict[str, Any]:
-        """获取会话状态"""
-        return self.sessions.get(session_id, {})
+        """
+        获取会话状态
+        
+        从 Checkpointer 获取持久化的状态
+        
+        Args:
+            session_id: 会话 ID
+        
+        Returns:
+            会话状态字典
+        """
+        try:
+            # 先检查临时缓存
+            if hasattr(self, '_pending_params') and session_id in self._pending_params:
+                return self._pending_params[session_id]
+            
+            config = {"configurable": {"thread_id": session_id}}
+            state = self.graph.get_state(config)
+            if state and state.values:
+                return dict(state.values)
+            return {}
+        except Exception as e:
+            logger.warning(f"[Manager] 获取会话状态失败: {e}")
+            return {}
     
     def clear_session(self, session_id: str):
-        """清除会话"""
-        if session_id in self.sessions:
-            del self.sessions[session_id]
-            logger.info(f"[Manager] 清除会话: {session_id}")
+        """
+        清除会话
+        
+        注意：当前使用 InMemorySaver，清除会话需要重新创建图
+        生产环境建议使用支持删除的持久化存储（如 PostgresSaver）
+        
+        Args:
+            session_id: 会话 ID
+        """
+        logger.info(f"[Manager] 清除会话请求: {session_id}")
+        logger.warning("[Manager] InMemorySaver 不支持单独清除会话，建议生产环境使用 PostgresSaver")
 
 
 # ==================== 单例 ====================

@@ -251,6 +251,8 @@ export function useMultiAgent() {
 
   // 工具名称映射 - 简洁中文名
   const toolNameMap = {
+    // 状态更新工具
+    'update_params': '更新参数',
     // 验证工具
     'validate_composition_tool': '验证成分配比',
     'validate_process_params_tool': '验证工艺参数',
@@ -320,7 +322,12 @@ export function useMultiAgent() {
     console.log('[ChatAgent] 工具结果:', tool, result)
     
     // 根据工具类型更新对应的状态并添加到结果面板
-    // 注意：验证工具结果不再显示在结果面板
+    // 状态更新工具 - 不显示在结果面板
+    if (tool === 'update_params') {
+      console.log('[ChatAgent] 参数已更新:', result)
+      return
+    }
+    // 验证工具结果不再显示在结果面板
     if (tool.includes('validate_composition') || tool.includes('validate_process')) {
       // 只更新状态，不添加到结果面板
       validationResult.value = result

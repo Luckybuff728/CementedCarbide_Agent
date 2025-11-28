@@ -54,4 +54,6 @@ Thumbs.db
 # VTK文件和模拟数据（根据部署方案选择）
 *.vtk
 \工业AI比赛
+\langchain_src
+\langchain_reference
 涂层成分.md

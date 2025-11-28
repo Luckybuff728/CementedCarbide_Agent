@@ -1,15 +1,20 @@
 """
-Analyst Agent - 性能分析专家
+Analyst Agent - 性能分析专家 (v2.2)
 
-基于 create_react_agent 创建，负责：
+基于 create_agent 创建，负责：
 1. 调用 TopPhi 模拟预测微观结构
 2. 调用 ML 模型预测宏观性能
 3. 检索历史相似案例
 4. 进行综合根因分析
+
+更新说明 (v2.2)：
+- 新增状态更新工具（update_coating_composition, update_process_params）
+- 使用 Command 实现真正的状态更新，替代参数覆盖
+- 参数修改后，后续工具和上下文自动使用新值
 """
 from typing import Any
 from langchain_core.language_models import BaseChatModel
-from langgraph.prebuilt import create_react_agent
+from langchain.agents import create_agent
 import logging
 
 from ..tools import ANALYST_TOOLS
@@ -24,9 +29,28 @@ ANALYST_SYSTEM_PROMPT = """你是 TopMat 涂层优化系统的性能分析专家
 你负责预测和分析涂层的性能表现。
 
 ## 可用工具
-- `simulate_topphi_tool`: TopPhi 相场模拟，预测微观结构（晶粒尺寸、残余应力等）
-- `predict_ml_performance_tool`: ML 模型预测宏观性能（硬度、耐磨性等）
+
+### 参数更新工具
+- `update_params`: 更新任意参数（成分、工艺、结构、性能需求）
+
+### 分析工具
+- `simulate_topphi_tool`: TopPhi 相场模拟，预测微观结构
+- `predict_ml_performance_tool`: ML 模型预测宏观性能
 - `compare_historical_tool`: 检索历史相似案例
+
+## 参数修改流程（重要！）
+
+当用户要求"修改XX参数再预测"时，**必须**先更新参数再预测：
+
+```
+用户: "把Al改成28%，温度改成500°C再预测"
+
+步骤1: update_params(coating_composition={"al_content": 28}, process_params={"deposition_temperature": 500})
+步骤2: predict_ml_performance_tool()
+```
+
+**错误做法**：直接预测（会使用旧参数）
+**正确做法**：先 update_params，再预测
 
 ## 智能选择工具（重要！）
 
@@ -74,6 +98,21 @@ ANALYST_SYSTEM_PROMPT = """你是 TopMat 涂层优化系统的性能分析专家
 - 用专业但易懂的语言解释
 - 给出具体数值
 
+## 严格约束：禁止幻觉（最高优先级）
+
+**以下规则必须严格遵守，违反将导致严重错误：**
+
+1. **工具限制**：只能使用上述 3 个工具，禁止调用或声称调用任何其他工具
+2. **数据真实性**：
+   - 所有数值（硬度、结合力、模量等）必须来自工具返回
+   - **绝对禁止**编造预测数据，如"预测硬度为 28 GPa"但未调用工具
+   - 如果需要数据，必须先调用对应工具
+3. **诚实原则**：
+   - 未调用工具时，说"我将调用 XX 工具获取数据"
+   - 工具未返回某项数据时，说"该数据未获取"，而非猜测
+4. **来源标注**：报告数据时标明来源，如"ML 预测显示硬度为 XX GPa"
+5. **禁止假设成功**：不能说"工具返回了..."除非真的调用并收到了返回
+
 ## 回复结尾格式
 在回复最后，用简洁的一段话说明：
 > **已完成**：[具体说明，如"TopPhi模拟 + ML性能预测"]
@@ -98,11 +137,11 @@ def create_analyst_agent(llm: BaseChatModel) -> Any:
     """
     logger.info("[Analyst] 创建 ReAct Agent")
     
-    agent = create_react_agent(
+    agent = create_agent(
         model=llm,
         tools=ANALYST_TOOLS,
         state_schema=CoatingState,
-        prompt=ANALYST_SYSTEM_PROMPT,
+        system_prompt=ANALYST_SYSTEM_PROMPT,
     )
     
     return agent

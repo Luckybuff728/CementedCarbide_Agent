@@ -55,6 +55,7 @@
                 v-show="expandedThinking[index] || msg.isThinking" 
                 class="thinking-text"
                 :ref="el => { if (el && msg.isThinking) thinkingRefs[index] = el }"
+                @scroll="handleThinkingScroll(index, $event)"
               >{{ msg.thinking }}</div>
             </div>
             
@@ -324,11 +325,25 @@ watch(() => props.isAgentTyping, () => {
   nextTick(() => scrollToBottom())
 })
 
-// 滚动所有正在输出的 thinking 区域到底部
+// 记录每个 thinking 区域用户是否在底部
+const thinkingNearBottom = ref({})
+
+// 检测 thinking 区域滚动位置
+const handleThinkingScroll = (index, event) => {
+  const el = event.target
+  const distanceToBottom = el.scrollHeight - el.scrollTop - el.clientHeight
+  thinkingNearBottom.value[index] = distanceToBottom < 50
+}
+
+// 滚动所有正在输出的 thinking 区域到底部（只在用户在底部时）
 const scrollThinkingToBottom = () => {
-  Object.values(thinkingRefs.value).forEach(el => {
+  Object.entries(thinkingRefs.value).forEach(([index, el]) => {
     if (el) {
-      el.scrollTop = el.scrollHeight
+      // 默认认为在底部，除非用户滚动过
+      const nearBottom = thinkingNearBottom.value[index] !== false
+      if (nearBottom) {
+        el.scrollTop = el.scrollHeight
+      }
     }
   })
 }

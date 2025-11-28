@@ -1,15 +1,19 @@
 """
-Optimizer Agent - 优化方案专家
+Optimizer Agent - 优化方案专家 (v2.1)
 
-基于 create_react_agent 创建，负责：
+基于 create_agent 创建，负责：
 1. 生成 P1 成分优化方案
 2. 生成 P2 结构优化方案
 3. 生成 P3 工艺优化方案
 4. 生成综合建议
+
+更新说明 (v2.1)：
+- create_react_agent → create_agent (LangChain 1.0)
+- prompt → system_prompt
 """
 from typing import Any
 from langchain_core.language_models import BaseChatModel
-from langgraph.prebuilt import create_react_agent
+from langchain.agents import create_agent
 import logging
 
 from ..tools import OPTIMIZER_TOOLS
@@ -116,6 +120,20 @@ OPTIMIZER_SYSTEM_PROMPT = """你是 TopMat 涂层优化系统的优化方案专�
 - 给出具体数值，不要泛泛而谈
 - 预期效果要与分析数据对应
 
+## 严格约束：禁止幻觉（最高优先级）
+
+**以下规则必须严格遵守：**
+
+1. **基于真实数据**：优化方案必须基于上下文中的分析结果（ML预测、TopPhi模拟）
+2. **禁止虚构性能**：
+   - 不能编造"当前硬度为 XX GPa"等数据，除非上下文中有
+   - 不能假装调用了不存在的工具获取数据
+3. **预期效果要有依据**：
+   - 基于领域知识给出定性预期（如"Al↑ → 抗氧化性↑"）
+   - 具体数值预期应标注"预估"或"参考历史数据"
+4. **承认信息不足**：如果缺少分析数据，建议"先进行性能分析再优化"
+5. **不假装已完成**：如果用户要求的优化类型超出能力，诚实说明
+
 ## 回复结尾格式
 在回复最后，用简洁的一段话说明：
 > **已完成**：[具体说明，如"生成了 P1 成分优化方案"]
@@ -139,11 +157,11 @@ def create_optimizer_agent(llm: BaseChatModel) -> Any:
     """
     logger.info("[Optimizer] 创建 ReAct Agent")
     
-    agent = create_react_agent(
+    agent = create_agent(
         model=llm,
         tools=OPTIMIZER_TOOLS,
         state_schema=CoatingState,
-        prompt=OPTIMIZER_SYSTEM_PROMPT,
+        system_prompt=OPTIMIZER_SYSTEM_PROMPT,
     )
     
     return agent
