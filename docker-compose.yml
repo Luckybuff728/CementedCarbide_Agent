@@ -15,6 +15,11 @@ services:
       - SERVER_HOST=0.0.0.0
       - SERVER_PORT=8000
       - LOG_LEVEL=${LOG_LEVEL:-info}
+      # # LangSmith 可观测性配置
+      # - LANGSMITH_API_KEY=${LANGSMITH_API_KEY}
+      # - LANGSMITH_ENDPOINT=${LANGSMITH_ENDPOINT:-https://api.smith.langchain.com}
+      # - LANGSMITH_TRACING=${LANGSMITH_TRACING:-false}
+      # - LANGSMITH_PROJECT=${LANGSMITH_PROJECT:-topmat-coating-agent}
     env_file:
       - .env
     networks:
