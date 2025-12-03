@@ -13,10 +13,7 @@
 from typing import Dict, Any, List, Optional
 from langchain.tools import tool, ToolRuntime
 from pydantic import BaseModel, Field
-import logging
-
-logger = logging.getLogger(__name__)
-
+from loguru import logger
 
 # ==================== 内部验证函数 ====================
 # 将验证逻辑抽取为独立函数，供工具调用
@@ -84,9 +81,9 @@ def _validate_composition_logic(
 def _validate_process_params_logic(
     process_type: str,
     deposition_temperature: float,
-    deposition_pressure: float = 0.5,
-    bias_voltage: float = -100,
-    n2_flow: float = 50
+    deposition_pressure: float = 0,
+    bias_voltage: float = 0,
+    n2_flow: float = 0
 ) -> Dict[str, Any]:
     """
     验证工艺参数的核心逻辑
@@ -120,13 +117,17 @@ def _validate_process_params_logic(
     
     # 偏压检查（PVD 工艺）
     if process_type in ["magnetron_sputtering", "arc_ion_plating"]:
-        if abs(bias_voltage) < 50:
+        if bias_voltage == 0:
+            warnings.append("未提供偏压参数，建议补充")
+        elif abs(bias_voltage) < 50:
             warnings.append(f"偏压 ({bias_voltage}V) 偏低，可能影响涂层致密度")
         elif abs(bias_voltage) > 300:
             warnings.append(f"偏压 ({bias_voltage}V) 偏高，可能导致过大残余应力")
     
     # 气压检查
-    if deposition_pressure < 0.1:
+    if deposition_pressure == 0:
+        warnings.append("未提供气压参数，建议补充")
+    elif deposition_pressure < 0.1:
         warnings.append(f"气压 ({deposition_pressure}Pa) 偏低")
     elif deposition_pressure > 5:
         warnings.append(f"气压 ({deposition_pressure}Pa) 偏高，可能降低沉积速率")
@@ -203,11 +204,11 @@ def validate_process_params_tool(runtime: ToolRuntime) -> Dict[str, Any]:
     state = runtime.state
     process_params = state.get("process_params", {})
     
-    process_type = process_params.get("process_type", "magnetron_sputtering")
-    deposition_temperature = process_params.get("deposition_temperature", 0) or 0
-    deposition_pressure = process_params.get("deposition_pressure", 0.5) or 0.5
-    bias_voltage = process_params.get("bias_voltage", -100) or -100
-    n2_flow = process_params.get("n2_flow", 50) or 50
+    process_type = process_params.get("process_type") or "magnetron_sputtering"
+    deposition_temperature = process_params.get("deposition_temperature") or 0
+    deposition_pressure = process_params.get("deposition_pressure") or 0
+    bias_voltage = process_params.get("bias_voltage") or 0
+    n2_flow = process_params.get("n2_flow") or 0
     
     logger.info(f"[验证工具] 工艺参数验证: {process_type}, {deposition_temperature}°C")
     
@@ -215,8 +216,10 @@ def validate_process_params_tool(runtime: ToolRuntime) -> Dict[str, Any]:
     if deposition_temperature == 0:
         return {
             "is_valid": False,
-            "errors": ["未提供工艺参数，请先输入沉积温度等参数"],
+            "errors": ["未提供工艺参数"],
             "warnings": [],
+            "message": "请先输入工艺参数（沉积温度、偏压、气压等）",
+            "required_params": ["deposition_temperature", "bias_voltage", "deposition_pressure"],
             "process_type": process_type,
             "recommended_temp_range": (200, 600)
         }

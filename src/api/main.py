@@ -6,20 +6,16 @@ TopMat Agent API
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-import logging
+from loguru import logger
 from datetime import datetime
 
 from .routes import vtk_router, auth_router, setup_websocket_routes
 from ..db.session import engine, Base
 from ..models import user as user_model
 
-# 配置日志
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
 # 创建 FastAPI 应用
 app = FastAPI(
-    title="TopMat Agent API",
+    title="CementedCarbide Agent API",
     description="硬质合金涂层智能研发助手 - 硬质合金涂层研发优化",
     version="2.0.0"
 )
@@ -50,7 +46,7 @@ setup_websocket_routes(app)
 async def root():
     """根路径"""
     return {
-        "name": "TopMat Agent API",
+        "name": "CementedCarbide Agent API",
         "version": "2.0.0",
         "status": "running",
         "description": "对话式多 Agent 智能研发助手"
@@ -117,11 +113,11 @@ async def general_exception_handler(request, exc):
 @app.on_event("startup")
 async def startup_event():
     """应用启动事件"""
-    logger.info("TopMat Agent API 启动完成")
+    logger.info("CementedCarbide Agent API 启动完成")
     logger.info("对话式多 Agent 系统已就绪")
 
 
 @app.on_event("shutdown")  
 async def shutdown_event():
     """应用关闭事件"""
-    logger.info("TopMat Agent API 正在关闭")
+    logger.info("CementedCarbide Agent API 正在关闭")

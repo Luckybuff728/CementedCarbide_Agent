@@ -1,48 +1,30 @@
 <template>
   <div class="performance-comparison-chart">
-    <div class="chart-header">
-      <div class="header-left">
-        <el-icon size="24" color="#6366f1"><BarChartOutline /></el-icon>
-        <h4>性能对比图</h4>
+    <!-- 简化的图例 -->
+    <div class="chart-legend">
+      <div class="legend-item">
+        <span class="legend-dot experiment"></span>
+        <span>实验</span>
       </div>
-      <div class="chart-legend">
-        <div class="legend-item">
-          <span class="legend-dot experiment"></span>
-          <span>实验数据</span>
-        </div>
-        <div class="legend-item">
-          <span class="legend-dot prediction"></span>
-          <span>ML预测</span>
-        </div>
-        <div class="legend-item">
-          <span class="legend-dot historical"></span>
-          <span>历史最优</span>
-        </div>
+      <div class="legend-item">
+        <span class="legend-dot prediction"></span>
+        <span>预测</span>
+      </div>
+      <div class="legend-item" v-if="historicalBest">
+        <span class="legend-dot historical"></span>
+        <span>历史最优</span>
+      </div>
+      <!-- 图表类型切换 -->
+      <div class="chart-toggle">
+        <el-button-group size="small">
+          <el-button :type="chartType === 'facet' ? 'primary' : ''" @click="chartType = 'facet'">散点</el-button>
+          <el-button :type="chartType === 'bar' ? 'primary' : ''" @click="chartType = 'bar'">柱状</el-button>
+        </el-button-group>
       </div>
     </div>
     
-    <!-- Plotly散点图容器 -->
+    <!-- Plotly 图表容器 -->
     <div ref="plotlyChartRef" class="chart-container"></div>
-    
-    <!-- 切换按钮 -->
-    <div class="chart-actions">
-      <el-button-group>
-        <el-button 
-          :type="chartType === 'facet' ? 'primary' : ''" 
-          size="small"
-          @click="chartType = 'facet'"
-        >
-          分面散点图（推荐）
-        </el-button>
-        <el-button 
-          :type="chartType === 'bar' ? 'primary' : ''" 
-          size="small"
-          @click="chartType = 'bar'"
-        >
-          分组条形图
-        </el-button>
-      </el-button-group>
-    </div>
   </div>
 </template>
 
@@ -82,299 +64,158 @@ const metricsConfig = [
   { key: 'adhesion_strength', label: '结合力', unit: 'N', color: '#10b981' }
 ]
 
-// 创建分面散点图（专业实验数据可视化）
+// 创建散点图 - 2x2 独立子图布局
 const createFacetScatterChart = () => {
   if (!plotlyChartRef.value) return
   
-  const traces = []
-  // 存储每个指标的Y轴范围，用于自适应调整
-  const yRanges = {}
+  const dataTypes = ['实验', '预测', '历史']
+  const colors = ['#6366f1', '#10b981', '#f59e0b']
+  const symbols = ['circle', 'diamond', 'square']
+  const dataSources = [props.experimentData, props.predictionData, props.historicalBest]
   
-  // 为每个指标创建独立的子图
-  metricsConfig.forEach((metric, index) => {
-    const dataTypes = ['实验', '预测', '历史']
-    const colors = ['rgb(99, 102, 241)', 'rgb(16, 185, 129)', 'rgb(245, 158, 11)']
-    const symbols = ['circle', 'diamond', 'square']
-    const dataSources = [
-      props.experimentData,
-      props.predictionData,
-      props.historicalBest
-    ]
-    
-    // 收集当前指标的所有数值，用于计算Y轴范围
-    const values = []
-    
-    dataSources.forEach((dataSource, dataIndex) => {
-      if (!dataSource) return
-      
-      const value = dataSource[metric.key]
-      // 安全检查：value必须是有效数字
-      if (value === null || value === undefined || isNaN(value)) return
-      
-      values.push(value)
-      const dataType = dataTypes[dataIndex]
-      
-      // 根据数值大小智能格式化
-      const formatValue = (val) => {
-        if (val < 1) return val.toFixed(3)
-        return val.toFixed(1)
-      }
+  const traces = []
+  
+  // 为每个指标创建独立子图
+  metricsConfig.forEach((metric, mIdx) => {
+    dataSources.forEach((src, dIdx) => {
+      if (!src) return
+      const val = src[metric.key]
+      if (val === null || val === undefined || isNaN(val)) return
       
       traces.push({
-        x: [dataType],
-        y: [value],
-        name: dataType,
-        legendgroup: dataType,
-        showlegend: index === 0, // 只在第一个子图显示图例
+        x: [dataTypes[dIdx]],
+        y: [val],
+        name: dataTypes[dIdx],
+        legendgroup: dataTypes[dIdx],
+        showlegend: mIdx === 0,
         type: 'scatter',
-        mode: 'markers+text',
-        text: [formatValue(value)],
-        textposition: 'top center',
-        textfont: {
-          size: 13,
-          color: colors[dataIndex],
-          family: 'Arial, sans-serif',
-          weight: 'bold'
+        mode: 'markers',
+        marker: { 
+          size: 12, 
+          color: colors[dIdx],
+          symbol: symbols[dIdx],
+          line: { width: 1, color: 'white' }
         },
-        marker: {
-          size: 24,
-          color: colors[dataIndex],
-          symbol: symbols[dataIndex],
-          line: {
-            color: 'white',
-            width: 3
-          }
-        },
-        xaxis: `x${index + 1}`,
-        yaxis: `y${index + 1}`,
-        hovertemplate: `<b>${dataType}数据</b><br>${metric.label}: <b>%{y} ${metric.unit}</b><extra></extra>`
+        xaxis: mIdx === 0 ? 'x' : `x${mIdx + 1}`,
+        yaxis: mIdx === 0 ? 'y' : `y${mIdx + 1}`,
+        hovertemplate: `<b>${dataTypes[dIdx]}</b><br>${val < 0.01 ? val.toExponential(2) : val.toFixed(2)}<extra></extra>`
       })
     })
-    
-    // 计算Y轴范围：给标注留出20%的上方空间
-    if (values.length > 0) {
-      const minVal = Math.min(...values)
-      const maxVal = Math.max(...values)
-      const range = maxVal - minVal
-      
-      // 如果所有值相同，给一个默认范围
-      if (range === 0) {
-        yRanges[index + 1] = [minVal * 0.8, minVal * 1.3]
-      } else {
-        // 下界：留出5%的空间，但不低于0（除非有负数）
-        const yMin = minVal > 0 ? Math.max(0, minVal - range * 0.05) : minVal - range * 0.05
-        // 上界：留出20%的空间给文字标注
-        const yMax = maxVal + range * 0.20
-        yRanges[index + 1] = [yMin, yMax]
-      }
-    }
   })
   
-  // 创建布局：2行2列排列（4个指标正好平均分布）
+  // 2x2 布局
   const layout = {
-    title: {
-      text: '性能指标对比分析',
-      font: {
-        size: 18,
-        family: 'Arial, sans-serif',
-        weight: 'bold'
-      }
-    },
     showlegend: true,
-    legend: {
-      x: 0.5,
-      xanchor: 'center',
-      y: 1.06,
-      yanchor: 'top',
-      orientation: 'h',
-      font: {
-        size: 15,
-        family: 'Arial, sans-serif'
-      },
-      itemwidth: 30
-    },
-    grid: {
-      rows: 2,
-      columns: 2,
-      pattern: 'independent',
-      xgap: 0.18,
-      ygap: 0.20,
-      roworder: 'top to bottom'
-    },
-    margin: {
-      l: 80,
-      r: 80,
-      t: 100,
-      b: 80
-    },
+    legend: { orientation: 'h', x: 0.5, xanchor: 'center', y: 1.12 },
+    grid: { rows: 2, columns: 2, pattern: 'independent', xgap: 0.1, ygap: 0.15 },
+    margin: { l: 60, r: 30, t: 60, b: 40 },
+    height: 400,
     autosize: true,
-    hovermode: 'closest'
+    hovermode: 'closest',
+    plot_bgcolor: '#fafafa',
+    paper_bgcolor: 'rgba(0,0,0,0)'
   }
   
-  // 为每个子图设置独立的坐标轴
-  metricsConfig.forEach((metric, index) => {
-    const axisNum = index + 1
+  // 配置每个子图坐标轴
+  metricsConfig.forEach((metric, idx) => {
+    const xKey = idx === 0 ? 'xaxis' : `xaxis${idx + 1}`
+    const yKey = idx === 0 ? 'yaxis' : `yaxis${idx + 1}`
     
-    // X轴配置
-    layout[`xaxis${axisNum}`] = {
-      title: {
-        text: `<b>${metric.label}</b><br><span style="font-size:13px">(${metric.unit})</span>`,
-        font: {
-          size: 15,
-          family: 'Arial, sans-serif'
-        },
-        standoff: 20
-      },
-      tickfont: {
-        size: 13
-      },
+    layout[xKey] = {
+      title: { text: `${metric.label} (${metric.unit})`, font: { size: 12 }, standoff: 5 },
+      tickfont: { size: 10 },
       showgrid: false,
-      fixedrange: false
+      showline: true,
+      linecolor: '#e0e0e0'
     }
-    
-    // Y轴配置（自适应范围）
-    layout[`yaxis${axisNum}`] = {
-      tickfont: {
-        size: 13
-      },
-      gridcolor: 'rgba(0,0,0,0.1)',
-      gridwidth: 1,
-      fixedrange: false,
-      // 应用计算好的Y轴范围，确保文字标注不被裁剪
-      range: yRanges[axisNum] || undefined
+    layout[yKey] = {
+      tickfont: { size: 10 },
+      gridcolor: '#f0f0f0',
+      showline: true,
+      linecolor: '#e0e0e0',
+      zeroline: false
     }
   })
   
-  const config = {
+  Plotly.newPlot(plotlyChartRef.value, traces, layout, {
     responsive: true,
     displayModeBar: true,
-    displaylogo: false,
-    modeBarButtonsToRemove: ['pan2d', 'lasso2d', 'select2d'],
-    autosizable: true
-  }
-  
-  Plotly.newPlot(plotlyChartRef.value, traces, layout, config)
+    modeBarButtonsToRemove: ['lasso2d', 'select2d', 'sendDataToCloud']
+  })
 }
 
-// 创建分组条形图（更清晰）
+// 创建柱状图 - 2x2 独立子图布局
 const createBarChart = () => {
   if (!plotlyChartRef.value) return
   
-  const traces = []
-  const dataTypes = ['实验数据', 'ML预测', '历史最优']
-  const colors = ['rgb(99, 102, 241)', 'rgb(16, 185, 129)', 'rgb(245, 158, 11)']
+  const dataTypes = ['实验', '预测', '历史']
+  const colors = ['#6366f1', '#10b981', '#f59e0b']
   const dataSources = [props.experimentData, props.predictionData, props.historicalBest]
   
-  // 为每种数据来源创建一个系列
-  dataTypes.forEach((dataType, index) => {
-    const dataSource = dataSources[index]
-    if (!dataSource) return
-    
-    const xValues = []
-    const yValues = []
-    const textValues = []
-    const hoverTexts = []
-    
-    metricsConfig.forEach(metric => {
-      const value = dataSource[metric.key]
-      if (value !== null && value !== undefined) {
-        xValues.push(`${metric.label}<br>(${metric.unit})`)
-        yValues.push(value)
-        textValues.push(value)
-        hoverTexts.push(`<b>${dataType}</b><br>${metric.label}: <b>${value} ${metric.unit}</b>`)
-      }
-    })
-    
-    traces.push({
-      x: xValues,
-      y: yValues,
-      name: dataType,
-      type: 'bar',
-      text: textValues,
-      textposition: 'outside',
-      textfont: {
-        size: 14,
-        family: 'Arial, sans-serif',
-        color: colors[index]
-      },
-      marker: {
-        color: colors[index],
-        opacity: 0.8,
-        line: {
-          color: colors[index],
-          width: 1.5
-        }
-      },
-      hovertemplate: '%{hovertext}<extra></extra>',
-      hovertext: hoverTexts
+  const traces = []
+  
+  // 为每个指标创建独立子图
+  metricsConfig.forEach((metric, mIdx) => {
+    dataSources.forEach((src, dIdx) => {
+      if (!src) return
+      const val = src[metric.key]
+      if (val === null || val === undefined || isNaN(val)) return
+      
+      traces.push({
+        x: [dataTypes[dIdx]],
+        y: [val],
+        name: dataTypes[dIdx],
+        legendgroup: dataTypes[dIdx],
+        showlegend: mIdx === 0,
+        type: 'bar',
+        marker: { color: colors[dIdx], opacity: 0.85 },
+        xaxis: mIdx === 0 ? 'x' : `x${mIdx + 1}`,
+        yaxis: mIdx === 0 ? 'y' : `y${mIdx + 1}`,
+        hovertemplate: `<b>${dataTypes[dIdx]}</b><br>${val < 0.01 ? val.toExponential(2) : val.toFixed(2)}<extra></extra>`
+      })
     })
   })
   
+  // 2x2 布局
   const layout = {
-    title: {
-      text: '性能指标对比',
-      font: {
-        size: 18,
-        family: 'Arial, sans-serif',
-        weight: 'bold'
-      },
-      y: 0.98,
-      yanchor: 'top'
-    },
-    xaxis: {
-      tickfont: {
-        size: 13,
-        family: 'Arial, sans-serif'
-      },
-      tickangle: 0
-    },
-    yaxis: {
-      title: '数值',
-      titlefont: {
-        size: 15
-      },
-      tickfont: {
-        size: 13
-      },
-      gridcolor: 'rgba(0,0,0,0.08)'
-    },
-    barmode: 'group',
-    bargap: 0.15,
-    bargroupgap: 0.1,
     showlegend: true,
-    legend: {
-      x: 0.5,
-      xanchor: 'center',
-      y: 1.12,
-      yanchor: 'top',
-      orientation: 'h',
-      font: {
-        size: 14,
-        family: 'Arial, sans-serif'
-      },
-      bgcolor: 'rgba(255,255,255,0.9)',
-      bordercolor: 'rgba(0,0,0,0.1)',
-      borderwidth: 1
-    },
-    margin: {
-      l: 70,
-      r: 40,
-      t: 120,
-      b: 80
-    },
+    legend: { orientation: 'h', x: 0.5, xanchor: 'center', y: 1.12 },
+    grid: { rows: 2, columns: 2, pattern: 'independent', xgap: 0.1, ygap: 0.15 },
+    margin: { l: 60, r: 30, t: 60, b: 40 },
+    height: 400,
     autosize: true,
-    hovermode: 'closest'
+    hovermode: 'closest',
+    plot_bgcolor: '#fafafa',
+    paper_bgcolor: 'rgba(0,0,0,0)',
+    bargap: 0.3
   }
   
-  const config = {
+  // 配置每个子图坐标轴
+  metricsConfig.forEach((metric, idx) => {
+    const xKey = idx === 0 ? 'xaxis' : `xaxis${idx + 1}`
+    const yKey = idx === 0 ? 'yaxis' : `yaxis${idx + 1}`
+    
+    layout[xKey] = {
+      title: { text: `${metric.label} (${metric.unit})`, font: { size: 12 }, standoff: 5 },
+      tickfont: { size: 10 },
+      showgrid: false,
+      showline: true,
+      linecolor: '#e0e0e0'
+    }
+    layout[yKey] = {
+      tickfont: { size: 10 },
+      gridcolor: '#f0f0f0',
+      showline: true,
+      linecolor: '#e0e0e0',
+      zeroline: false
+    }
+  })
+  
+  Plotly.newPlot(plotlyChartRef.value, traces, layout, {
     responsive: true,
     displayModeBar: true,
-    displaylogo: false,
-    modeBarButtonsToRemove: ['pan2d', 'lasso2d', 'select2d', 'zoom2d', 'zoomIn2d', 'zoomOut2d', 'autoScale2d'],
-    autosizable: true
-  }
-  
-  Plotly.newPlot(plotlyChartRef.value, traces, layout, config)
+    modeBarButtonsToRemove: ['lasso2d', 'select2d', 'sendDataToCloud']
+  })
 }
 
 
@@ -434,53 +275,29 @@ onUnmounted(() => {
 
 <style scoped>
 .performance-comparison-chart {
-  background: #ffffff;
-  border-radius: 16px;
-  padding: 24px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-  border: 1px solid #e5e7eb;
-  margin-top: 16px;
+  padding: 16px;
 }
 
-.chart-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid #f3f4f6;
-}
-
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.header-left h4 {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 600;
-  color: #111827;
-}
-
+/* 图例和切换按钮 */
 .chart-legend {
   display: flex;
+  align-items: center;
   gap: 16px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
 }
 
 .legend-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  font-weight: 500;
-  color: #4b5563;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-secondary, #6b7280);
 }
 
 .legend-dot {
-  width: 12px;
-  height: 12px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   flex-shrink: 0;
 }
@@ -497,19 +314,21 @@ onUnmounted(() => {
   background: rgb(245, 158, 11);
 }
 
-.chart-container {
-  width: 100%;
-  height: 800px;
-  position: relative;
-  padding: 0;
+.chart-toggle {
+  margin-left: auto;
 }
 
+.chart-toggle :deep(.el-button) {
+  font-size: 12px;
+  padding: 4px 10px;
+}
 
-.chart-actions {
-  display: flex;
-  justify-content: center;
-  margin-top: 20px;
-  padding-top: 20px;
-  border-top: 1px solid #f3f4f6;
+/* 图表容器 */
+.chart-container {
+  width: 100%;
+  height: 400px;
+  position: relative;
+  background: var(--bg-secondary, #f9fafb);
+  border-radius: 8px;
 }
 </style>

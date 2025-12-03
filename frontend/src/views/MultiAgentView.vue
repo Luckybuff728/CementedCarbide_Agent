@@ -6,7 +6,7 @@
         <div class="left-section">
           <!-- 标题区域 -->
           <div class="title-section">
-            <h2 class="app-title">TopMat Agent</h2>
+            <h2 class="app-title">CementedCarbide Agent</h2>
             <p class="app-subtitle">涂层材料智能研发系统</p>
           </div>
           
@@ -302,7 +302,7 @@ onMounted(() => {
   if (authStore.isAuthenticated && !isConnected.value) {
     console.log('[MultiAgentView] 初始连接')
     connect(authStore.token)
-    ElMessage.success('欢迎使用 TopMat Agent 多智能体系统')
+    ElMessage.success('欢迎使用 CementedCarbide Agent 涂层智能研发系统')
   }
   
   // 添加全局事件监听，防止拖出iframe或窗口时卡住
@@ -337,16 +337,16 @@ watch(() => authStore.isAuthenticated, (authed) => {
   height: 100vh;
   display: flex;
   flex-direction: column;
-  background: #f0f4f9; /* Gemini 风格背景 */
-  color: #1f1f1f;
+  background: var(--bg-app);
+  color: var(--text-primary);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
 /* 顶部状态栏 - 极简风格 */
 .status-bar {
   height: 64px;
-  background: #ffffff;
-  border-bottom: 1px solid #e1e4e8;
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--border-color);
   display: flex;
   align-items: center;
   padding: 0 24px;
@@ -377,7 +377,7 @@ watch(() => authStore.isAuthenticated, (authed) => {
   margin: 0;
   font-size: 18px;
   font-weight: 600;
-  color: #1f1f1f;
+  color: var(--text-primary);
   line-height: 1.2;
   letter-spacing: -0.02em;
 }
@@ -385,7 +385,7 @@ watch(() => authStore.isAuthenticated, (authed) => {
 .app-subtitle {
   margin: 0;
   font-size: 12px;
-  color: #5f6368;
+  color: var(--text-secondary);
   line-height: 1.2;
 }
 
@@ -397,13 +397,13 @@ watch(() => authStore.isAuthenticated, (authed) => {
   padding: 4px 8px;
   border-radius: 12px;
   font-size: 12px;
-  color: #5f6368;
-  background: #f1f3f4;
+  color: var(--text-secondary);
+  background: var(--bg-tertiary);
 }
 
 .connection-indicator.active {
-  background: #e6f4ea;
-  color: #1fc757;
+  background: var(--success-light);
+  color: var(--success);
 }
 
 .connection-dot {
@@ -419,20 +419,20 @@ watch(() => authStore.isAuthenticated, (authed) => {
   align-items: center;
   gap: 6px;
   padding: 4px 12px;
-  background: #f1f3f4;
+  background: var(--bg-tertiary);
   border-radius: 16px;
   font-size: 12px;
-  color: #3c4043;
+  color: var(--text-primary);
 }
 
 .status-badge.agent {
-  background: #e8f0fe;
-  color: #1967d2;
+  background: var(--primary-lighter);
+  color: var(--primary);
 }
 
 .status-badge.error {
-  background: #fce8e6;
-  color: #c5221f;
+  background: var(--danger-light);
+  color: var(--danger);
   cursor: pointer;
   animation: pulse-error 2s ease-in-out infinite;
 }
@@ -451,7 +451,7 @@ watch(() => authStore.isAuthenticated, (authed) => {
 }
 
 .badge-label {
-  color: #5f6368;
+  color: var(--text-secondary);
   font-weight: 500;
 }
 
@@ -464,7 +464,7 @@ watch(() => authStore.isAuthenticated, (authed) => {
 :deep(.el-divider--vertical) {
   height: 24px;
   margin: 0;
-  border-color: #dfe1e5;
+  border-color: var(--border-color);
 }
 
 /* 用户信息 */
@@ -478,7 +478,7 @@ watch(() => authStore.isAuthenticated, (authed) => {
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: #1967d2;
+  background: var(--primary);
   color: white;
   display: flex;
   align-items: center;
@@ -508,14 +508,14 @@ watch(() => authStore.isAuthenticated, (authed) => {
 }
 
 .resize-handle:hover .handle-line {
-  background: #1967d2;
+  background: var(--primary);
   opacity: 1;
 }
 
 .handle-line {
   width: 4px;
   height: 40px;
-  background: #dadce0;
+  background: var(--border-color);
   border-radius: 2px;
   transition: all 0.2s;
 }
@@ -541,8 +541,8 @@ watch(() => authStore.isAuthenticated, (authed) => {
   left: 0;
   width: 32px;
   height: 32px;
-  background: #ffffff;
-  border: 1px solid #dadce0;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
   border-radius: 0 16px 16px 0;
   border-left: none;
   display: flex;
@@ -550,21 +550,21 @@ watch(() => authStore.isAuthenticated, (authed) => {
   justify-content: center;
   cursor: pointer;
   z-index: 20;
-  color: #5f6368;
+  color: var(--text-secondary);
   box-shadow: 2px 0 8px rgba(0, 0, 0, 0.05);
 }
 
 .collapsed-toggle:hover {
-  background: #f8f9fa;
-  color: #1967d2;
+  background: var(--bg-secondary);
+  color: var(--primary);
 }
 
 /* 展开时的面板 */
 .left-panel {
   flex: 1;
-  background: #ffffff;
+  background: var(--bg-primary);
   border-radius: 16px;
-  border: 1px solid #dadce0; /* 轻微边框 */
+  border: 1px solid var(--border-color); /* 轻微边框 */
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -577,7 +577,7 @@ watch(() => authStore.isAuthenticated, (authed) => {
   width: 28px;
   height: 28px;
   background: #fff;
-  border: 1px solid #dadce0;
+  border: 1px solid var(--border-color);
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -585,13 +585,13 @@ watch(() => authStore.isAuthenticated, (authed) => {
   cursor: pointer;
   z-index: 10;
   transition: all 0.2s;
-  color: #5f6368;
+  color: var(--text-secondary);
   box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 }
 
 .panel-toggle:hover {
-  background: #f8f9fa;
-  color: #1967d2;
+  background: var(--bg-secondary);
+  color: var(--primary);
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
@@ -618,24 +618,7 @@ watch(() => authStore.isAuthenticated, (authed) => {
   overflow: hidden;
 }
 
-/* 滚动条样式统一 */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #dadce0;
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #bdc1c6;
-}
+/* 滚动条样式已统一在 style.css，这里只需保留可能的局部覆盖（如果有） */
 </style>
 
 

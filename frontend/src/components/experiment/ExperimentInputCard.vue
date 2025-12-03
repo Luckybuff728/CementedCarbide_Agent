@@ -1,153 +1,55 @@
 <template>
   <div class="experiment-input-card">
-    <div class="card-header">
-      <div class="header-left">
-        <div class="icon-wrapper">
-          <el-icon :size="24" color="#3b82f6">
-            <FlaskOutline />
-          </el-icon>
-        </div>
-        <div class="header-text">
-          <h3>实验数据录入</h3>
-          <span class="subtitle">请输入第 {{ iteration }} 轮迭代的测试结果</span>
-        </div>
-      </div>
-      <el-tag type="primary" effect="plain" round>第 {{ iteration }} 轮</el-tag>
-    </div>
-    
+    <!-- 输入表单 -->
     <el-form :model="formData" label-position="top" class="experiment-form">
-      <!-- 实验数据输入 -->
-      <div class="form-section">
-        <div class="section-header">
-          <h4 class="section-title">
-            <el-icon><DocumentTextOutline /></el-icon>
-            测试结果
-          </h4>
-          <span class="section-desc">请准确填写各项测试数据</span>
-        </div>
-        
-        <div class="form-grid">
-          <div class="form-item">
-            <label class="input-label">
-              硬度 <span class="required">*</span>
-            </label>
-            <div class="input-with-unit">
-              <el-input-number 
-                v-model="formData.hardness"
-                :min="0"
-                :max="50"
-                :precision="1"
-                :step="0.1"
-                placeholder="0.0"
-                :controls="false"
-              />
-              <span class="unit">GPa</span>
-            </div>
-          </div>
-          
-          <div class="form-item">
-            <label class="input-label">
-              结合力 <span class="required">*</span>
-            </label>
-            <div class="input-with-unit">
-              <el-input-number 
-                v-model="formData.adhesion_strength"
-                :min="0"
-                :max="100"
-                :precision="1"
-                placeholder="0.0"
-                :controls="false"
-              />
-              <span class="unit">N</span>
-            </div>
-          </div>
-          
-          <div class="form-item">
-            <label class="input-label">
-              弹性模量 <span class="required">*</span>
-            </label>
-            <div class="input-with-unit">
-              <el-input-number 
-                v-model="formData.elastic_modulus"
-                :min="0"
-                :max="1000"
-                :precision="1"
-                :step="1"
-                placeholder="0.0"
-                :controls="false"
-              />
-              <span class="unit">GPa</span>
-            </div>
-          </div>
-          
-          <div class="form-item">
-            <label class="input-label">
-              磨损率
-            </label>
-            <div class="input-with-unit">
-              <el-input-number 
-                v-model="formData.wear_rate"
-                :min="0"
-                :max="1"
-                :precision="3"
-                :step="0.001"
-                placeholder="0.000"
-                :controls="false"
-              />
-              <span class="unit">mm³/Nm</span>
-            </div>
+      <!-- 迭代轮次提示 -->
+      <div class="iteration-banner">
+        <el-tag type="primary" effect="plain" size="small">第 {{ iteration }} 轮</el-tag>
+        <span>请填写实验测试结果</span>
+      </div>
+      
+      <!-- 测试数据输入 - 紧凑网格 -->
+      <div class="input-grid">
+        <div class="input-item">
+          <label>硬度 <span class="req">*</span></label>
+          <div class="input-wrap">
+            <el-input-number v-model="formData.hardness" :min="0" :max="50" :precision="1" :step="0.1" placeholder="0.0" :controls="false" />
+            <span class="unit">GPa</span>
           </div>
         </div>
-        
-        <div class="notes-section">
-          <label class="input-label">备注信息</label>
-          <el-input 
-            v-model="formData.notes"
-            type="textarea"
-            :rows="2"
-            placeholder="请输入实验过程中的特殊情况或备注（可选）"
-            resize="none"
-          />
+        <div class="input-item">
+          <label>结合力 <span class="req">*</span></label>
+          <div class="input-wrap">
+            <el-input-number v-model="formData.adhesion_strength" :min="0" :max="100" :precision="1" placeholder="0.0" :controls="false" />
+            <span class="unit">N</span>
+          </div>
+        </div>
+        <div class="input-item">
+          <label>弹性模量 <span class="req">*</span></label>
+          <div class="input-wrap">
+            <el-input-number v-model="formData.elastic_modulus" :min="0" :max="1000" :precision="1" placeholder="0.0" :controls="false" />
+            <span class="unit">GPa</span>
+          </div>
+        </div>
+        <div class="input-item">
+          <label>磨损率</label>
+          <div class="input-wrap">
+            <el-input-number v-model="formData.wear_rate" :min="0" :max="1" :precision="4" :step="0.0001" placeholder="0.0000" :controls="false" />
+            <span class="unit">mm³/Nm</span>
+          </div>
         </div>
       </div>
       
-      <!-- 对比参考信息 -->
-      <div v-if="historicalBest" class="reference-section">
-        <div class="section-header">
-          <h4 class="section-title">
-            <el-icon><BarChartOutline /></el-icon>
-            性能参考
-          </h4>
-        </div>
-        <div class="comparison-row">
-          <div class="stat-item">
-            <span class="stat-label">当前硬度</span>
-            <span class="stat-value current">{{ formData.hardness || '-' }} <small>GPa</small></span>
-          </div>
-          <div class="stat-divider"></div>
-          <div class="stat-item">
-            <span class="stat-label">历史最优</span>
-            <span class="stat-value historical">{{ historicalBest.hardness }} <small>GPa</small></span>
-          </div>
-          <template v-if="targetHardness">
-            <div class="stat-divider"></div>
-            <div class="stat-item">
-              <span class="stat-label">目标值</span>
-              <span class="stat-value target">{{ targetHardness }} <small>GPa</small></span>
-            </div>
-          </template>
-        </div>
+      <!-- 备注 -->
+      <div class="notes-wrap">
+        <label>备注</label>
+        <el-input v-model="formData.notes" type="textarea" :rows="2" placeholder="特殊情况或备注（可选）" resize="none" />
       </div>
     </el-form>
     
-    <!-- 迭代决策 -->
-    <div class="decision-section">
-      <div class="section-header">
-        <h4 class="section-title">
-          <el-icon><GitBranchOutline /></el-icon>
-          下一步操作
-        </h4>
-      </div>
+    <!-- 下一步操作 -->
+    <div class="action-section">
+      <div class="action-title">下一步操作</div>
       
       <div class="decision-options">
         <el-radio-group v-model="formData.continue_iteration" class="decision-radio-group">
@@ -255,70 +157,95 @@ const handleCancel = () => {
 
 <style scoped>
 .experiment-input-card {
-  background: #ffffff;
-  border-radius: 16px;
-  padding: 24px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-  border: 1px solid #e5e7eb;
-  max-width: 100%;
-  overflow-x: hidden;
-  box-sizing: border-box;
+  padding: 16px;
 }
 
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 24px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid #f3f4f6;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-
-.header-left {
-  display: flex;
-  gap: 12px;
-  min-width: 0;
-  flex: 1;
-}
-
-.icon-wrapper {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  background: #eff6ff;
+/* 迭代提示横幅 */
+.iteration-banner {
   display: flex;
   align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.header-text {
-  min-width: 0;
-}
-
-.header-text h3 {
-  margin: 0 0 4px 0;
-  font-size: 18px;
-  font-weight: 600;
-  color: #111827;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.subtitle {
+  gap: 10px;
+  margin-bottom: 16px;
   font-size: 13px;
-  color: #6b7280;
-  display: block;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  color: var(--text-secondary, #6b7280);
 }
 
-.form-section, .reference-section, .decision-section {
-  margin-bottom: 24px;
+/* 输入网格 - 2x2 */
+.input-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.input-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.input-item label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary, #6b7280);
+}
+
+.input-item .req {
+  color: #ef4444;
+}
+
+.input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-wrap :deep(.el-input-number) {
+  width: 100%;
+}
+
+.input-wrap :deep(.el-input__inner) {
+  text-align: left;
+  padding-right: 50px;
+  border-radius: 8px;
+}
+
+.input-wrap .unit {
+  position: absolute;
+  right: 10px;
+  font-size: 11px;
+  color: var(--text-tertiary, #9ca3af);
+  pointer-events: none;
+}
+
+/* 备注 */
+.notes-wrap {
+  margin-bottom: 16px;
+}
+
+.notes-wrap label {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary, #6b7280);
+  margin-bottom: 4px;
+}
+
+.notes-wrap :deep(.el-textarea__inner) {
+  border-radius: 8px;
+}
+
+/* 下一步操作 */
+.action-section {
+  padding-top: 16px;
+  border-top: 1px solid var(--bg-tertiary, #f3f4f6);
+}
+
+.action-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary, #1f2937);
+  margin-bottom: 12px;
 }
 
 .section-header {
@@ -347,8 +274,8 @@ const handleCancel = () => {
 
 .form-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px 16px;
   margin-bottom: 16px;
 }
 
@@ -405,32 +332,25 @@ const handleCancel = () => {
 }
 
 .notes-section :deep(.el-textarea__inner) {
-  background: #f9fafb;
   border: 1px solid #e5e7eb;
-  transition: all 0.2s;
   border-radius: 8px;
 }
 
 .notes-section :deep(.el-textarea__inner):focus {
-  background: #ffffff;
   border-color: #3b82f6;
-  box-shadow: 0 0 0 1px #3b82f6;
 }
 
 /* Reference Section */
 .reference-section {
-  background: linear-gradient(to right, #eff6ff, #ffffff);
-  border-radius: 12px;
-  padding: 16px;
-  border: 1px solid #dbeafe;
-  overflow-x: auto;
+  padding-top: 16px;
+  border-top: 1px solid #f3f4f6;
 }
 
 .comparison-row {
   display: flex;
   align-items: center;
-  gap: 24px;
-  min-width: max-content;
+  gap: 20px;
+  flex-wrap: wrap;
 }
 
 .stat-item {
@@ -472,8 +392,8 @@ const handleCancel = () => {
 /* Decision Section */
 .decision-radio-group {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
   width: 100%;
 }
 
@@ -481,9 +401,9 @@ const handleCancel = () => {
   margin-right: 0 !important;
   width: 100%;
   height: auto !important;
-  padding: 12px !important;
+  padding: 10px 12px !important;
   box-sizing: border-box;
-  border-radius: 12px !important;
+  border-radius: 8px !important;
   border-color: #e5e7eb !important;
 }
 
@@ -549,7 +469,7 @@ const handleCancel = () => {
 }
 
 .submit-btn {
-  min-width: 140px;
+  min-width: 120px;
   border-radius: 8px;
 }
 

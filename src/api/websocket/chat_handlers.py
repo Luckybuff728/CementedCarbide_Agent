@@ -6,15 +6,13 @@
 - 每条消息独立处理，支持多轮对话
 - 实时流式输出
 """
-import logging
 import uuid
 import asyncio
 from typing import Dict, Any, Optional
 from datetime import datetime
+from loguru import logger
 
 from .manager import manager
-
-logger = logging.getLogger(__name__)
 
 
 async def handle_chat_message(data: Dict[str, Any], client_id: str, session_id: Optional[str] = None):
@@ -289,8 +287,8 @@ def _get_agent_display_name(agent: str) -> str:
         "assistant": "研发助手",
         "validator": "参数验证专家",
         "analyst": "性能分析专家",
-        "optimizer": "优化建议专家",
-        "experimenter": "实验方案专家"
+        "optimizer": "优化方案专家",
+        "experimenter": "实验工单专家"
     }
     return names.get(agent, agent)
 
@@ -298,6 +296,8 @@ def _get_agent_display_name(agent: str) -> str:
 def _get_tool_display_name(tool: str) -> str:
     """获取工具显示名称"""
     names = {
+        # 状态更新工具
+        "update_params": "更新参数",
         # 验证工具
         "validate_composition_tool": "验证成分配比",
         "validate_process_params_tool": "验证工艺参数",
@@ -309,5 +309,7 @@ def _get_tool_display_name(tool: str) -> str:
         # 实验工具
         "show_performance_comparison_tool": "性能对比",
         "request_experiment_input_tool": "实验数据录入",
+        # RAG 工具
+        "query_knowledge_base": "知识库检索",
     }
     return names.get(tool, tool)

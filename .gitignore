@@ -57,3 +57,6 @@ Thumbs.db
 \langchain_src
 \langchain_reference
 涂层成分.md
+scripts/
+/RAG/
+langgraph-main/

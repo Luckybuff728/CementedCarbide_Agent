@@ -51,6 +51,7 @@ export function useMultiAgent() {
   // 数据状态（工具调用结果）
   const validationResult = ref(null)
   const performancePrediction = ref(null)
+  const historicalData = ref(null)  // 缓存历史数据，供性能对比使用
   const optimizationResults = ref(null)
   const experimentWorkorder = ref(null)
 
@@ -249,51 +250,42 @@ export function useMultiAgent() {
     })
   }
 
-  // 工具名称映射 - 简洁中文名
-  const toolNameMap = {
-    // 状态更新工具
-    'update_params': '更新参数',
-    // 验证工具
-    'validate_composition_tool': '验证成分配比',
-    'validate_process_params_tool': '验证工艺参数',
-    'normalize_composition_tool': '归一化成分',
-    // 分析工具
-    'simulate_topphi_tool': 'TopPhi 模拟',
-    'predict_ml_performance_tool': 'ML 性能预测',
-    'compare_historical_tool': '历史案例检索',
-    // 实验工具
-    'analyze_experiment_results_tool': '实验结果分析',
-    'show_performance_comparison_tool': '性能对比',
-    'request_experiment_input_tool': '实验数据录入'
-  }
+  // 工具名称映射已移至后端 chat_handlers.py 的 _get_tool_display_name()
+  // 前端直接使用后端发送的 display_name，无需重复维护
 
   /**
-   * 将工具状态添加到当前流式消息中
+   * 将工具状态添加到当前流式消息中（去重）
    */
   const addToolToCurrentMessage = (toolName, displayName, isRunning) => {
-    // 如果有当前流式消息，添加到其 tools 数组中
-    if (streamingMessage.value) {
-      if (!streamingMessage.value.tools) {
-        streamingMessage.value.tools = []
+    const toolInfo = {
+      name: toolName,
+      displayName: displayName || toolName,  // 使用后端发送的 display_name，无则用原始名
+      isRunning: isRunning
+    }
+    
+    // 找到目标消息（优先流式消息，否则最近的 agent 消息）
+    let targetMsg = streamingMessage.value
+    if (!targetMsg) {
+      const lastIndex = messages.value.findLastIndex(m => m.type === 'agent')
+      if (lastIndex !== -1) {
+        targetMsg = messages.value[lastIndex]
       }
-      streamingMessage.value.tools.push({
-        name: toolName,
-        displayName: displayName || toolNameMap[toolName] || toolName,
-        isRunning: isRunning
-      })
-    } else {
-      // 如果没有流式消息，找到最近的 agent 消息并添加
-      const lastAgentMsg = messages.value.findLast(m => m.type === 'agent')
-      if (lastAgentMsg) {
-        if (!lastAgentMsg.tools) {
-          lastAgentMsg.tools = []
-        }
-        lastAgentMsg.tools.push({
-          name: toolName,
-          displayName: displayName || toolNameMap[toolName] || toolName,
-          isRunning: isRunning
-        })
+    }
+    
+    if (targetMsg) {
+      // 确保 tools 数组存在
+      if (!targetMsg.tools) {
+        targetMsg.tools = []
       }
+      // 检查是否已存在该工具（去重）
+      const existingIndex = targetMsg.tools.findIndex(t => t.name === toolName)
+      if (existingIndex === -1) {
+        targetMsg.tools.push(toolInfo)
+      } else {
+        targetMsg.tools[existingIndex].isRunning = isRunning
+      }
+      // 强制触发 Vue 响应式更新
+      messages.value = [...messages.value]
     }
   }
 
@@ -307,6 +299,8 @@ export function useMultiAgent() {
       const tool = targetMsg.tools.find(t => t.name === toolName)
       if (tool) {
         tool.isRunning = isRunning
+        // 强制触发 Vue 响应式更新
+        messages.value = [...messages.value]
       }
     }
   }
@@ -327,21 +321,50 @@ export function useMultiAgent() {
       console.log('[ChatAgent] 参数已更新:', result)
       return
     }
-    // 验证工具结果不再显示在结果面板
+    // 验证工具结果不显示在结果面板
     if (tool.includes('validate_composition') || tool.includes('validate_process')) {
-      // 只更新状态，不添加到结果面板
       validationResult.value = result
       return
-    } else if (tool.includes('simulate_topphi')) {
+    }
+    // RAG 知识库检索 - 不显示在结果面板（内容在聊天消息中展示）
+    if (tool.includes('query_knowledge_base') || tool.includes('rag')) {
+      console.log('[ChatAgent] RAG检索完成，结果将在聊天中展示')
+      return
+    }
+    // 归一化工具 - 不显示在结果面板
+    if (tool.includes('normalize_composition')) {
+      return
+    }
+    // 根因分析工具 - 不显示在结果面板（内容在聊天消息中展示）
+    if (tool.includes('analyze_root_cause')) {
+      return
+    }
+    
+    if (tool.includes('simulate_topphi')) {
       addResult('topphi', display_name || 'TopPhi 模拟', result)
     } else if (tool.includes('predict_ml')) {
-      performancePrediction.value = result
+      performancePrediction.value = result  // 缓存 ML 预测结果
       addResult('performance', display_name || 'ML 性能预测', result)
     } else if (tool.includes('compare_historical')) {
+      historicalData.value = result  // 缓存历史数据
       addResult('historical', display_name || '历史案例对比', result)
     } else if (tool.includes('show_performance_comparison')) {
-      // 性能对比图表（实验数据 vs ML预测 vs 历史最优）
-      addResult('performance_comparison', display_name || '性能对比分析', result)
+      // 性能对比图表 - 使用前端缓存的数据补充
+      const enrichedResult = {
+        ...result,
+        // 如果后端没有返回预测数据，使用前端缓存
+        prediction: result.prediction || performancePrediction.value,
+        // 如果后端没有返回历史数据，从缓存中提取
+        historical: result.historical || extractHistoricalBest(historicalData.value),
+        // 目标需求从会话参数获取
+        target: result.target || sessionParams.value.targetRequirements
+      }
+      console.log('[ChatAgent] 性能对比数据补充:', {
+        hasPrediction: !!enrichedResult.prediction,
+        hasHistorical: !!enrichedResult.historical,
+        hasTarget: !!enrichedResult.target
+      })
+      addResult('performance_comparison', display_name || '性能对比分析', enrichedResult)
     } else if (tool.includes('request_experiment_input')) {
       // 请求用户输入实验数据 - 显示输入卡片
       addResult('experiment_input', display_name || '实验数据录入', {
@@ -354,6 +377,65 @@ export function useMultiAgent() {
       // 其他工具结果
       addResult('other', display_name || tool, result)
     }
+  }
+
+  /**
+   * 从历史数据中提取最优性能数据
+   * 用于性能对比图表
+   */
+  const extractHistoricalBest = (histData) => {
+    if (!histData) {
+      console.log('[ChatAgent] extractHistoricalBest: 无历史数据')
+      return null
+    }
+    
+    console.log('[ChatAgent] extractHistoricalBest: 历史数据结构', Object.keys(histData))
+    
+    // 辅助函数：提取数值，兼容多种字段名
+    const extractValue = (obj, ...keys) => {
+      for (const key of keys) {
+        const val = obj?.[key]
+        if (val !== null && val !== undefined) {
+          return typeof val === 'number' ? val : parseFloat(val)
+        }
+      }
+      return null
+    }
+    
+    // 方式1：从 extracted_metrics.best_case 提取（最佳案例，包含完整四项指标）
+    const bestCase = histData.extracted_metrics?.best_case
+    if (bestCase) {
+      console.log('[ChatAgent] extractHistoricalBest: 使用 best_case', bestCase)
+      return {
+        hardness: extractValue(bestCase, 'hardness', 'hardness_gpa'),
+        elastic_modulus: extractValue(bestCase, 'elastic_modulus', 'modulus_gpa', 'modulus'),
+        adhesion_strength: extractValue(bestCase, 'adhesion_strength', 'adhesion_n', 'adhesion'),
+        wear_rate: extractValue(bestCase, 'wear_rate')
+      }
+    }
+    
+    // 方式2：从 performance_data 列表中提取第一条（RAG+LLM 返回格式）
+    const perfList = histData.performance_data || []
+    if (perfList.length > 0) {
+      const best = perfList[0]
+      console.log('[ChatAgent] extractHistoricalBest: 使用 performance_data[0]', best)
+      return {
+        hardness: extractValue(best, 'hardness', 'hardness_gpa'),
+        elastic_modulus: extractValue(best, 'elastic_modulus', 'modulus_gpa', 'modulus'),
+        adhesion_strength: extractValue(best, 'adhesion_strength', 'adhesion_n', 'adhesion'),
+        wear_rate: extractValue(best, 'wear_rate')
+      }
+    }
+    
+    // 方式3：从 similar_cases 中提取（旧格式兼容）
+    const cases = histData.similar_cases || []
+    if (cases.length > 0) {
+      console.log('[ChatAgent] extractHistoricalBest: 使用 similar_cases[0]')
+      return cases[0].performance || null
+    }
+    
+    console.log('[ChatAgent] extractHistoricalBest: 未找到可用数据')
+    return null
   }
 
   /**
@@ -418,16 +500,29 @@ export function useMultiAgent() {
     })
 
     // 发送到服务器
-    wsSend({
+    // 只有当参数不为空时才发送 context
+    const hasComposition = sessionParams.value.coatingComposition && 
+      Object.keys(sessionParams.value.coatingComposition).length > 0 &&
+      (sessionParams.value.coatingComposition.al_content || 
+       sessionParams.value.coatingComposition.ti_content ||
+       sessionParams.value.coatingComposition.n_content)
+    
+    const message = {
       type: 'chat_message',
       content: content,
-      session_id: sessionId.value,
-      context: {
+      session_id: sessionId.value
+    }
+    
+    // 只有用户填写了参数时才发送 context
+    if (hasComposition) {
+      message.context = {
         coating_composition: sessionParams.value.coatingComposition,
         process_params: sessionParams.value.processParams,
         target_requirements: sessionParams.value.targetRequirements
       }
-    })
+    }
+    
+    wsSend(message)
   }
 
   /**
@@ -466,70 +561,81 @@ export function useMultiAgent() {
     const struct = sessionParams.value.structureDesign
     const target = sessionParams.value.targetRequirements
     
-    let promptMessage = '请帮我验证并分析以下涂层参数：\n\n'
+    // 工艺类型映射（英文 -> 中文）
+    const processTypeMap = {
+      'magnetron_sputtering': '磁控溅射',
+      'arc_ion_plating': '电弧离子镀',
+      'cvd': 'CVD',
+      'pecvd': 'PECVD',
+      'hipims': 'HiPIMS'
+    }
     
-    // 涂层成分（字段：al_content, ti_content, n_content, other_elements）
-    promptMessage += '**成分配比：** '
+    // 结构类型映射
+    const structTypeMap = {
+      'single': '单层',
+      'multi': '多层',
+      'gradient': '梯度',
+      'nano_multilayer': '纳米多层'
+    }
+    
+    let promptMessage = '请帮我验证并分析以下涂层参数：\n'
+    
+    // 涂层成分
+    promptMessage += '成分配比：'
     if (comp && Object.keys(comp).length > 0) {
       const al = comp.al_content || 0
       const ti = comp.ti_content || 0
       const n = comp.n_content || 0
-      promptMessage += `Al ${al.toFixed ? al.toFixed(1) : al} at.%, Ti ${ti.toFixed ? ti.toFixed(1) : ti} at.%, N ${n.toFixed ? n.toFixed(1) : n} at.%`
+      promptMessage += `Al ${al.toFixed ? al.toFixed(1) : al}%, Ti ${ti.toFixed ? ti.toFixed(1) : ti}%, N ${n.toFixed ? n.toFixed(1) : n}%`
       
-      // 其他元素
-      if (comp.other_elements && Array.isArray(comp.other_elements)) {
-        const otherStr = comp.other_elements.map(e => `${e.name || e.element || ''} ${(e.content || 0).toFixed ? (e.content || 0).toFixed(1) : e.content || 0} at.%`).join(', ')
+      if (comp.other_elements && Array.isArray(comp.other_elements) && comp.other_elements.length > 0) {
+        const otherStr = comp.other_elements.map(e => `${e.name || ''} ${(e.content || 0).toFixed ? (e.content || 0).toFixed(1) : e.content || 0}%`).filter(s => s.trim()).join(', ')
         if (otherStr) promptMessage += `, ${otherStr}`
       }
     }
     promptMessage += '\n'
     
-    // 工艺参数（字段：process_type, deposition_temperature, deposition_pressure, bias_voltage, n2_flow, other_gases）
-    promptMessage += '**工艺参数：** '
+    // 工艺参数
+    promptMessage += '工艺参数：'
     if (proc && Object.keys(proc).length > 0) {
-      promptMessage += `工艺类型: ${proc.process_type || '磁控溅射'}, `
-      promptMessage += `沉积温度: ${proc.deposition_temperature || 0}°C, `
-      promptMessage += `沉积气压: ${proc.deposition_pressure || 0} Pa, `
-      promptMessage += `偏压: ${proc.bias_voltage || 0} V, `
-      promptMessage += `N₂流量: ${proc.n2_flow || 0} sccm`
+      const processTypeCN = processTypeMap[proc.process_type] || proc.process_type || '磁控溅射'
+      promptMessage += `${processTypeCN}, ${proc.deposition_temperature || 0}°C, ${proc.deposition_pressure || 0}Pa, 偏压${proc.bias_voltage || 0}V, N₂ ${proc.n2_flow || 0}sccm`
       
-      // 其他气体
-      if (proc.other_gases && Array.isArray(proc.other_gases)) {
-        const gasStr = proc.other_gases.map(g => `${g.type || ''} ${g.flow || 0} sccm`).join(', ')
-        if (gasStr) promptMessage += `, 其他气体: ${gasStr}`
+      if (proc.other_gases && Array.isArray(proc.other_gases) && proc.other_gases.length > 0) {
+        const gasStr = proc.other_gases.map(g => `${g.type || ''} ${g.flow || 0}sccm`).filter(s => s.trim()).join(', ')
+        if (gasStr) promptMessage += `, ${gasStr}`
       }
     }
     promptMessage += '\n'
     
-    // 结构设计（字段：structure_type, total_thickness, layers）
-    promptMessage += '**结构设计：** '
+    // 结构设计
+    promptMessage += '结构设计：'
     if (struct && Object.keys(struct).length > 0) {
-      promptMessage += `结构类型: ${struct.structure_type || '单层'}, `
-      promptMessage += `总厚度: ${struct.total_thickness || 0} μm`
+      const structTypeCN = structTypeMap[struct.structure_type] || struct.structure_type || '单层'
+      promptMessage += `${structTypeCN}, ${struct.total_thickness || 0}μm`
       
-      // 多层结构
-      if (struct.structure_type === 'multi' && struct.layers && Array.isArray(struct.layers)) {
-        const layerStr = struct.layers.map(l => `${l.type || ''} ${l.thickness || 0}μm`).join('; ')
-        if (layerStr) promptMessage += `, 层结构: ${layerStr}`
+      if (struct.structure_type === 'multi' && struct.layers && Array.isArray(struct.layers) && struct.layers.length > 0) {
+        const layerStr = struct.layers.map(l => `${l.type || ''} ${l.thickness || 0}μm`).join(' → ')
+        if (layerStr) promptMessage += ` (${layerStr})`
       }
     }
     promptMessage += '\n'
     
-    // 性能需求（对象格式：{ substrate_material, adhesion_strength, elastic_modulus, working_temperature, cutting_speed, application_scenario }）
-    promptMessage += '**性能需求：** '
+    // 性能需求
+    promptMessage += '性能需求：'
     if (target && Object.keys(target).length > 0) {
       const parts = []
-      if (target.substrate_material) parts.push(`基材: ${target.substrate_material}`)
-      if (target.adhesion_strength) parts.push(`结合力要求: ≥${target.adhesion_strength}N`)
-      if (target.elastic_modulus) parts.push(`弹性模量: ${target.elastic_modulus}GPa`)
-      if (target.working_temperature) parts.push(`工作温度: ${target.working_temperature}°C`)
-      if (target.cutting_speed) parts.push(`切削速度: ${target.cutting_speed}m/min`)
-      if (target.application_scenario) parts.push(`应用场景: ${target.application_scenario}`)
+      if (target.substrate_material) parts.push(`基材${target.substrate_material}`)
+      if (target.adhesion_strength) parts.push(`结合力≥${target.adhesion_strength}N`)
+      if (target.elastic_modulus) parts.push(`弹性模量${target.elastic_modulus}GPa`)
+      if (target.working_temperature) parts.push(`工作温度${target.working_temperature}°C`)
+      if (target.cutting_speed) parts.push(`切削速度${target.cutting_speed}m/min`)
+      if (target.application_scenario) parts.push(target.application_scenario)
       promptMessage += parts.length > 0 ? parts.join(', ') : '未指定'
     } else {
       promptMessage += '未指定'
     }
-    promptMessage += '\n\n请先验证这些参数是否合理，然后进行性能预测。'
+    promptMessage += '\n\n请验证参数是否合理。'
 
     // 发送验证请求
     setTimeout(() => {
@@ -552,8 +658,17 @@ export function useMultiAgent() {
     results.value = []
     validationResult.value = null
     performancePrediction.value = null
+    historicalData.value = null
     optimizationResults.value = null
     experimentWorkorder.value = null
+    
+    // 清空会话参数
+    sessionParams.value = {
+      coatingComposition: {},
+      processParams: {},
+      structureDesign: {},
+      targetRequirements: ''
+    }
   }
 
   /**

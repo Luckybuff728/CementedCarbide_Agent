@@ -168,8 +168,12 @@ const copyToClipboard = async () => {
 </script>
 
 <style scoped>
+/* 工单下载卡片 */
 .workorder-download-card {
-  padding: 12px;
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 16px;
+  border: 1px solid #e5e7eb;
 }
 
 .workorder-info {
@@ -178,128 +182,130 @@ const copyToClipboard = async () => {
 
 .info-row {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   margin-bottom: 8px;
   font-size: 13px;
 }
 
 .info-row .label {
-  color: #5f6368;
+  color: #6b7280;
   min-width: 80px;
 }
 
 .info-row .value {
-  color: #202124;
+  color: #1f2937;
   font-weight: 500;
 }
 
 .info-row .value.workorder-id {
-  font-family: 'Consolas', monospace;
-  color: #1a73e8;
+  font-family: 'SF Mono', 'Consolas', monospace;
+  color: #2563eb;
 }
 
-/* 方案名称框 */
+/* 方案名称 - 简化为左边框 */
 .plan-name-box {
-  background: linear-gradient(135deg, #e8f0fe 0%, #f1f8ff 100%);
-  border: 1px solid #c2d7f2;
-  border-radius: 8px;
-  padding: 12px;
-  margin-bottom: 12px;
+  padding-left: 12px;
+  border-left: 3px solid #2563eb;
+  margin-bottom: 16px;
 }
 
 .plan-name-label {
   font-size: 11px;
-  color: #5f6368;
-  margin-bottom: 4px;
+  color: #6b7280;
+  margin-bottom: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 
 .plan-name-text {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
-  color: #1a73e8;
+  color: #1f2937;
   line-height: 1.4;
 }
 
-/* 实验目的框 */
+/* 实验目的 */
 .purpose-box {
-  background: #f8f9fa;
-  border-radius: 6px;
-  padding: 10px 12px;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
 }
 
 .purpose-label {
   font-size: 11px;
-  color: #80868b;
+  color: #6b7280;
   margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 
 .purpose-text {
   font-size: 13px;
-  color: #202124;
-  line-height: 1.5;
+  color: #374151;
+  line-height: 1.6;
 }
 
+/* 参数预览 */
 .params-preview {
-  background: #f8f9fa;
-  border-radius: 8px;
-  padding: 12px;
   margin-bottom: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #f3f4f6;
 }
 
 .preview-title {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
-  color: #5f6368;
-  margin-bottom: 10px;
+  color: #6b7280;
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 
 .params-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 16px 24px;
 }
 
 .param-group {
-  background: white;
-  border-radius: 6px;
-  padding: 10px;
-  border: 1px solid #e0e0e0;
+  /* 无背景，纯文字 */
 }
 
 .group-title {
   font-size: 11px;
-  color: #80868b;
+  color: #9ca3af;
   margin-bottom: 6px;
 }
 
 .param-item {
-  font-size: 12px;
+  font-size: 13px;
   margin-bottom: 4px;
+  display: flex;
+  gap: 4px;
 }
 
 .param-key {
-  color: #5f6368;
+  color: #6b7280;
 }
 
 .param-val {
-  color: #202124;
-  font-weight: 500;
+  color: #1f2937;
+  font-weight: 600;
 }
 
 .download-section {
   display: flex;
   gap: 10px;
+  padding-top: 16px;
+  border-top: 1px solid #f3f4f6;
 }
 
 /* 响应式 */
-@media (max-width: 500px) {
-  .params-grid {
-    grid-template-columns: 1fr;
-  }
-  
+@media (max-width: 400px) {
   .download-section {
     flex-direction: column;
+  }
+  
+  .download-section .el-button {
+    width: 100%;
   }
 }
 </style>

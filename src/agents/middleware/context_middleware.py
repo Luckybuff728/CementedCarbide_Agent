@@ -13,8 +13,8 @@
 - target_requirements: {substrate_material, adhesion_strength, elastic_modulus, working_temperature, cutting_speed, application_scenario}
 """
 import json
-import logging
 from typing import Any, Dict, List, Optional, Callable
+from loguru import logger
 from langchain.agents.middleware import (
     AgentMiddleware, 
     ModelRequest, 
@@ -22,8 +22,6 @@ from langchain.agents.middleware import (
     AgentState,
 )
 from langchain_core.messages import SystemMessage
-
-logger = logging.getLogger(__name__)
 
 
 # ==================== 数据格式化辅助函数 ====================
@@ -237,7 +235,7 @@ class CoatingContextMiddleware(AgentMiddleware):
         handler: Callable[[ModelRequest], ModelResponse],
     ) -> ModelResponse:
         """
-        在模型调用前注入涂层上下文
+        在模型调用前注入涂层上下文（同步版本）
         
         Args:
             request: 模型请求，包含状态、消息、系统消息等
@@ -245,6 +243,44 @@ class CoatingContextMiddleware(AgentMiddleware):
         
         Returns:
             模型响应
+        """
+        # 注入上下文
+        modified_request = self._inject_context(request)
+        return handler(modified_request)
+    
+    async def awrap_model_call(
+        self,
+        request: ModelRequest,
+        handler: Callable[[ModelRequest], ModelResponse],
+    ) -> ModelResponse:
+        """
+        在模型调用前注入涂层上下文（异步版本）
+        
+        Args:
+            request: 模型请求，包含状态、消息、系统消息等
+            handler: 实际的模型调用处理器
+        
+        Returns:
+            模型响应
+        """
+        # 注入上下文
+        modified_request = self._inject_context(request)
+        # 异步调用 handler
+        result = handler(modified_request)
+        # 如果 handler 返回的是协程，等待它
+        if hasattr(result, '__await__'):
+            return await result
+        return result
+    
+    def _inject_context(self, request: ModelRequest) -> ModelRequest:
+        """
+        注入上下文到请求中（共享逻辑）
+        
+        Args:
+            request: 原始模型请求
+        
+        Returns:
+            修改后的模型请求
         """
         state = request.state
         
@@ -259,9 +295,9 @@ class CoatingContextMiddleware(AgentMiddleware):
                 ]
                 new_system_message = SystemMessage(content=new_content)
                 logger.debug(f"[{self.expert_name}] 注入上下文: {len(context)} 字符")
-                return handler(request.override(system_message=new_system_message))
+                return request.override(system_message=new_system_message)
         
-        return handler(request)
+        return request
     
     def _build_validator_context(self, state: Dict[str, Any]) -> str:
         """

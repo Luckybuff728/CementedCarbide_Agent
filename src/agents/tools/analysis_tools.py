@@ -14,9 +14,7 @@
 from typing import Dict, Any
 from langchain.tools import tool, ToolRuntime
 from pydantic import BaseModel, Field
-import logging
-
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 
 # ==================== Pydantic Schema 定义（保留供参考） ====================
@@ -55,17 +53,29 @@ def simulate_topphi_tool(runtime: ToolRuntime) -> Dict[str, Any]:
     composition = state.get("coating_composition", {})
     process_params = state.get("process_params", {})
     
-    al_content = composition.get("al_content", 0) or 0
-    ti_content = composition.get("ti_content", 0) or 0
-    n_content = composition.get("n_content", 0) or 0
-    deposition_temperature = process_params.get("deposition_temperature", 450) or 450
-    deposition_pressure = process_params.get("deposition_pressure", 0.5) or 0.5
+    al_content = composition.get("al_content") or 0
+    ti_content = composition.get("ti_content") or 0
+    n_content = composition.get("n_content") or 0
+    deposition_temperature = process_params.get("deposition_temperature") or 0
+    deposition_pressure = process_params.get("deposition_pressure") or 0.5
     
     logger.info(f"[TopPhi] 模拟开始: Al={al_content}%, Ti={ti_content}%, N={n_content}%, T={deposition_temperature}°C")
     
-    # 检查是否有必要参数
+    # 检查是否有必要参数 - 成分数据
     if al_content == 0 and ti_content == 0 and n_content == 0:
-        return {"error": "未提供涂层成分数据，无法进行 TopPhi 模拟"}
+        return {
+            "error": "未提供涂层成分数据",
+            "message": "请先输入涂层成分配比（Al/Ti/N 含量），然后再进行 TopPhi 模拟",
+            "required_params": ["al_content", "ti_content", "n_content"]
+        }
+    
+    # 检查是否有必要参数 - 工艺参数
+    if deposition_temperature == 0:
+        return {
+            "error": "未提供工艺参数",
+            "message": "请先输入工艺参数（沉积温度等），然后再进行 TopPhi 模拟",
+            "required_params": ["deposition_temperature"]
+        }
     
     # 调用 TopPhi 服务
     try:
@@ -115,14 +125,27 @@ def predict_ml_performance_tool(runtime: ToolRuntime) -> Dict[str, Any]:
     process_params = state.get("process_params", {})
     structure_design = state.get("structure_design", {})
     
-    al_content = composition.get("al_content", 0) or 0
-    ti_content = composition.get("ti_content", 0) or 0
+    al_content = composition.get("al_content") or 0
+    ti_content = composition.get("ti_content") or 0
+    deposition_temperature = process_params.get("deposition_temperature") or 0
     
     logger.info(f"[ML预测] 开始性能预测: Al={al_content}%, Ti={ti_content}%")
     
-    # 检查是否有必要参数
+    # 检查是否有必要参数 - 成分数据
     if al_content == 0 and ti_content == 0:
-        return {"error": "未提供涂层成分数据，无法进行 ML 预测"}
+        return {
+            "error": "未提供涂层成分数据",
+            "message": "请先输入涂层成分配比（Al/Ti 含量），然后再进行 ML 性能预测",
+            "required_params": ["al_content", "ti_content"]
+        }
+    
+    # 检查是否有必要参数 - 工艺参数
+    if deposition_temperature == 0:
+        return {
+            "error": "未提供工艺参数",
+            "message": "请先输入工艺参数（沉积温度等），然后再进行 ML 性能预测",
+            "required_params": ["deposition_temperature"]
+        }
     
     try:
         from ...services.ml_prediction_service import MLPredictionService
@@ -153,51 +176,77 @@ def predict_ml_performance_tool(runtime: ToolRuntime) -> Dict[str, Any]:
 @tool
 def compare_historical_tool(runtime: ToolRuntime) -> Dict[str, Any]:
     """
-    检索并对比历史相似案例。
+    基于 RAG + LLM 智能检索历史案例和文献数据。
     
-    自动从当前状态获取成分和工艺参数，
-    从数据库中查找相似的涂层配方，提供成功案例的性能数据作为参考。
+    工作流程:
+    1. LLM 查询增强：根据涂层参数生成优化的检索查询
+    2. RAG 向量检索：从知识库检索相关文献
+    3. LLM 结果分析：智能提取结构化数据和生成分析报告
+    
+    返回内容:
+    - performance_data: 从文献提取的结构化性能数据（硬度、结合力等）
+    - key_findings: 与用户配置相关的关键发现
+    - recommendations: 基于文献的改进建议
+    - relevance_summary: 检索结果与用户配置的相关性总结
+    - references: 引用的文献列表
     
     Returns:
-        相似案例列表，包含性能数据和相似度
+        Dict: 智能分析报告，包含性能数据、关键发现、建议和引用
     """
-    # 从状态获取参数
+    # 从状态获取参数（与前端 useMultiAgent.js 的 sessionParams 结构一致）
     state = runtime.state
     composition = state.get("coating_composition", {})
     process_params = state.get("process_params", {})
+    structure_design = state.get("structure_design", {})
+    target_requirements = state.get("target_requirements", {})
     
-    al_content = composition.get("al_content", 0) or 0
-    ti_content = composition.get("ti_content", 0) or 0
-    n_content = composition.get("n_content", 0) or 0
-    process_type = process_params.get("process_type", "magnetron_sputtering")
+    al_content = composition.get("al_content") or 0
+    ti_content = composition.get("ti_content") or 0
     
-    logger.info(f"[历史对比] 检索相似案例: Al={al_content}%, Ti={ti_content}%")
+    logger.info(f"[历史对比] 基于 RAG 检索相似案例: Al={al_content}%, Ti={ti_content}%")
     
     # 检查是否有必要参数
     if al_content == 0 and ti_content == 0:
-        return {"error": "未提供涂层成分数据，无法检索历史案例", "total_cases": 0, "similar_cases": []}
+        return {
+            "error": "未提供涂层成分数据",
+            "message": "请先输入涂层成分配比，然后再检索历史案例",
+            "required_params": ["al_content", "ti_content"],
+            "performance_data": [],
+            "key_findings": [],
+            "recommendations": [],
+            "total_docs_retrieved": 0,
+            "data_source": "NONE"
+        }
     
     try:
         from ...services.historical_data_service import HistoricalDataService
         service = HistoricalDataService()
         
-        comp_data = {
-            "al_content": al_content,
-            "ti_content": ti_content,
-            "n_content": n_content
-        }
-        proc_data = {"process_type": process_type}
+        # 传递完整的参数给 RAG + LLM 智能检索
+        result = service.retrieve_similar_cases(
+            composition=composition,
+            params=process_params,
+            structure_design=structure_design,
+            target_requirements=target_requirements
+        )
         
-        result = service.retrieve_similar_cases(comp_data, proc_data)
-        
-        total_cases = result.get("total_cases", 0)
-        logger.info(f"[历史对比] 找到 {total_cases} 个相似案例")
+        total_docs = result.get("total_docs_retrieved", 0)
+        perf_count = len(result.get("performance_data", []))
+        data_source = result.get("data_source", "unknown")
+        logger.info(f"[历史对比] 完成 - 检索 {total_docs} 篇文献, 提取 {perf_count} 条性能数据 (来源: {data_source})")
         
         return result
         
     except Exception as e:
         logger.error(f"[历史对比] 失败: {e}")
-        return {"error": str(e), "total_cases": 0, "similar_cases": []}
+        return {
+            "error": str(e),
+            "performance_data": [],
+            "key_findings": [],
+            "recommendations": [],
+            "total_docs_retrieved": 0,
+            "data_source": "ERROR"
+        }
 
 
 @tool

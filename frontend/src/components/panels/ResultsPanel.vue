@@ -32,7 +32,7 @@
           <div v-if="result.type === 'topphi'" class="result-topphi">
             <div class="result-header-strip">
               <div class="strip-left">
-                <el-icon :size="18" color="#5f6368"><PlanetOutline /></el-icon>
+                <el-icon :size="18" color="#8b5cf6"><PlanetOutline /></el-icon>
                 <h4>TopPhi相场模拟</h4>
               </div>
               <span class="result-time">{{ formatTime(result.timestamp) }}</span>
@@ -45,7 +45,7 @@
           <div v-if="result.type === 'performance'" class="result-performance">
             <div class="result-header-strip">
               <div class="strip-left">
-                <el-icon :size="18" color="#5f6368"><SpeedometerOutline /></el-icon>
+                <el-icon :size="18" color="#3b82f6"><SpeedometerOutline /></el-icon>
                 <h4>性能预测</h4>
               </div>
               <span class="result-time">{{ formatTime(result.timestamp) }}</span>
@@ -53,37 +53,28 @@
             <PerformancePredictionCard :prediction="result.data" :show-header="false" />
           </div>
           
-          <!-- 历史对比结果 -->
+          <!-- 历史对比结果（RAG+LLM 智能检索） -->
           <div v-if="result.type === 'historical'" class="result-historical">
             <div class="result-header-strip">
               <div class="strip-left">
-                <el-icon :size="18" color="#5f6368"><TimeOutline /></el-icon>
-                <h4>历史案例对比</h4>
+                <el-icon :size="18" color="#10b981"><LibraryOutline /></el-icon>
+                <h4>文献智能检索</h4>
               </div>
-              <span class="result-time">{{ formatTime(result.timestamp) }}</span>
-            </div>
-            <div class="result-content-box">
-              <div class="result-item">
-                <span class="label">相似案例数：</span>
-                <span class="value">{{ result.data.total_cases || 0 }} 个</span>
-              </div>
-              <div v-if="result.data.similar_cases && result.data.similar_cases.length > 0" class="historical-cases">
-                <div v-for="(caseItem, idx) in result.data.similar_cases.slice(0, 3)" :key="idx" class="case-item">
-                  <div class="case-header">案例 {{ idx + 1 }} (相似度: {{ (caseItem.similarity * 100).toFixed(1) }}%)</div>
-                  <div class="case-detail">
-                    <span>硬度: {{ caseItem.hardness || 'N/A' }} GPa</span>
-                    <span>磨损率: {{ caseItem.wear_rate ? caseItem.wear_rate.toExponential(2) : 'N/A' }}</span>
-                  </div>
-                </div>
+              <div class="strip-right">
+                <span class="data-source-tag" v-if="result.data.data_source">
+                  {{ result.data.data_source }}
+                </span>
+                <span class="result-time">{{ formatTime(result.timestamp) }}</span>
               </div>
             </div>
+            <HistoricalAnalysisCard :data="result.data" :show-header="false" />
           </div>
           
           <!-- 根因分析结果 -->
           <div v-if="result.type === 'analysis'" class="result-analysis">
             <div class="result-header-strip">
               <div class="strip-left">
-                <el-icon :size="18" color="#5f6368"><AnalyticsOutline /></el-icon>
+                <el-icon :size="18" color="#f59e0b"><AnalyticsOutline /></el-icon>
                 <h4>根因分析</h4>
               </div>
               <span class="result-time">{{ formatTime(result.timestamp) }}</span>
@@ -95,7 +86,7 @@
           <div v-if="result.type === 'optimization_plans'" class="result-optimization-plans">
             <div class="result-header-strip">
               <div class="strip-left">
-                <el-icon :size="18" color="#5f6368"><BulbOutline /></el-icon>
+                <el-icon :size="18" color="#eab308"><BulbOutline /></el-icon>
                 <h4>优化方案概览</h4>
               </div>
               <span class="result-time">{{ formatTime(result.timestamp) }}</span>
@@ -107,7 +98,7 @@
           <div v-if="result.type === 'workorder'" class="result-workorder">
             <div class="result-header-strip">
               <div class="strip-left">
-                <el-icon :size="18" color="#5f6368"><ClipboardOutline /></el-icon>
+                <el-icon :size="18" color="#6366f1"><ClipboardOutline /></el-icon>
                 <h4>实验工单</h4>
               </div>
               <span class="result-time">{{ formatTime(result.timestamp) }}</span>
@@ -119,7 +110,7 @@
           <div v-if="result.type === 'performance_comparison'" class="result-performance-comparison">
             <div class="result-header-strip">
               <div class="strip-left">
-                <el-icon :size="18" color="#5f6368"><BarChartOutline /></el-icon>
+                <el-icon :size="18" color="#ef4444"><BarChartOutline /></el-icon>
                 <h4>性能对比分析</h4>
               </div>
               <span class="result-time">{{ formatTime(result.timestamp) }}</span>
@@ -181,7 +172,7 @@
           <div v-if="result.type === 'experiment_input'" class="result-experiment">
             <div class="result-header-strip">
               <div class="strip-left">
-                <el-icon :size="18" color="#5f6368"><FlaskOutline /></el-icon>
+                <el-icon :size="18" color="#14b8a6"><FlaskOutline /></el-icon>
                 <h4>实验数据录入</h4>
               </div>
               <span class="result-time">{{ formatTime(result.timestamp) }}</span>
@@ -202,7 +193,7 @@
 
 <script setup>
 import { ref, watch, nextTick, h } from 'vue'
-import { ElButton, ElIcon } from 'element-plus'
+import { ElButton, ElIcon, ElCollapse, ElCollapseItem } from 'element-plus'
 import {
   CheckmarkCircleOutline,
   PlanetOutline,
@@ -214,11 +205,19 @@ import {
   TimeOutline,
   FlaskOutline,
   BarChartOutline,
-  AlertCircleOutline
+  AlertCircleOutline,
+  LibraryOutline,
+  DocumentTextOutline,
+  StatsChartOutline,
+  InformationCircleOutline,
+  GridOutline,
+  RocketOutline,
+  BookOutline
 } from '@vicons/ionicons5'
 import PerformancePredictionCard from '../cards/PerformancePredictionCard.vue'
 import IntegratedAnalysisCard from '../cards/IntegratedAnalysisCard.vue'
 import TopPhiResultCard from '../cards/TopPhiResultCard.vue'
+import HistoricalAnalysisCard from '../cards/HistoricalAnalysisCard.vue'
 import ExperimentInputCard from '../experiment/ExperimentInputCard.vue'
 import PerformanceComparisonChart from '../experiment/PerformanceComparisonChart.vue'
 import MarkdownRenderer from '../common/MarkdownRenderer.vue'
@@ -281,9 +280,9 @@ const formatUnmetMetrics = (metrics) => {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: #ffffff;
+  background: var(--bg-primary);
   border-radius: 16px;
-  border: 1px solid #dadce0;
+  border: 1px solid var(--border-color);
   overflow: hidden;
 }
 
@@ -292,8 +291,8 @@ const formatUnmetMetrics = (metrics) => {
   align-items: center;
   justify-content: space-between;
   padding: 16px 24px;
-  background: #ffffff;
-  border-bottom: 1px solid #f1f3f4;
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--bg-tertiary);
 }
 
 .header-left {
@@ -305,12 +304,12 @@ const formatUnmetMetrics = (metrics) => {
 .header-title {
   font-size: 16px;
   font-weight: 600;
-  color: #202124;
+  color: var(--text-primary);
 }
 
 .result-count {
-  background: #f1f3f4;
-  color: #5f6368;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
   padding: 2px 8px;
   border-radius: 12px;
   font-size: 12px;
@@ -321,20 +320,12 @@ const formatUnmetMetrics = (metrics) => {
   flex: 1;
   overflow-y: auto;
   padding: 24px;
-  background: #f8f9fa; /* 稍微深一点的背景，突出卡片 */
+  background: var(--bg-secondary); /* 稍微深一点的背景，突出卡片 */
 }
 
+/* 滚动条样式已在全局 style.css 定义，此处保留必要的覆盖 */
 .results-content::-webkit-scrollbar {
   width: 6px;
-}
-
-.results-content::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.results-content::-webkit-scrollbar-thumb {
-  background: #dadce0;
-  border-radius: 3px;
 }
 
 .empty-state {
@@ -352,24 +343,24 @@ const formatUnmetMetrics = (metrics) => {
   width: 120px;
   height: 120px;
   border-radius: 50%;
-  background: #f1f3f4;
+  background: var(--bg-tertiary);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #dadce0;
+  color: var(--border-color);
 }
 
 .empty-text h3 {
   margin: 0 0 8px 0;
   font-size: 16px;
   font-weight: 600;
-  color: #3c4043;
+  color: var(--text-primary);
 }
 
 .empty-text p {
   margin: 0;
   font-size: 14px;
-  color: #9aa0a6;
+  color: var(--text-tertiary);
   line-height: 1.5;
 }
 
@@ -380,9 +371,9 @@ const formatUnmetMetrics = (metrics) => {
 }
 
 .result-card {
-  background: #ffffff;
+  background: var(--bg-primary);
   border-radius: 12px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--border-color);
   overflow: hidden;
   transition: all 0.3s ease;
   animation: cardSlideIn 0.4s ease-out;
@@ -390,7 +381,7 @@ const formatUnmetMetrics = (metrics) => {
 
 .result-card:hover {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-  border-color: #d2d2d2;
+  border-color: var(--border-dark);
 }
 
 @keyframes cardSlideIn {
@@ -409,15 +400,15 @@ const formatUnmetMetrics = (metrics) => {
   align-items: center;
   justify-content: space-between;
   padding: 12px 16px;
-  background: #ffffff;
-  border-bottom: 1px solid #f1f3f4;
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--bg-tertiary);
 }
 
 .strip-left {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #1f1f1f;
+  color: var(--text-primary);
 }
 
 .strip-left h4 {
@@ -428,7 +419,7 @@ const formatUnmetMetrics = (metrics) => {
 
 .result-time {
   font-size: 12px;
-  color: #9aa0a6;
+  color: var(--text-tertiary);
 }
 
 .result-content-box {
@@ -439,7 +430,7 @@ const formatUnmetMetrics = (metrics) => {
   display: flex;
   align-items: center;
   padding: 8px 0;
-  border-bottom: 1px solid #f1f3f4;
+  border-bottom: 1px solid var(--bg-tertiary);
 }
 
 .result-item:last-child {
@@ -448,45 +439,30 @@ const formatUnmetMetrics = (metrics) => {
 
 .result-item .label {
   font-size: 13px;
-  color: #5f6368;
+  color: var(--text-secondary);
   min-width: 100px;
 }
 
 .result-item .value {
   font-size: 14px;
   font-weight: 500;
-  color: #202124;
+  color: var(--text-primary);
 }
 
 /* 历史对比特定样式 */
-.historical-cases {
-  margin-top: 12px;
-}
-
-.case-item {
-  padding: 12px;
-  margin-bottom: 8px;
-  background: #f8f9fa;
-  border-radius: 8px;
-  border-left: 3px solid #1967d2;
-}
-
-.case-item:last-child {
-  margin-bottom: 0;
-}
-
-.case-header {
-  font-size: 13px;
-  font-weight: 600;
-  color: #202124;
-  margin-bottom: 6px;
-}
-
-.case-detail {
+.result-historical .strip-right {
   display: flex;
-  gap: 16px;
-  font-size: 12px;
-  color: #5f6368;
+  align-items: center;
+  gap: 12px;
+}
+
+.data-source-tag {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 500;
 }
 
 /* 实验分析状态 */
@@ -501,21 +477,21 @@ const formatUnmetMetrics = (metrics) => {
 }
 
 .analysis-status.success {
-  background: #e6f4ea;
-  color: #137333;
-  border-left: 3px solid #137333;
+  background: var(--success-light);
+  color: var(--success-dark);
+  border-left: 3px solid var(--success-dark);
 }
 
 .analysis-status.warning {
-  background: #fef7e0;
-  color: #b06000;
-  border-left: 3px solid #f9ab00;
+  background: var(--warning-light);
+  color: var(--warning-dark);
+  border-left: 3px solid var(--warning);
 }
 
 /* 分析报告 */
 .analysis-report {
   padding: 16px;
-  border-bottom: 1px solid #f1f3f4;
+  border-bottom: 1px solid var(--bg-tertiary);
   max-height: 300px;
   overflow-y: auto;
 }
@@ -523,13 +499,13 @@ const formatUnmetMetrics = (metrics) => {
 .analysis-report :deep(h2) {
   font-size: 15px;
   margin: 12px 0 8px 0;
-  color: #202124;
+  color: var(--text-primary);
 }
 
 .analysis-report :deep(h3) {
   font-size: 14px;
   margin: 10px 0 6px 0;
-  color: #202124;
+  color: var(--text-primary);
 }
 
 .analysis-report :deep(table) {
@@ -540,7 +516,7 @@ const formatUnmetMetrics = (metrics) => {
 .analysis-report :deep(th),
 .analysis-report :deep(td) {
   padding: 6px 10px;
-  border-color: #e0e0e0;
+  border-color: var(--border-color);
 }
 
 /* 卡片内容区域的通用padding */
@@ -552,9 +528,9 @@ const formatUnmetMetrics = (metrics) => {
 .comparison-summary {
   padding: 12px 16px;
   font-size: 13px;
-  color: #5f6368;
-  background: #f8f9fa;
-  border-bottom: 1px solid #f1f3f4;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--bg-tertiary);
   line-height: 1.5;
 }
 </style>

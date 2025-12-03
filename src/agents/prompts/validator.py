@@ -11,12 +11,10 @@ Validator Agent - 参数验证专家 (v2.1)
 from typing import Any
 from langchain_core.language_models import BaseChatModel
 from langchain.agents import create_agent  # LangChain 1.0 新 API
-import logging
+from loguru import logger
 
 from ..tools import VALIDATOR_TOOLS
 from ..state import CoatingState
-
-logger = logging.getLogger(__name__)
 
 # Validator Agent 的系统提示词
 VALIDATOR_SYSTEM_PROMPT = """你是 TopMat 涂层优化系统的参数验证专家（Validator Agent）。

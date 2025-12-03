@@ -1,12 +1,11 @@
 """
 WebSocket连接管理器
 """
-import logging
 from typing import Dict
+from loguru import logger
 from fastapi import WebSocket
 import time
 
-logger = logging.getLogger(__name__)
 
 
 class ConnectionManager:

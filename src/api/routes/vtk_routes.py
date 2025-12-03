@@ -4,12 +4,10 @@ VTK文件服务路由 - 提供VTK文件下载和访问
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse, StreamingResponse
 from pathlib import Path
-import logging
 from typing import Optional
 import os
 import re
-
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 # 创建路由
 router = APIRouter(prefix="/api/vtk", tags=["VTK文件服务"])

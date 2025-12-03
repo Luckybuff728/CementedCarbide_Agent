@@ -2,8 +2,8 @@
 涂层服务 - 核心业务逻辑
 """
 from typing import Dict, List, Any, Optional
-import logging
 import json
+from loguru import logger
 import time
 from datetime import datetime
 from .validation_service import ValidationService
@@ -12,7 +12,6 @@ from .topphi_service import TopPhiService
 from .ml_prediction_service import MLPredictionService
 from .historical_data_service import HistoricalDataService
 
-logger = logging.getLogger(__name__)
 
 
 class CoatingService:

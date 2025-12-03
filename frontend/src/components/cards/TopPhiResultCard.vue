@@ -1,14 +1,7 @@
 <template>
-  <SummaryCard 
-    :icon-component="CubeOutline"
-    title="TopPhi相场模拟"
-    :badge="getConfidenceBadge()"
-    :clickable="true"
-    :show-header="false"
-    @click="emit('jump-to-node', 'topphi_simulation')"
-  >
+  <div class="topphi-result-card">
     <div class="topphi-content">
-      <!-- 指标网格 -->
+      <!-- 指标网格 - 2x2 布局 -->
       <div class="metrics-grid">
         <div class="metric-item">
           <span class="label">晶粒尺寸</span>
@@ -16,7 +9,7 @@
         </div>
         <div class="metric-item">
           <span class="label">择优取向</span>
-          <span class="value">{{ result.data?.preferred_orientation || '-' }}</span>
+          <span class="value">({{ result.data?.preferred_orientation || '-' }})</span>
         </div>
         <div class="metric-item">
           <span class="label">残余应力</span>
@@ -28,7 +21,7 @@
         </div>
       </div>
 
-      <!-- 3D 模拟区域 -->
+      <!-- 3D 模拟区域 - 优化设计 -->
       <div class="simulation-section">
         <!-- 加载状态 -->
         <div v-if="loadingTimeSeries" class="loading-state">
@@ -65,61 +58,79 @@
             <div class="handle-bar"></div>
           </div>
 
-          <!-- 控制栏 -->
+          <!-- 控制栏 - 专业设计 -->
           <div class="controls-bar">
             <!-- 左侧：播放控制 -->
-            <div class="control-group">
+            <div class="control-group playback-controls">
               <button 
                 class="ctrl-btn" 
                 @click="viewerRef?.prevFrame?.()"
                 :disabled="(viewerRef?.currentFrameIndex ?? 0) <= 0"
-                title="上一帧"
+                title="上一帧 (Previous Frame)"
               >
-                <el-icon :size="14"><PlaySkipBackSharp /></el-icon>
+                <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14">
+                  <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/>
+                </svg>
               </button>
               
               <button 
                 class="ctrl-btn play-btn" 
                 @click="viewerRef?.togglePlayback?.()"
-                :title="viewerRef?.isPlaying ? '暂停' : '播放'"
+                :title="viewerRef?.isPlaying ? '暂停 (Pause)' : '播放 (Play)'"
               >
-                <el-icon :size="16">
-                  <Pause v-if="viewerRef?.isPlaying" />
-                  <Play v-else />
-                </el-icon>
+                <svg v-if="viewerRef?.isPlaying" viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
+                  <path d="M6 4h4v16H6zm8 0h4v16h-4z"/>
+                </svg>
+                <svg v-else viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
+                  <path d="M8 5v14l11-7z"/>
+                </svg>
               </button>
               
               <button 
                 class="ctrl-btn" 
                 @click="viewerRef?.nextFrame?.()"
                 :disabled="(viewerRef?.currentFrameIndex ?? 0) >= vtkFiles.length - 1"
-                title="下一帧"
+                title="下一帧 (Next Frame)"
               >
-                <el-icon :size="14"><PlaySkipForwardSharp /></el-icon>
+                <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14">
+                  <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/>
+                </svg>
               </button>
             </div>
             
             <!-- 中间：进度条 -->
-            <div class="progress-track">
-              <el-slider 
-                :model-value="viewerRef?.currentFrameIndex ?? 0"
-                :min="0" 
-                :max="vtkFiles.length - 1"
-                :show-tooltip="false"
-                @change="(val) => viewerRef?.onFrameChange?.(val)"
-              />
+            <div class="progress-section">
+              <div class="progress-track">
+                <el-slider 
+                  :model-value="viewerRef?.currentFrameIndex ?? 0"
+                  :min="0" 
+                  :max="vtkFiles.length - 1"
+                  :show-tooltip="false"
+                  @change="(val) => viewerRef?.onFrameChange?.(val)"
+                />
+              </div>
             </div>
             
             <!-- 右侧：功能按钮 -->
-            <div class="control-group">
+            <div class="control-group tool-controls">
               <el-dropdown trigger="click" @command="setPlaybackSpeed" placement="top">
-                <button class="ctrl-btn text-btn">{{ viewerRef?.playbackSpeed ?? 1 }}x</button>
+                <button class="ctrl-btn speed-btn" title="播放速度">
+                  <span class="speed-value">{{ viewerRef?.playbackSpeed ?? 1 }}x</span>
+                </button>
                 <template #dropdown>
-                  <el-dropdown-menu>
-                    <el-dropdown-item :command="0.5">0.5x</el-dropdown-item>
-                    <el-dropdown-item :command="1">1x</el-dropdown-item>
-                    <el-dropdown-item :command="2">2x</el-dropdown-item>
-                    <el-dropdown-item :command="4">4x</el-dropdown-item>
+                  <el-dropdown-menu class="speed-dropdown">
+                    <el-dropdown-item :command="0.5" :class="{ active: viewerRef?.playbackSpeed === 0.5 }">
+                      <span>慢速</span><span class="speed-label">0.5x</span>
+                    </el-dropdown-item>
+                    <el-dropdown-item :command="1" :class="{ active: viewerRef?.playbackSpeed === 1 }">
+                      <span>正常</span><span class="speed-label">1x</span>
+                    </el-dropdown-item>
+                    <el-dropdown-item :command="2" :class="{ active: viewerRef?.playbackSpeed === 2 }">
+                      <span>快速</span><span class="speed-label">2x</span>
+                    </el-dropdown-item>
+                    <el-dropdown-item :command="4" :class="{ active: viewerRef?.playbackSpeed === 4 }">
+                      <span>极快</span><span class="speed-label">4x</span>
+                    </el-dropdown-item>
                   </el-dropdown-menu>
                 </template>
               </el-dropdown>
@@ -128,9 +139,14 @@
                 class="ctrl-btn" 
                 :class="{ active: viewerRef?.loopPlayback }" 
                 @click="toggleLoop"
-                title="循环播放"
+                title="循环播放 (Loop)"
               >
-                <el-icon :size="14"><SyncOutline /></el-icon>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+                  <path d="M17 2l4 4-4 4"/>
+                  <path d="M3 11V9a4 4 0 014-4h14"/>
+                  <path d="M7 22l-4-4 4-4"/>
+                  <path d="M21 13v2a4 4 0 01-4 4H3"/>
+                </svg>
               </button>
               
               <div class="divider"></div>
@@ -138,25 +154,33 @@
               <button 
                 class="ctrl-btn" 
                 @click="viewerRef?.zoomOut?.()"
-                title="缩小"
+                title="缩小 (Zoom Out)"
               >
-                <el-icon :size="14"><RemoveOutline /></el-icon>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+                  <circle cx="11" cy="11" r="8"/>
+                  <path d="M21 21l-4.35-4.35M8 11h6"/>
+                </svg>
               </button>
               
               <button 
                 class="ctrl-btn" 
                 @click="viewerRef?.zoomIn?.()"
-                title="放大"
+                title="放大 (Zoom In)"
               >
-                <el-icon :size="14"><AddOutline /></el-icon>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+                  <circle cx="11" cy="11" r="8"/>
+                  <path d="M21 21l-4.35-4.35M11 8v6M8 11h6"/>
+                </svg>
               </button>
               
               <button 
                 class="ctrl-btn" 
                 @click="viewerRef?.resetCamera?.()"
-                title="重置视角"
+                title="重置视角 (Reset View)"
               >
-                <el-icon :size="14"><ScanOutline /></el-icon>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+                  <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>
+                </svg>
               </button>
             </div>
           </div>
@@ -169,38 +193,31 @@
         </div>
       </div>
     </div>
-  </SummaryCard>
+  </div>
 </template>
 
 <script setup>
+/**
+ * TopPhi 相场模拟结果卡片
+ * 
+ * 展示相场模拟的微观结构参数和 VTK 3D 可视化
+ */
 import { ref, computed, watch } from 'vue'
 import { ElIcon, ElSlider, ElDropdown, ElDropdownMenu, ElDropdownItem } from 'element-plus'
 import { 
   ReloadOutline, 
-  CubeOutline,
-  VideocamOffOutline,
-  Play,
-  Pause,
-  PlaySkipBackSharp,
-  PlaySkipForwardSharp,
-  SyncOutline,
-  ScanOutline,
-  AddOutline,
-  RemoveOutline,
-  DownloadOutline
+  VideocamOffOutline
 } from '@vicons/ionicons5'
-import SummaryCard from '../common/SummaryCard.vue'
 import VtkTimeSeriesViewer from '../common/VtkTimeSeriesViewer.vue'
 import { API_BASE_URL } from '../../config'
 
 const props = defineProps({
+  // 模拟结果对象
   result: {
     type: Object,
     required: true
   }
 })
-
-const emit = defineEmits(['jump-to-node'])
 
 // VTK 查看器引用
 const viewerRef = ref(null)
@@ -263,19 +280,6 @@ const formatNumber = (num) => {
   return Number(num).toFixed(2)
 }
 
-// 获取置信度徽章
-const getConfidenceBadge = () => {
-  const confidence = props.result?.data?.confidence
-  if (confidence === undefined || confidence === null) return null
-  
-  const percent = Math.round(confidence * 100)
-  if (percent >= 80) {
-    return { text: `${percent}% 置信`, type: 'success' }
-  } else if (percent >= 60) {
-    return { text: `${percent}% 置信`, type: 'warning' }
-  }
-  return { text: `${percent}% 置信`, type: 'info' }
-}
 
 // 获取 VTK 数据
 const vtkData = computed(() => props.result?.data?.vtk_data)
@@ -325,52 +329,62 @@ const vtkFiles = computed(() => {
 </script>
 
 <style scoped>
+.topphi-result-card {
+  padding: 16px;
+}
+
 .topphi-content {
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
 
-/* 指标网格 */
+/* 指标网格 - 2x2 紧凑布局 */
 .metrics-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 12px;
+  margin-bottom: 16px;
 }
 
 .metric-item {
-  background: #f9fafb;
-  padding: 12px;
-  border-radius: 10px;
-  border: 1px solid #e5e7eb;
   display: flex;
   flex-direction: column;
   gap: 4px;
+  padding: 12px;
+  background: var(--bg-secondary, #f9fafb);
+  border-radius: 8px;
 }
 
 .metric-item .label {
   font-size: 11px;
-  color: #6b7280;
+  color: var(--text-tertiary, #9ca3af);
   font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 
 .metric-item .value {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
-  color: #374151;
+  color: var(--text-primary, #1f2937);
 }
 
 .metric-item .value small {
   font-size: 11px;
-  color: #9ca3af;
+  color: var(--text-tertiary, #9ca3af);
   font-weight: 500;
+  margin-left: 2px;
 }
 
-/* 模拟区域 */
+/* ========================================
+   3D 模拟区域
+   ======================================== */
 .simulation-section {
-  background: #f3f4f6;
+  background: #1a1f2e;
   border-radius: 12px;
   overflow: hidden;
+  border: 1px solid #374151;
 }
 
 /* 顶部信息栏 */
@@ -378,31 +392,31 @@ const vtkFiles = computed(() => {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 12px;
-  background: #ffffff;
-  border-bottom: 1px solid #e5e7eb;
+  padding: 8px 12px;
+  background: #1f2937;
+  border-bottom: 1px solid #374151;
 }
 
 .info-badge {
-  background: #f3f4f6;
+  background: rgba(255, 255, 255, 0.08);
   padding: 4px 10px;
   border-radius: 6px;
   font-size: 12px;
   font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
-  color: #374151;
+  color: #d1d5db;
   font-weight: 500;
 }
 
 /* 3D 视图容器 */
 .viewer-container {
-  background: #111827;
+  background: #0f1219;
   overflow: hidden;
 }
 
 /* 拖动调整大小手柄 */
 .resize-handle {
-  height: 12px;
-  background: #e5e7eb;
+  height: 10px;
+  background: #1f2937;
   cursor: ns-resize;
   display: flex;
   align-items: center;
@@ -411,48 +425,62 @@ const vtkFiles = computed(() => {
 }
 
 .resize-handle:hover {
-  background: #d1d5db;
+  background: #374151;
 }
 
 .handle-bar {
-  width: 40px;
-  height: 4px;
-  background: #9ca3af;
+  width: 48px;
+  height: 3px;
+  background: #4b5563;
   border-radius: 2px;
 }
 
-/* 控制栏 */
+/* ========================================
+   控制栏 - 专业播放器设计
+   ======================================== */
 .controls-bar {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  background: #ffffff;
-  border-top: 1px solid #e5e7eb;
-  flex-wrap: wrap;
+  gap: 12px;
+  padding: 10px 14px;
+  background: linear-gradient(180deg, #111827 0%, #1f2937 100%);
+  border-top: 1px solid #374151;
 }
 
 .control-group {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 4px;
+}
+
+.playback-controls {
+  flex-shrink: 0;
+}
+
+.progress-section {
+  flex: 1;
+  min-width: 100px;
+}
+
+.tool-controls {
+  flex-shrink: 0;
 }
 
 .divider {
   width: 1px;
   height: 20px;
-  background: #e5e7eb;
-  margin: 0 2px;
+  background: #374151;
+  margin: 0 4px;
 }
 
 /* 控制按钮 */
 .ctrl-btn {
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
   border: none;
-  border-radius: 6px;
-  background: #f3f4f6;
-  color: #374151;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #d1d5db;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -462,56 +490,64 @@ const vtkFiles = computed(() => {
 }
 
 .ctrl-btn:hover:not(:disabled) {
-  background: #e5e7eb;
-  color: #111827;
+  background: rgba(255, 255, 255, 0.12);
+  color: #f9fafb;
 }
 
 .ctrl-btn:disabled {
-  opacity: 0.4;
+  opacity: 0.3;
   cursor: not-allowed;
 }
 
 .ctrl-btn.active {
-  background: #dbeafe;
-  color: #2563eb;
+  background: rgba(59, 130, 246, 0.2);
+  color: #60a5fa;
 }
 
+/* 播放按钮 */
 .ctrl-btn.play-btn {
-  width: 34px;
-  height: 34px;
-  background: #3b82f6;
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
   color: #ffffff;
   border-radius: 50%;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4);
 }
 
 .ctrl-btn.play-btn:hover {
-  background: #2563eb;
+  background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
+  transform: scale(1.05);
 }
 
-.ctrl-btn.text-btn {
+/* 速度按钮 */
+.ctrl-btn.speed-btn {
   width: auto;
-  min-width: 36px;
-  padding: 0 8px;
+  min-width: 40px;
+  padding: 0 10px;
   font-size: 12px;
   font-weight: 600;
+  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+}
+
+.speed-value {
+  color: #93c5fd;
 }
 
 /* 进度条 */
 .progress-track {
   flex: 1;
-  min-width: 100px;
 }
 
 .progress-track :deep(.el-slider__runway) {
   height: 4px;
-  background: #e5e7eb;
+  background: #374151;
   margin: 14px 0;
   border-radius: 2px;
 }
 
 .progress-track :deep(.el-slider__bar) {
   height: 4px;
-  background: #3b82f6;
+  background: linear-gradient(90deg, #3b82f6 0%, #60a5fa 100%);
   border-radius: 2px;
 }
 
@@ -520,10 +556,35 @@ const vtkFiles = computed(() => {
 }
 
 .progress-track :deep(.el-slider__button) {
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
   border: 2px solid #3b82f6;
-  background: #ffffff;
+  background: #1f2937;
+  transition: all 0.15s ease;
+}
+
+.progress-track :deep(.el-slider__button:hover) {
+  transform: scale(1.2);
+}
+
+/* 速度下拉菜单 */
+.speed-dropdown :deep(.el-dropdown-menu__item) {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+}
+
+.speed-dropdown :deep(.el-dropdown-menu__item.active) {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.speed-label {
+  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+  font-size: 12px;
+  color: #9ca3af;
+  margin-left: 12px;
 }
 
 /* 加载和空状态 */
@@ -534,13 +595,14 @@ const vtkFiles = computed(() => {
   align-items: center;
   justify-content: center;
   gap: 12px;
-  color: #6b7280;
+  color: #9ca3af;
   font-size: 13px;
-  background: #ffffff;
+  background: #111827;
 }
 
 .loading-state .is-loading {
   animation: spin 1s linear infinite;
+  color: #60a5fa;
 }
 
 .empty-state {
@@ -552,7 +614,7 @@ const vtkFiles = computed(() => {
   gap: 12px;
   color: #6b7280;
   font-size: 13px;
-  background: #ffffff;
+  background: #111827;
 }
 
 @keyframes spin {
@@ -564,6 +626,17 @@ const vtkFiles = computed(() => {
 @media (max-width: 640px) {
   .metrics-grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+  
+  
+  .controls-bar {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  
+  .progress-section {
+    order: 3;
+    width: 100%;
   }
 }
 </style>

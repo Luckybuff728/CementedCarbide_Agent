@@ -11,19 +11,32 @@
 from typing import Dict, Any, Optional
 from langchain.tools import tool, ToolRuntime
 from pydantic import BaseModel, Field
-import logging
-
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 
 # ==================== Pydantic Schema 定义 ====================
 
 class ExperimentDataInput(BaseModel):
     """实验数据输入（由 LLM 从用户消息解析）"""
-    hardness: Optional[float] = Field(default=None, description="硬度 (GPa)")
-    elastic_modulus: Optional[float] = Field(default=None, description="弹性模量 (GPa)")
-    adhesion_strength: Optional[float] = Field(default=None, description="结合力 (N)")
-    wear_rate: Optional[float] = Field(default=None, description="磨损率 (mm³/Nm)")
+    # 实验数据（必须从用户消息解析）
+    hardness: Optional[float] = Field(default=None, description="实验测得的硬度 (GPa)")
+    elastic_modulus: Optional[float] = Field(default=None, description="实验测得的弹性模量 (GPa)")
+    adhesion_strength: Optional[float] = Field(default=None, description="实验测得的结合力 (N)")
+    wear_rate: Optional[float] = Field(default=None, description="实验测得的磨损率 (mm³/Nm)")
+    
+    # 预测数据（可选，从对话上下文中提取之前 ML 预测工具的结果）
+    pred_hardness: Optional[float] = Field(default=None, description="ML预测的硬度 (GPa)，从之前的预测结果中提取")
+    pred_elastic_modulus: Optional[float] = Field(default=None, description="ML预测的弹性模量 (GPa)")
+    pred_adhesion_strength: Optional[float] = Field(default=None, description="ML预测的结合力 (N)")
+    pred_wear_rate: Optional[float] = Field(default=None, description="ML预测的磨损率 (mm³/Nm)")
+    
+    # 历史数据（可选，从对话上下文中提取之前历史对比工具的结果）
+    hist_hardness: Optional[float] = Field(default=None, description="历史最优硬度 (GPa)，从之前的历史对比结果中提取")
+    hist_elastic_modulus: Optional[float] = Field(default=None, description="历史最优弹性模量 (GPa)")
+    hist_adhesion_strength: Optional[float] = Field(default=None, description="历史最优结合力 (N)")
+    hist_wear_rate: Optional[float] = Field(default=None, description="历史最优磨损率 (mm³/Nm)")
+    
+    # 判断和总结
     is_target_met: bool = Field(default=False, description="是否达标（由你根据实验数据和目标需求判断）")
     summary: str = Field(default="", description="简要总结（一句话描述实验结果）")
 
@@ -33,31 +46,42 @@ class ExperimentDataInput(BaseModel):
 @tool(args_schema=ExperimentDataInput)
 def show_performance_comparison_tool(
     runtime: ToolRuntime,
+    # 实验数据
     hardness: Optional[float] = None,
     elastic_modulus: Optional[float] = None,
     adhesion_strength: Optional[float] = None,
     wear_rate: Optional[float] = None,
+    # 预测数据（Agent 从对话上下文提取）
+    pred_hardness: Optional[float] = None,
+    pred_elastic_modulus: Optional[float] = None,
+    pred_adhesion_strength: Optional[float] = None,
+    pred_wear_rate: Optional[float] = None,
+    # 历史数据（Agent 从对话上下文提取）
+    hist_hardness: Optional[float] = None,
+    hist_elastic_modulus: Optional[float] = None,
+    hist_adhesion_strength: Optional[float] = None,
+    hist_wear_rate: Optional[float] = None,
+    # 判断和总结
     is_target_met: bool = False,
     summary: str = ""
 ) -> Dict[str, Any]:
     """
-    显示性能对比图表。
+    显示性能对比图表（实验 vs ML预测 vs 历史最优）。
     
-    实验数据由 LLM 从用户消息中解析并传递，
-    ML预测、历史最优、目标需求等自动从状态获取。
+    使用场景：用户说"实验完成，硬度 28.5 GPa，结合力 55 N..."
     
-    使用场景：
-    - 用户说"实验完成，硬度 28.5 GPa，结合力 55 N..."
-    - 你解析出 hardness=28.5, adhesion_strength=55 等
-    - 前端会渲染 Plotly 对比图表
+    你需要：
+    1. 从用户消息解析实验数据（hardness, elastic_modulus 等）
+    2. 从对话上下文中提取之前的 ML 预测结果（pred_hardness 等）
+    3. 从对话上下文中提取之前的历史对比结果（hist_hardness 等）
+    
+    前端会渲染 Plotly 对比图表。
     
     Args:
         hardness: 实验测得的硬度 (GPa)
-        elastic_modulus: 实验测得的弹性模量 (GPa)
-        adhesion_strength: 实验测得的结合力 (N)
-        wear_rate: 实验测得的磨损率 (mm³/Nm)
-        is_target_met: 是否达标（由你判断）
-        summary: 简要总结
+        pred_hardness: ML预测的硬度，从之前 predict_ml_performance_tool 的结果中提取
+        hist_hardness: 历史最优硬度，从之前 compare_historical_tool 的结果中提取
+        （其他参数同理）
     
     Returns:
         结构化数据，前端自动渲染为对比图表
@@ -79,18 +103,39 @@ def show_performance_comparison_tool(
         logger.warning("[性能对比] 实验数据为空")
         return {"error": "实验数据为空，无法生成对比图"}
     
-    # 从状态获取 ML预测、历史最优、目标需求
+    # 优先使用 Agent 传入的数据，否则从状态获取
     state = runtime.state
-    prediction_data = state.get("ml_prediction", {})
-    historical_data = state.get("historical_comparison", {})
+    
+    # 构建预测数据：优先使用传入参数
+    prediction_data = {}
+    if pred_hardness is not None:
+        prediction_data["hardness"] = pred_hardness
+    if pred_elastic_modulus is not None:
+        prediction_data["elastic_modulus"] = pred_elastic_modulus
+    if pred_adhesion_strength is not None:
+        prediction_data["adhesion_strength"] = pred_adhesion_strength
+    if pred_wear_rate is not None:
+        prediction_data["wear_rate"] = pred_wear_rate
+    
+    # 如果 Agent 没传入，尝试从状态获取
+    if not prediction_data:
+        prediction_data = state.get("ml_prediction", {})
+    
+    # 构建历史数据：优先使用传入参数
+    historical_best = {}
+    if hist_hardness is not None:
+        historical_best["hardness"] = hist_hardness
+    if hist_elastic_modulus is not None:
+        historical_best["elastic_modulus"] = hist_elastic_modulus
+    if hist_adhesion_strength is not None:
+        historical_best["adhesion_strength"] = hist_adhesion_strength
+    if hist_wear_rate is not None:
+        historical_best["wear_rate"] = hist_wear_rate
+    
+    # 目标需求从状态获取
     target_requirements = state.get("target_requirements", {})
     
-    # 提取历史最优数据
-    historical_best = None
-    if historical_data and historical_data.get("similar_cases"):
-        # 取第一个相似案例作为历史参考
-        best_case = historical_data["similar_cases"][0]
-        historical_best = best_case.get("performance", {})
+    logger.info(f"[性能对比] 数据来源: prediction={bool(prediction_data)}, historical={bool(historical_best)}, target={bool(target_requirements)}")
     
     # 清理数据函数
     def clean_data(data):

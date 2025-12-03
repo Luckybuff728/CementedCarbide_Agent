@@ -1,7 +1,7 @@
 <template>
   <div class="login-wrapper">
     <div class="login-card">
-      <h2 class="title">TopMat Agent {{ isRegister ? '注册' : '登录' }}</h2>
+      <h2 class="title">CementedCarbide Agent {{ isRegister ? '注册' : '登录' }}</h2>
       <el-form @submit.prevent="handleSubmit">
         <el-form-item>
           <el-input v-model="username" placeholder="用户名" autocomplete="username" />

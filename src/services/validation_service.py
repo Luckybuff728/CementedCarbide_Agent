@@ -2,12 +2,10 @@
 LLM智能参数验证服务 - 统一验证所有输入参数
 """
 from typing import Dict, List, Any, Tuple
-import logging
 import json
+from loguru import logger
 from ..llm import get_llm_service, MATERIAL_EXPERT_PROMPT
 from langchain_core.messages import SystemMessage, HumanMessage
-
-logger = logging.getLogger(__name__)
 
 class ValidationService:
     """基于LLM的涂层参数智能验证服务（统一验证）"""

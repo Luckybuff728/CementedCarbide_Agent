@@ -292,7 +292,7 @@ const formData = ref({
 
 // 计算成分总和
 const compositionSum = computed(() => {
-  let sum = formData.value.al_content + formData.value.ti_content + formData.value.n_content
+  let sum = (formData.value.al_content || 0) + (formData.value.ti_content || 0) + (formData.value.n_content || 0)
   formData.value.other_elements.forEach(elem => {
     sum += elem.content || 0
   })
@@ -309,12 +309,37 @@ const handleScenarioSelect = (value) => {
   }
 }
 
-// 重置表单
+// 重置表单为空值
 const resetForm = () => {
-  formRef.value?.resetFields()
-  formData.value.other_elements = []
-  formData.value.other_gases = []
-  formData.value.layers = []
+  // 清空所有参数，而不是重置到默认值
+  formData.value = {
+    // 涂层成分 - 清空
+    al_content: null,
+    ti_content: null,
+    n_content: null,
+    other_elements: [],
+    
+    // 工艺参数 - 清空
+    process_type: 'magnetron_sputtering',
+    deposition_pressure: null,
+    deposition_temperature: null,
+    bias_voltage: null,
+    n2_flow: null,
+    other_gases: [],
+    
+    // 结构设计 - 清空
+    structure_type: 'single',
+    total_thickness: null,
+    layers: [],
+    
+    // 性能需求 - 清空
+    substrate_material: '',
+    adhesion_strength: null,
+    elastic_modulus: null,
+    working_temperature: null,
+    cutting_speed: null,
+    application_scenario: ''
+  }
   selectedScenario.value = ''
   ElMessage.success('已清空表单')
 }
@@ -322,6 +347,22 @@ const resetForm = () => {
 
 // 提交表单
 const handleSubmit = () => {
+  // 验证必填参数
+  const al = formData.value.al_content
+  const ti = formData.value.ti_content
+  const n = formData.value.n_content
+  const temp = formData.value.deposition_temperature
+  
+  if (!al && !ti && !n) {
+    ElMessage.warning('请先输入涂层成分配比')
+    return
+  }
+  
+  if (!temp) {
+    ElMessage.warning('请先输入沉积温度')
+    return
+  }
+  
   if (compositionSum.value > 100.1) {
     ElMessage.error('成分总和不能超过100%')
     return
@@ -368,22 +409,22 @@ const handleSubmit = () => {
   flex-direction: column;
   overflow: hidden;
   height: 100%;
-  background: #ffffff;
+  background: var(--bg-primary);
 }
 
 .panel-header {
   padding: 16px 20px;
-  border-bottom: 1px solid #f1f3f4;
+  border-bottom: 1px solid var(--bg-tertiary);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: #ffffff;
+  background: var(--bg-primary);
 }
 
 .header-title {
   font-size: 16px;
   font-weight: 600;
-  color: #202124;
+  color: var(--text-primary);
 }
 
 .form-content {
@@ -392,29 +433,21 @@ const handleSubmit = () => {
   padding: 20px;
 }
 
+/* 滚动条样式已在全局 style.css 定义 */
 .form-content::-webkit-scrollbar {
   width: 6px;
 }
 
-.form-content::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.form-content::-webkit-scrollbar-thumb {
-  background: #dadce0;
-  border-radius: 3px;
-}
-
 .panel-footer {
   padding: 16px 20px;
-  border-top: 1px solid #f1f3f4;
-  background: #ffffff;
+  border-top: 1px solid var(--bg-tertiary);
+  background: var(--bg-primary);
 }
 
 .submit-btn {
   width: 100%;
-  background: #1967d2;
-  border-color: #1967d2;
+  background: var(--primary);
+  border-color: var(--primary);
   border-radius: 8px;
   font-weight: 600;
   height: 40px;
@@ -422,26 +455,26 @@ const handleSubmit = () => {
 }
 
 .submit-btn:hover {
-  background: #1a73e8;
-  border-color: #1a73e8;
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
   box-shadow: 0 2px 6px rgba(26, 115, 232, 0.2);
 }
 
 .submit-btn:active {
-  background: #185abc;
-  border-color: #185abc;
+  background: var(--primary-dark);
+  border-color: var(--primary-dark);
 }
 
 /* 场景选择器 */
 .scenario-selector {
   padding: 16px 20px;
-  background: #ffffff;
-  border-bottom: 1px solid #f1f3f4;
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--bg-tertiary);
 }
 
 .selector-label {
   font-size: 12px;
-  color: #5f6368;
+  color: var(--text-secondary);
   font-weight: 500;
   margin-bottom: 10px;
 }
@@ -458,44 +491,44 @@ const handleSubmit = () => {
   justify-content: center;
   gap: 6px;
   padding: 8px 12px;
-  background: #f8f9fa;
-  border: 1px solid #f1f3f4;
+  background: var(--bg-secondary);
+  border: 1px solid var(--bg-tertiary);
   border-radius: 8px;
   font-size: 13px;
-  color: #3c4043;
+  color: var(--text-primary);
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .scenario-card:hover {
-  background: #f1f3f4;
-  border-color: #dadce0;
+  background: var(--bg-tertiary);
+  border-color: var(--border-color);
 }
 
 .scenario-card.active {
-  background: #e8f0fe;
-  border-color: #e8f0fe;
-  color: #1967d2;
+  background: var(--primary-lighter);
+  border-color: var(--primary-lighter);
+  color: var(--primary);
   font-weight: 500;
 }
 
 /* Element Plus 表单样式覆盖 */
 :deep(.el-form-item__label) {
   font-size: 13px;
-  color: #5f6368;
+  color: var(--text-secondary);
   padding-bottom: 6px;
 }
 
 :deep(.el-input__inner),
 :deep(.el-input-number__inner) {
   border-radius: 8px;
-  border-color: #dadce0;
+  border-color: var(--border-color);
 }
 
 :deep(.el-input__inner:focus),
 :deep(.el-input-number__inner:focus) {
-  border-color: #1967d2;
-  box-shadow: 0 0 0 1px #1967d2;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 1px var(--primary);
 }
 
 /* Element Plus Collapse样式覆盖 */
@@ -506,22 +539,22 @@ const handleSubmit = () => {
 :deep(.el-collapse-item__header) {
   height: 44px;
   padding: 0 12px;
-  border: 1px solid #dadce0;
+  border: 1px solid var(--border-color);
   border-radius: 8px;
   margin-bottom: 8px;
-  background: #ffffff;
-  color: #3c4043;
+  background: var(--bg-primary);
+  color: var(--text-primary);
   font-weight: 500;
 }
 
 :deep(.el-collapse-item__header.is-active) {
-  background: #f8f9fa;
+  background: var(--bg-secondary);
   border-radius: 8px 8px 0 0;
   border-bottom-color: transparent;
 }
 
 :deep(.el-collapse-item__wrap) {
-  border: 1px solid #dadce0;
+  border: 1px solid var(--border-color);
   border-top: none;
   border-radius: 0 0 8px 8px;
   margin-top: -8px;
@@ -530,6 +563,6 @@ const handleSubmit = () => {
 
 :deep(.el-collapse-item__content) {
   padding: 16px;
-  background: #ffffff;
+  background: var(--bg-primary);
 }
 </style>

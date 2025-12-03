@@ -15,12 +15,10 @@ Analyst Agent - 性能分析专家 (v2.2)
 from typing import Any
 from langchain_core.language_models import BaseChatModel
 from langchain.agents import create_agent
-import logging
+from loguru import logger
 
 from ..tools import ANALYST_TOOLS
 from ..state import CoatingState
-
-logger = logging.getLogger(__name__)
 
 # Analyst Agent 的系统提示词
 ANALYST_SYSTEM_PROMPT = """你是 TopMat 涂层优化系统的性能分析专家（Analyst Agent）。
@@ -36,7 +34,11 @@ ANALYST_SYSTEM_PROMPT = """你是 TopMat 涂层优化系统的性能分析专家
 ### 分析工具
 - `simulate_topphi_tool`: TopPhi 相场模拟，预测微观结构
 - `predict_ml_performance_tool`: ML 模型预测宏观性能
-- `compare_historical_tool`: 检索历史相似案例
+- `compare_historical_tool`: 基于 RAG+LLM 智能检索历史案例，返回:
+  - `performance_data`: 文献中的性能数据（硬度、结合力等）
+  - `key_findings`: 关键发现
+  - `recommendations`: 基于文献的改进建议
+  - `relevance_summary`: 相关性总结
 
 ## 参数修改流程（重要！）
 

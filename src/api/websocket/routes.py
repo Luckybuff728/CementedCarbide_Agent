@@ -3,15 +3,13 @@ WebSocket 路由注册
 
 对话式多Agent系统 v2.0
 """
-import logging
 import uuid
 import asyncio
 from fastapi import WebSocket, WebSocketDisconnect
+from loguru import logger
 from .manager import manager
 from .chat_handlers import handle_chat_message
 from ..security import decode_token
-
-logger = logging.getLogger(__name__)
 
 # 存储每个客户端的后台任务
 _client_tasks: dict = {}

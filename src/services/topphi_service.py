@@ -2,13 +2,12 @@
 TopPhi模拟服务 - 第一性原理沉积过程结构预测
 """
 from typing import Dict, Any, Optional
-import logging
 import time
+from loguru import logger
 import os
 from pathlib import Path
 import base64
 
-logger = logging.getLogger(__name__)
 
 
 class TopPhiService:
@@ -75,17 +74,18 @@ class TopPhiService:
         base_size = 10.0
         
         # Al含量影响（Al含量越高，晶粒越细）
-        al_factor = 1.0 - (composition.get('al_content', 0) / 100) * 0.3
+        al_content = composition.get('al_content') or 0
+        al_factor = 1.0 - (al_content / 100) * 0.3
         
         # 温度影响（温度越高，晶粒越大）
-        temp = params.get('deposition_temperature', 500)
+        temp = params.get('deposition_temperature') or 450
         temp_factor = 1.0 + (temp - 500) / 1000
         
         return round(base_size * al_factor * temp_factor, 1)
     
     def _predict_orientation(self, composition: Dict) -> str:
         """预测择优取向"""
-        al_content = composition.get('al_content', 0)
+        al_content = composition.get('al_content') or 0
         
         if al_content > 50:
             return "(111)"
@@ -100,7 +100,7 @@ class TopPhiService:
         base_stress = -2.0
         
         # 偏压影响
-        bias = params.get('bias_voltage', 0)
+        bias = params.get('bias_voltage') or 0
         bias_factor = 1.0 + (bias - 100) / 200
         
         return round(base_stress * bias_factor, 2)

@@ -5,7 +5,7 @@ import path from 'path'
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   // 加载环境变量
-  const env = loadEnv(mode, process.cwd() + '/frontend', '')
+  const env = loadEnv(mode, process.cwd(), '')
   
   // 端口配置（统一从环境变量读取）
   const backendHost = env.VITE_BACKEND_HOST || 'localhost'

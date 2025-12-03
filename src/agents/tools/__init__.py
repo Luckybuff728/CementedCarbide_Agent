@@ -30,30 +30,40 @@ from .experiment_tools import (
     request_experiment_input_tool,     # 请求用户输入实验数据
 )
 
-# 按 Agent 分组的工具集
-VALIDATOR_TOOLS = [
+from .rag_tools import query_knowledge_base
+
+# ========== 共享工具（所有 Agent 都可使用）==========
+SHARED_TOOLS = [
+    query_knowledge_base,  # 知识库检索 - 所有 Agent 都可调用
+]
+
+# ========== 按 Agent 分组的专属工具集 ==========
+VALIDATOR_TOOLS = SHARED_TOOLS + [
     validate_composition_tool,
     validate_process_params_tool,
     normalize_composition_tool,
 ]
 
-ANALYST_TOOLS = [
+ANALYST_TOOLS = SHARED_TOOLS + [
     update_params,  # 参数更新工具
     simulate_topphi_tool,
     predict_ml_performance_tool,
     compare_historical_tool,
 ]
 
-OPTIMIZER_TOOLS = []
+OPTIMIZER_TOOLS = SHARED_TOOLS + []
 
 # Experimenter 工具
-EXPERIMENTER_TOOLS = [
+EXPERIMENTER_TOOLS = SHARED_TOOLS + [
     show_performance_comparison_tool,  # 显示性能对比图表
     request_experiment_input_tool,     # 请求用户输入实验数据
 ]
 
+# Researcher 工具 (RAG 专家，可能有额外的检索工具)
+RESEARCHER_TOOLS = SHARED_TOOLS + []
+
 # 所有工具
-ALL_TOOLS = VALIDATOR_TOOLS + ANALYST_TOOLS + OPTIMIZER_TOOLS + EXPERIMENTER_TOOLS
+ALL_TOOLS = VALIDATOR_TOOLS + ANALYST_TOOLS + OPTIMIZER_TOOLS + EXPERIMENTER_TOOLS + RESEARCHER_TOOLS
 
 __all__ = [
     # 状态更新工具
@@ -69,10 +79,14 @@ __all__ = [
     # 实验工具
     "show_performance_comparison_tool",
     "request_experiment_input_tool",
+    # RAG工具
+    "query_knowledge_base",
     # 工具集
+    "SHARED_TOOLS",
     "VALIDATOR_TOOLS",
     "ANALYST_TOOLS",
     "OPTIMIZER_TOOLS",
     "EXPERIMENTER_TOOLS",
+    "RESEARCHER_TOOLS",
     "ALL_TOOLS",
 ]

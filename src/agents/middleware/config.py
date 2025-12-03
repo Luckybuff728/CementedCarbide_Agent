@@ -11,10 +11,8 @@
 - 因为 init_chat_model 要求 "provider:model" 格式（如 "openai:gpt-4o"）
 - TODO: 等待 LangChain 支持 OpenAI-compatible 端点后再启用
 """
-import logging
 from typing import List, Any
-
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 
 # ==================== 对话摘要配置（暂未使用） ====================

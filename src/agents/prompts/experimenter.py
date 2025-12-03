@@ -13,12 +13,10 @@ Experimenter Agent - 实验管理专家 (v2.1)
 from typing import Any
 from langchain_core.language_models import BaseChatModel
 from langchain.agents import create_agent
-import logging
+from loguru import logger
 
 from ..tools import EXPERIMENTER_TOOLS
 from ..state import CoatingState
-
-logger = logging.getLogger(__name__)
 
 # Experimenter Agent 的系统提示词
 EXPERIMENTER_SYSTEM_PROMPT = """你是 TopMat 涂层优化系统的实验管理专家（Experimenter Agent）。
@@ -101,17 +99,35 @@ EXPERIMENTER_SYSTEM_PROMPT = """你是 TopMat 涂层优化系统的实验管理�
 
 当用户通过表单提交数据，或直接说"硬度 28.5 GPa，结合力 55 N..."时：
 
-1. **解析数据**：提取 hardness、elastic_modulus、adhesion_strength、wear_rate
-2. **调用工具**：
+1. **解析实验数据**：从用户消息提取 hardness、elastic_modulus、adhesion_strength、wear_rate
+
+2. **从对话历史提取对比数据**（非常重要！）：
+   - **ML预测数据**：查看之前 predict_ml_performance_tool 返回的结果，提取硬度、弹性模量等
+   - **历史最优数据**：查看之前 compare_historical_tool 返回的结果，提取性能数据
+
+3. **调用工具**：
 ```
 show_performance_comparison_tool(
-    experiment_data={"hardness": 28.5, "adhesion_strength": 55, ...},
-    prediction_data=从上下文获取,
-    is_target_met=你判断是否达标,
+    # 实验数据（从用户消息解析）
+    hardness=28.5,
+    adhesion_strength=55,
+    
+    # 预测数据（从对话历史中之前的 ML 预测结果提取）
+    pred_hardness=30.2,
+    pred_adhesion_strength=58,
+    
+    # 历史数据（从对话历史中之前的历史对比结果提取）
+    hist_hardness=32.5,
+    hist_adhesion_strength=62,
+    
+    is_target_met=True/False,
     summary="一句话总结"
 )
 ```
-3. **给出解读**：分析性能表现，给出下一步建议
+
+4. **给出解读**：分析性能表现，给出下一步建议
+
+**重要**：pred_* 和 hist_* 参数必须从对话上下文中提取，不要编造！如果之前没有相关预测或历史数据，这些参数可以不传。
 
 ---
 
@@ -120,7 +136,7 @@ show_performance_comparison_tool(
 - 不要自己编造工单编号和时间（系统自动生成）
 - 分析结果时要客观，给出具体改进建议
 
-## ⚠️ 严格约束：禁止幻觉（最高优先级）
+## 严格约束：禁止幻觉（最高优先级）
 
 **以下规则必须严格遵守：**
 

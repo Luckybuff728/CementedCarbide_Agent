@@ -1,10 +1,10 @@
 services:
   # 后端服务
   backend:
-    build:
-      context: .
-      dockerfile: Dockerfile.backend
+    image: 192.168.7.102:5000/topmat-backend:latest
     container_name: topmat-backend
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
     restart: always
     # 端口不直接暴露到主机，只通过 Nginx 访问（如需调试可临时打开）
     # ports:
@@ -49,10 +49,10 @@ services:
 
   # 前端服务
   frontend:
-    build:
-      context: .
-      dockerfile: Dockerfile.frontend
+    image: 192.168.7.102:5000/topmat-frontend:latest
     container_name: topmat-frontend
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
     restart: always
     ports:
       - "8081:80"
@@ -89,4 +89,4 @@ networks:
     driver: bridge
     ipam:
       config:
-        - subnet: 172.28.0.0/16
+        - subnet: 172.30.0.0/16

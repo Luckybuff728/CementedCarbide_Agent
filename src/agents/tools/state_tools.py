@@ -8,9 +8,7 @@ from typing import Dict, Any
 from langchain.tools import tool, ToolRuntime
 from langchain.messages import ToolMessage
 from langgraph.types import Command
-import logging
-
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 @tool
 def update_params(

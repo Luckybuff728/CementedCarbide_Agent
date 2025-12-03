@@ -7,11 +7,9 @@
 """
 import re
 import json
-import logging
 from typing import Dict, Any, Optional, List
 from datetime import datetime
-
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 
 class ContentExtractor:

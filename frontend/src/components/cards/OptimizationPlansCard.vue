@@ -57,38 +57,38 @@ const recommended = computed(() => {
 </script>
 
 <style scoped>
+/* 优化方案卡片 */
 .optimization-plans-card {
-  padding: 12px;
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 16px;
+  border: 1px solid #e5e7eb;
 }
 
-/* 方案列表（一行一个） */
+/* 方案列表 */
 .plans-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  margin-bottom: 12px;
+  gap: 12px;
+  margin-bottom: 16px;
 }
 
-/* 每个方案行 */
+/* 每个方案行 - 使用左边框而非背景 */
 .plan-row {
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  padding: 12px;
-  background: #f8f9fa;
-  border-radius: 8px;
-  border: 1px solid #e0e0e0;
+  padding: 12px 0 12px 12px;
+  border-left: 3px solid #e5e7eb;
   transition: all 0.2s ease;
 }
 
 .plan-row:hover {
-  border-color: #1a73e8;
-  background: #f5f8ff;
+  border-left-color: #2563eb;
 }
 
 .plan-row.recommended {
-  border-color: #34a853;
-  background: #f1f8f4;
+  border-left-color: #10b981;
 }
 
 /* 左侧标识区 */
@@ -97,20 +97,20 @@ const recommended = computed(() => {
   flex-direction: column;
   align-items: center;
   gap: 6px;
-  min-width: 40px;
+  min-width: 36px;
 }
 
 .plan-id-badge {
-  background: #1a73e8;
+  background: #2563eb;
   color: white;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
-  padding: 4px 10px;
+  padding: 4px 8px;
   border-radius: 4px;
 }
 
 .plan-row.recommended .plan-id-badge {
-  background: #34a853;
+  background: #10b981;
 }
 
 /* 方案内容区 */
@@ -121,25 +121,27 @@ const recommended = computed(() => {
 
 .plan-category {
   font-size: 11px;
-  color: #80868b;
-  margin-bottom: 4px;
+  color: #9ca3af;
+  margin-bottom: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 
 .plan-name {
   font-weight: 600;
   font-size: 14px;
-  color: #202124;
+  color: #1f2937;
   line-height: 1.4;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
 .plan-effect {
   font-size: 12px;
-  color: #1a73e8;
+  color: #6b7280;
 }
 
 .plan-row.recommended .plan-effect {
-  color: #137333;
+  color: #059669;
 }
 
 /* 底部提示 */
@@ -148,9 +150,8 @@ const recommended = computed(() => {
   align-items: center;
   gap: 6px;
   font-size: 12px;
-  color: #80868b;
-  padding: 8px 12px;
-  background: #f8f9fa;
-  border-radius: 6px;
+  color: #9ca3af;
+  padding-top: 12px;
+  border-top: 1px solid #f3f4f6;
 }
 </style>

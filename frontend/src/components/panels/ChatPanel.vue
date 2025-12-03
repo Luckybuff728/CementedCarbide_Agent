@@ -59,25 +59,46 @@
               >{{ msg.thinking }}</div>
             </div>
             
-            <!-- 工具执行状态（嵌入在消息中） -->
-            <div v-if="msg.tools && msg.tools.length > 0" class="tools-list">
+            <!-- 工具执行状态（简洁专业设计） -->
+            <div v-if="msg.tools && msg.tools.length > 0" class="tools-container">
               <div 
                 v-for="tool in msg.tools" 
                 :key="tool.name" 
-                class="tool-chip"
-                :class="{ 'running': tool.isRunning }"
+                class="tool-item"
+                :class="{ 'running': tool.isRunning, 'completed': !tool.isRunning }"
               >
-                <span class="tool-indicator" :class="{ 'running': tool.isRunning }"></span>
-                <span class="tool-label">{{ tool.displayName }}</span>
+                <span class="tool-status-icon">
+                  <svg v-if="tool.isRunning" class="spinner" viewBox="0 0 16 16" fill="none">
+                    <circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-dasharray="28" stroke-dashoffset="8"/>
+                  </svg>
+                  <svg v-else viewBox="0 0 16 16" fill="none">
+                    <path d="M3.5 8.5L6.5 11.5L12.5 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </span>
+                <span class="tool-name">{{ tool.displayName }}</span>
               </div>
+            </div>
+            
+            <!-- 加载指示器：agent消息无内容时显示 -->
+            <div v-if="msg.type === 'agent' && !msg.content && !msg.thinking && (!msg.tools || msg.tools.length === 0) && props.isGenerating" class="typing-dots">
+              <span></span>
+              <span></span>
+              <span></span>
             </div>
             
             <div class="message-content" v-if="msg.content">
               <MarkdownRenderer v-if="!msg.isToolExecution" :content="cleanContent(msg.content)" />
-              <span v-else class="tool-execution-text" :class="{ 'tool-running': msg.isToolRunning }">
-                <component :is="Icon" :component="SettingsOutline" :size="14" class="tool-icon" />
-                {{ msg.content }}
-              </span>
+              <div v-else class="tool-execution-block">
+                <span class="tool-status-icon">
+                  <svg v-if="msg.isToolRunning" class="spinner" viewBox="0 0 16 16" fill="none">
+                    <circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-dasharray="28" stroke-dashoffset="8"/>
+                  </svg>
+                  <svg v-else viewBox="0 0 16 16" fill="none">
+                    <path d="M3.5 8.5L6.5 11.5L12.5 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </span>
+                <span class="tool-exec-text">{{ msg.content }}</span>
+              </div>
             </div>
           </div>
           
@@ -87,7 +108,6 @@
         </div>
       </div>
       
-      <!-- Typing动画已移除，使用消息内的 streaming 状态代替 -->
     </div>
     
     <!-- 输入区域 -->
@@ -257,6 +277,7 @@ const formatTime = (timestamp) => {
 /**
  * 清理消息内容，移除 LLM 输出的奇怪前缀
  * 例如：'validator### ✅ 涂层参数验证报告' -> '✅ 涂层参数验证报告'
+ * 例如：'researcher### 正文' -> '正文'
  * 例如：'analyst' -> '' (过滤单独的 agent 名称)
  */
 const cleanContent = (content) => {
@@ -264,14 +285,20 @@ const cleanContent = (content) => {
   
   let cleaned = content
   
+  // Agent 名称列表（包括 researcher）
+  const agentNames = ['validator', 'analyst', 'optimizer', 'experimenter', 'assistant', 'supervisor', 'router', 'researcher']
+  
   // 过滤掉单独的 agent 名称（整个内容只有 agent 名称）
-  const agentNames = ['validator', 'analyst', 'optimizer', 'experimenter', 'assistant', 'supervisor', 'router']
   if (agentNames.includes(cleaned.trim().toLowerCase())) {
     return ''
   }
   
-  // 移除开头的 agent 名称前缀（如 validator###、analyst#、optimizer##）
-  cleaned = cleaned.replace(/^(validator|analyst|optimizer|experimenter|assistant|supervisor|router)[#\s]+/gi, '')
+  // 移除开头的 agent 名称前缀（如 validator###、researcher###、researcherTiAlN）
+  // 支持：researcher### 、researcher TiAlN、researcherTiAlN（粘连情况）
+  cleaned = cleaned.replace(/^(validator|analyst|optimizer|experimenter|assistant|supervisor|router|researcher)[#\s]*/gi, '')
+  
+  // 移除开头的格式标签（如 "正文"、"### 正文"）
+  cleaned = cleaned.replace(/^(#{1,3}\s*)?(正文|内容|回答)\s*/gi, '')
   
   // 移除开头的多余空白和换行
   cleaned = cleaned.replace(/^[\s\n]+/, '')
@@ -381,9 +408,9 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: #ffffff;
+  background: var(--bg-primary);
   border-radius: 16px;
-  border: 1px solid #dadce0;
+  border: 1px solid var(--border-color);
   overflow: hidden;
   /* box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); */
 }
@@ -394,8 +421,8 @@ onUnmounted(() => {
   justify-content: space-between;
   align-items: center;
   padding: 16px 24px;
-  background: #ffffff;
-  border-bottom: 1px solid #f1f3f4;
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--bg-tertiary);
 }
 
 .header-left {
@@ -407,7 +434,7 @@ onUnmounted(() => {
 .header-title {
   font-size: 16px;
   font-weight: 600;
-  color: #202124;
+  color: var(--text-primary);
 }
 
 .agent-status {
@@ -418,13 +445,13 @@ onUnmounted(() => {
   border-radius: 12px;
   font-size: 12px;
   font-weight: 500;
-  background: #e8f0fe;
-  color: #1967d2;
+  background: var(--primary-lighter);
+  color: var(--primary);
 }
 
 .agent-status.active {
-  background: #e6f4ea;
-  color: #28c05a;
+  background: var(--success-light);
+  color: var(--success-hover);
 }
 
 .typing-dot {
@@ -445,7 +472,7 @@ onUnmounted(() => {
   flex: 1;
   overflow-y: auto;
   padding: 24px;
-  background: #ffffff;
+  background: var(--bg-primary);
 }
 
 .empty-state {
@@ -454,21 +481,13 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   height: 100%;
-  color: #9aa0a6;
+  color: var(--text-tertiary);
   gap: 16px;
 }
 
+/* 滚动条样式已在全局 style.css 定义，此处只需保留必要的覆盖 */
 .chat-messages::-webkit-scrollbar {
   width: 6px;
-}
-
-.chat-messages::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.chat-messages::-webkit-scrollbar-thumb {
-  background: #dadce0;
-  border-radius: 3px;
 }
 
 /* 消息布局 */
@@ -529,11 +548,11 @@ onUnmounted(() => {
 
 .message-agent {
   font-weight: 600;
-  color: #202124;
+  color: var(--text-primary);
 }
 
 .message-time {
-  color: #9aa0a6;
+  color: var(--text-tertiary);
 }
 
 /* 消息气泡 */
@@ -545,45 +564,97 @@ onUnmounted(() => {
 }
 
 .message.agent .message-bubble {
-  background: #ffffff;
+  background: var(--bg-primary);
   /* border: 1px solid #e0e0e0; */
-  color: #202124;
+  color: var(--text-primary);
   border-top-left-radius: 4px;
 }
 
 .message.user .message-bubble {
-  background: #e8f0fe;
-  color: #1f1f1f;
+  background: var(--primary-lighter);
+  color: var(--text-primary);
   border-top-right-radius: 4px;
 }
 
 /* 工具执行消息 */
 .message.tool-message .message-bubble {
-  background: #f8f9fa;
-  border: 1px solid #f1f3f4;
+  background: var(--bg-secondary);
+  border: 1px solid var(--bg-tertiary);
   border-radius: 12px;
   padding: 8px 12px;
 }
 
-.tool-execution-text {
-  color: #5f6368;
-  font-size: 13px;
+
+/* 工具容器 - 简洁专业设计 */
+.tools-container {
   display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.tool-item {
+  display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-family: 'Roboto Mono', monospace;
+  padding: 8px 14px;
+  font-size: 16px;
+  color: var(--text-tertiary);
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: 22px;
+  width: fit-content;
 }
 
-.tool-running {
-  color: #1967d2;
+.tool-item.running {
+  color: var(--text-secondary);
 }
 
-.tool-icon {
-  color: inherit;
+.tool-item.completed {
+  color: var(--text-tertiary);
 }
 
-.tool-icon.spinning {
+.tool-status-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.tool-status-icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.tool-item.running .tool-status-icon {
+  color: var(--text-secondary);
+}
+
+.tool-item.completed .tool-status-icon {
+  color: #22c55e;
+}
+
+.tool-status-icon .spinner {
   animation: spin 1s linear infinite;
+}
+
+.tool-name {
+  font-weight: 400;
+}
+
+/* 工具执行块样式 */
+.tool-execution-block {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+}
+
+.tool-exec-text {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-family: inherit;
 }
 
 @keyframes spin {
@@ -591,88 +662,46 @@ onUnmounted(() => {
   to { transform: rotate(360deg); }
 }
 
-/* 工具列表 */
-.tools-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 12px;
+/* 加载气泡 */
+.loading-bubble {
+  padding: 12px 16px !important;
+  min-width: 60px;
 }
 
-.tool-chip {
-  display: inline-flex;
+.typing-dots {
+  display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 5px 12px 5px 10px;
-  background: #f8f9fa;
-  border: 1px solid #e8eaed;
-  border-radius: 16px;
-  font-size: 12px;
-  color: #5f6368;
-}
-
-.tool-chip.running {
-  background: #e8f0fe;
-  border-color: #d2e3fc;
-  color: #1967d2;
-}
-
-.tool-indicator {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #34a853;
-  flex-shrink: 0;
-}
-
-.tool-chip.running .tool-indicator {
-  background: #1967d2;
-  animation: toolPulse 1s ease-in-out infinite;
-}
-
-@keyframes toolPulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
-}
-
-.tool-label {
-  font-weight: 500;
-}
-
-/* Typing指示器 */
-.typing-bubble {
-  background: #f1f3f4;
-  padding: 12px 16px;
-  border-radius: 16px;
-  border-top-left-radius: 4px;
-  width: fit-content;
-}
-
-.typing-indicator {
-  display: flex;
   gap: 4px;
+  height: 20px;
 }
 
-.typing-indicator span {
+.typing-dots span {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #9aa0a6;
-  animation: bounce 1.4s infinite ease-in-out both;
+  background: var(--text-tertiary);
+  animation: dotPulse 1.4s infinite ease-in-out both;
 }
 
-.typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
-.typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
+.typing-dots span:nth-child(1) { animation-delay: 0s; }
+.typing-dots span:nth-child(2) { animation-delay: 0.16s; }
+.typing-dots span:nth-child(3) { animation-delay: 0.32s; }
 
-@keyframes bounce {
-  0%, 80%, 100% { transform: scale(0); }
-  40% { transform: scale(1); }
+@keyframes dotPulse {
+  0%, 80%, 100% { 
+    transform: scale(0.6);
+    opacity: 0.4;
+  }
+  40% { 
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 /* 输入区域 */
 .chat-input-area {
   padding: 20px 24px;
-  background: #ffffff;
+  background: var(--bg-primary);
   /* border-top: 1px solid #f1f3f4; */
 }
 
@@ -680,14 +709,14 @@ onUnmounted(() => {
   display: flex;
   align-items: flex-end;
   gap: 12px;
-  background: #f1f3f4;
+  background: var(--bg-tertiary);
   border-radius: 24px;
   padding: 8px 16px;
   transition: background 0.2s;
 }
 
 .input-wrapper:focus-within {
-  background: #ffffff;
+  background: var(--bg-primary);
   box-shadow: 0 1px 3px 0 rgba(60,64,67,0.3), 0 4px 8px 3px rgba(60,64,67,0.15);
 }
 
@@ -696,7 +725,7 @@ onUnmounted(() => {
   border: none;
   padding: 8px 0;
   font-size: 15px;
-  color: #202124;
+  color: var(--text-primary);
   background: transparent;
   box-shadow: none;
   min-height: 24px !important;
@@ -708,8 +737,8 @@ onUnmounted(() => {
 }
 
 .send-button {
-  background: #1967d2;
-  border-color: #1967d2;
+  background: var(--primary);
+  border-color: var(--primary);
   color: white;
   width: 36px;
   height: 36px;
@@ -718,16 +747,16 @@ onUnmounted(() => {
 }
 
 .send-button:disabled {
-  background: #dadce0;
-  border-color: #dadce0;
-  color: #ffffff;
+  background: var(--border-color);
+  border-color: var(--border-color);
+  color: var(--bg-primary);
 }
 
 /* 停止生成按钮 */
 .stop-button {
-  background: #ffffff;
-  border: 2px solid #dc3545;
-  color: #dc3545;
+  background: var(--bg-primary);
+  border: 2px solid var(--danger);
+  color: var(--danger);
   width: 36px;
   height: 36px;
   flex-shrink: 0;
@@ -736,16 +765,16 @@ onUnmounted(() => {
 }
 
 .stop-button:hover {
-  background: #dc3545;
-  border-color: #dc3545;
-  color: #ffffff;
+  background: var(--danger);
+  border-color: var(--danger);
+  color: var(--bg-primary);
 }
 
 .input-footer {
   margin-top: 8px;
   text-align: center;
   font-size: 12px;
-  color: #9aa0a6;
+  color: var(--text-tertiary);
 }
 
 /* Markdown内容样式优化 */

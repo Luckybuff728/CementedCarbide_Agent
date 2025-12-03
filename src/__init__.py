@@ -1,5 +1,5 @@
 """
-TopMat Agent - 硬质合金涂层优化专家系统
+CementedCarbide Agent - 硬质合金涂层优化专家系统
 
 v2.0 - 对话式多Agent系统
 """

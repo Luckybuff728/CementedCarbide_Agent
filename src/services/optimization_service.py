@@ -3,12 +3,11 @@
 """
 from typing import Dict, List, Any, Optional
 from enum import Enum
-import logging
 import re
+from loguru import logger
 from ..llm import get_llm_service, MATERIAL_EXPERT_PROMPT
 from langchain_core.messages import SystemMessage, HumanMessage
 
-logger = logging.getLogger(__name__)
 
 
 class OptimizationType(Enum):

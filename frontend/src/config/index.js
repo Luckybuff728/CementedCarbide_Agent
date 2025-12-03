@@ -47,7 +47,7 @@ export const CONFIG = {
   // 生产模式
   isProd: import.meta.env.PROD,
   // 应用名称
-  appName: 'TopMat Agent - 多Agent模式',
+  appName: 'CementedCarbide Agent - 多Agent模式',
   // 版本号
   version: '2.0.0',
   // 模式

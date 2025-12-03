@@ -2,11 +2,10 @@
 ML模型预测服务 - 基于机器学习模型的性能预测
 """
 from typing import Dict, Any
-import logging
 import time
+from loguru import logger
 import httpx
 
-logger = logging.getLogger(__name__)
 
 
 class MLPredictionService:
@@ -82,10 +81,11 @@ class MLPredictionService:
         base_hardness = 25.0
         
         # Al含量影响（Al含量越高，硬度越高）
-        al_factor = 1.0 + (composition.get('al_content', 0) / 100) * 0.3
+        al_content = composition.get('al_content') or 0
+        al_factor = 1.0 + (al_content / 100) * 0.3
         
         # 温度影响
-        temp = params.get('deposition_temperature', 500)
+        temp = params.get('deposition_temperature') or 450
         temp_factor = 1.0 + (temp - 500) / 1000 * 0.1
         
         return round(base_hardness * al_factor * temp_factor, 4)
@@ -173,8 +173,8 @@ class MLPredictionService:
         TODO: 接入真实ML模型预测结合力
         """
         # 简化模型：基于Al含量和总厚度
-        al_content = composition.get('al_content', 30)
-        thickness = structure.get('total_thickness', 3)
+        al_content = composition.get('al_content') or 30
+        thickness = structure.get('total_thickness') or 3
         
         # 基础结合力
         base_adhesion = 45.0
@@ -195,7 +195,7 @@ class MLPredictionService:
     def _predict_wear_rate(self, composition: Dict) -> float:
         """预测磨损率"""
         # 简化：Al含量越高，磨损率越低
-        al_content = composition.get('al_content', 0)
+        al_content = composition.get('al_content') or 0
         base_rate = 2.0e-6
         
         return round(base_rate * (1 - al_content / 200), 4)
@@ -206,7 +206,7 @@ class MLPredictionService:
         TODO: 接入真实ML模型预测抗氧化温度
         """
         # 简化：Al含量越高，抗氧化性越好
-        al_content = composition.get('al_content', 0)
+        al_content = composition.get('al_content') or 0
         base_temp = 700
         
         return round(base_temp + al_content * 3, 4)
@@ -217,8 +217,8 @@ class MLPredictionService:
         TODO: 接入真实ML模型预测表面粗糙度
         """
         # 简化模型：基于沉积温度和偏压
-        temp = params.get('deposition_temperature', 500)
-        bias = abs(params.get('bias_voltage', -100))
+        temp = params.get('deposition_temperature') or 450
+        bias = abs(params.get('bias_voltage') or -100)
         
         # 基础粗糙度
         base_roughness = 0.2

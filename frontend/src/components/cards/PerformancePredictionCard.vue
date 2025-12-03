@@ -1,66 +1,52 @@
 <template>
-  <SummaryCard 
-
-    :icon-component="RadioButtonOnOutline"
-    title="性能预测"
-    :badge="confidenceBadge"
-    :clickable="true"
-    :show-header="showHeader"
-    @click="emit('jump-to-node', 'ml_prediction')"
-  >
-    <div class="prediction-summary">
-      <div class="key-metric">
-        <span class="metric-label">预测硬度</span>
-        <span class="metric-value highlight">
-          {{ predictionData.hardness }} GPa
-        </span>
+  <div class="performance-prediction-card">
+    <!-- 主要指标 -->
+    <div class="main-metric">
+      <div class="metric-highlight">
+        <span class="metric-value">{{ predictionData.hardness }}</span>
+        <span class="metric-unit">GPa</span>
       </div>
-      <div class="metrics-grid">
-        <div class="metric-item">
-          <span>弹性模量</span>
-          <span>{{ predictionData.elastic_modulus }} GPa</span>
-        </div>
-        <div class="metric-item">
-          <span>磨损率</span>
-          <span>{{ predictionData.wear_rate }} mm³/Nm</span>
-        </div>
-        <div class="metric-item">
-          <span>结合力</span>
-          <span>{{ predictionData.adhesion_strength }} N</span>
-        </div>
+      <span class="metric-label">预测硬度</span>
+    </div>
+    
+    <!-- 其他指标 - 横向排列 -->
+    <div class="metrics-row">
+      <div class="metric-item">
+        <span class="label">弹性模量</span>
+        <span class="value">{{ predictionData.elastic_modulus }} <small>GPa</small></span>
       </div>
-      <div class="metric-item" style="margin-top: 8px;">
-        <span>模型置信度</span>
-        <el-progress 
-          :percentage="predictionData.confidence"
-          :color="getConfidenceColor(predictionData.confidence / 100)"
-          :stroke-width="8"
-        />
+      <div class="metric-item">
+        <span class="label">结合力</span>
+        <span class="value">{{ predictionData.adhesion_strength }} <small>N</small></span>
+      </div>
+      <div class="metric-item">
+        <span class="label">磨损率</span>
+        <span class="value">{{ predictionData.wear_rate }} <small>mm³/Nm</small></span>
       </div>
     </div>
-  </SummaryCard>
+  </div>
 </template>
 
 <script setup>
+/**
+ * 性能预测卡片
+ * 
+ * 展示 ML 模型的性能预测结果，包含硬度、弹性模量、磨损率、结合力等指标
+ */
 import { computed } from 'vue'
-// import { NIcon } from 'naive-ui' // Removed unused import
-import { RadioButtonOnOutline } from '@vicons/ionicons5'
-import { getConfidenceColor } from '../../utils/markdown'
-import SummaryCard from '../common/SummaryCard.vue'
 
-// 定义props和emits
 const props = defineProps({
+  // 预测数据对象
   prediction: {
-    type: [Object, String],  // 支持Object和String类型
+    type: [Object, String],
     default: null
   },
+  // 是否显示头部（兼容旧接口，现由 ResultsPanel 控制）
   showHeader: {
     type: Boolean,
     default: true
   }
 })
-
-const emit = defineEmits(['jump-to-node'])
 
 // 获取预测数据
 const predictionData = computed(() => {
@@ -71,8 +57,7 @@ const predictionData = computed(() => {
       hardness: 'N/A',
       elastic_modulus: 'N/A',
       wear_rate: 'N/A',
-      adhesion_strength: 'N/A',
-      confidence: 0
+      adhesion_strength: 'N/A'
     }
   }
   
@@ -80,77 +65,86 @@ const predictionData = computed(() => {
     hardness: pred.hardness ?? 'N/A',
     elastic_modulus: pred.elastic_modulus ?? 'N/A',
     wear_rate: pred.wear_rate ?? 'N/A',
-    adhesion_strength: pred.adhesion_strength ?? 'N/A',
-    confidence: Math.round((pred.model_confidence || 0) * 100)
+    adhesion_strength: pred.adhesion_strength ?? 'N/A'
   }
 })
 
-// 获取置信度徽章
-const confidenceBadge = computed(() => {
-  const confidence = predictionData.value.confidence
-  if (confidence >= 80) {
-    return { text: '高置信度', type: 'success' }
-  } else if (confidence >= 60) {
-    return { text: '中等置信度', type: 'warning' }
-  } else {
-    return { text: '低置信度', type: 'danger' }
-  }
-})
 </script>
 
 <style scoped>
-.prediction-summary {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.key-metric {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+.performance-prediction-card {
   padding: 16px;
-  background: #f9fafb;
+}
+
+/* 主要指标 - 突出显示 */
+.main-metric {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px;
+  margin-bottom: 16px;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(37, 99, 235, 0.04) 100%);
   border-radius: 12px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid rgba(59, 130, 246, 0.15);
 }
 
-.metric-label {
-  font-size: 12px;
-  color: #6b7280;
-  font-weight: 500;
+.metric-highlight {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
 }
 
-.metric-value {
-  font-size: 24px;
+.metric-highlight .metric-value {
+  font-size: 36px;
   font-weight: 700;
-  color: #1f2937;
+  color: var(--primary, #2563eb);
 }
 
-.metric-value.highlight {
-  color: #1967d2;
+.metric-highlight .metric-unit {
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--text-secondary, #6b7280);
 }
 
-.metrics-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
+.main-metric .metric-label {
+  font-size: 13px;
+  color: var(--text-secondary, #6b7280);
+  margin-top: 4px;
+}
+
+/* 指标横向排列 */
+.metrics-row {
+  display: flex;
+  gap: 8px;
 }
 
 .metric-item {
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 2px;
-  font-size: 13px;
+  padding: 10px 12px;
+  background: var(--bg-secondary, #f9fafb);
+  border-radius: 8px;
+  text-align: center;
 }
 
-.metric-item span:first-child {
+.metric-item .label {
+  font-size: 11px;
   font-weight: 500;
-  color: #6b7280;
+  color: var(--text-tertiary, #9ca3af);
 }
 
-.metric-item span:last-child {
+.metric-item .value {
+  font-size: 15px;
   font-weight: 600;
-  color: #111827;
+  color: var(--text-primary, #1f2937);
+}
+
+.metric-item .value small {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-tertiary, #9ca3af);
+  margin-left: 2px;
 }
 </style>

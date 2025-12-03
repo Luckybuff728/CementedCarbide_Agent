@@ -13,8 +13,8 @@ API 配置：
 - model: qwen-plus / qwen-max / qwen-turbo 等
 """
 import os
-import logging
 from typing import Optional, Callable, List, Any, Dict, Iterator, AsyncIterator
+from loguru import logger
 from langchain_openai import ChatOpenAI
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import (
@@ -30,8 +30,6 @@ from dotenv import load_dotenv
 
 # 加载环境变量
 load_dotenv()
-
-logger = logging.getLogger(__name__)
 
 # ============================================================================
 # 常量配置

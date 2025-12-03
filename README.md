@@ -10,7 +10,8 @@ TopMat Agent 是一个基于 **LangGraph** 的对话式多 Agent 智能系统，
 - 🧠 **多 Agent 协作**: 验证/分析/优化/实验专家智能路由
 - 💭 **思考过程可见**: 展示 AI 推理过程，提升可解释性
 - 📊 **实时流式输出**: WebSocket 双向通信，打字机效果
-- 🔬 **专业工具集成**: TopPhi 模拟、ML 预测、历史案例检索
+- 🔬 **专业工具集成**: TopPhi 模拟、ML 预测、RAG 历史案例检索
+- 📈 **性能对比分析**: 实验数据 vs 预测数据 vs 历史最优的可视化对比
 - 🎨 **现代化界面**: Vue 3 + Element Plus，简洁专业
 
 ## 🚀 快速开始
@@ -109,6 +110,9 @@ npm run dev
 | DASHSCOPE_MODEL_NAME | ✗ | qwen-plus | LLM模型名称 |
 | SERVER_HOST | ✗ | 0.0.0.0 | 服务器监听地址 |
 | SERVER_PORT | ✗ | 8000 | 服务器端口 |
+| MILVUS_HOST | ✗ | localhost | Milvus 向量数据库地址 |
+| MILVUS_PORT | ✗ | 19530 | Milvus 端口 |
+| ML_PREDICTION_URL | ✗ | - | ML 预测服务地址 |
 
 #### 前端配置 (可选)
 前端会自动使用 `http://localhost:8000` 作为后端地址。如需修改，可在 `frontend/.env` 中配置。
@@ -199,12 +203,22 @@ TopMat_Agent/
 │   │       └── manager.py         # 连接管理
 │   ├── llm/                       # LLM 服务
 │   │   └── llm_service.py         # Qwen + 思考模式
+│   ├── rag/                       # RAG 检索系统
+│   │   ├── config.py              # RAG 配置
+│   │   ├── embedding.py           # 嵌入服务
+│   │   ├── milvus_client.py       # Milvus 向量数据库客户端
+│   │   └── retriever.py           # 检索器
 │   ├── services/                  # 业务服务
-│   │   ├── validation_service.py
-│   │   ├── topphi_service.py
-│   │   ├── ml_prediction_service.py
-│   │   └── optimization_service.py
+│   │   ├── validation_service.py  # 参数验证
+│   │   ├── topphi_service.py      # TopPhi 模拟
+│   │   ├── ml_prediction_service.py  # ML 性能预测
+│   │   ├── historical_data_service.py  # RAG+LLM 历史数据检索
+│   │   └── optimization_service.py  # 优化建议
 │   └── models/                    # 数据模型
+├── RAG/                           # RAG 知识库管理
+│   ├── config/                    # RAG 配置
+│   ├── scripts/                   # 数据处理脚本
+│   └── src/                       # RAG 核心模块
 ├── .env                           # 环境变量
 ├── run.py                         # 启动脚本
 └── requirements.txt
@@ -217,13 +231,21 @@ TopMat_Agent/
 - Element Plus + Naive UI
 - Vite
 - VTK.js (3D可视化)
+- Plotly.js (性能对比图表)
 - Pinia (状态管理)
 
 **后端**
-- FastAPI
-- LangGraph
-- 阿里云百炼 (Qwen)
+- FastAPI + WebSocket
+- LangGraph (多 Agent 编排)
+- 阿里云百炼 (Qwen-Plus)
+- Milvus (向量数据库)
+- ONNX Runtime (ML 推理)
 - Uvicorn
+
+**RAG 系统**
+- 阿里云 text-embedding-v4 嵌入模型
+- Milvus 混合检索（中英文双语）
+- LLM 查询增强 + 结果分析
 
 **开发工具**
 - 热重载支持
@@ -268,9 +290,9 @@ TopMat_Agent/
 | **Router** | 智能路由，理解用户意图 | - |
 | **Assistant** | 通用对话，解释性问题（带思考模式） | - |
 | **Validator** | 参数验证，成分/工艺合理性检查 | 成分验证、工艺验证、归一化 |
-| **Analyst** | 性能预测，调用模拟和 ML 工具 | TopPhi 模拟、ML 预测、历史案例 |
+| **Analyst** | 性能预测，调用模拟和 ML 工具 | TopPhi 模拟、ML 预测、RAG+LLM 历史案例检索 |
 | **Optimizer** | 优化建议，生成 P1/P2/P3 方案 | - (Agent 自主生成) |
-| **Experimenter** | 实验管理，工单生成和结果分析 | 性能对比、数据采集 |
+| **Experimenter** | 实验管理，工单生成和结果分析 | 性能对比图表、实验数据采集 |
 
 ### 对话流程
 
@@ -351,23 +373,31 @@ async for event in graph.astream_events(state, config):
 - 支持追问和解释性问题
 
 **2. 参数验证**
-- 涂层成分合理性检查
-- 工艺参数范围验证
+- 涂层成分合理性检查（Al/Ti/N 配比）
+- 工艺参数范围验证（温度、压力、偏压等）
 - 自动归一化处理
 
 **3. 性能预测**
-- TopPhi 第一性原理模拟
-- ML 模型预测（硬度、结合力等）
-- 历史相似案例检索
+- TopPhi 第一性原理模拟（晶粒尺寸、相结构）
+- ML 模型预测（硬度、弹性模量）
+- RAG+LLM 历史案例智能检索（中英文双语文献）
 
-**4. 方案优化**
+**4. 历史数据分析**
+- 向量检索相似案例
+- LLM 智能提取性能数据（硬度、弹性模量、结合力、磨损率）
+- 文献性能参考范围汇总
+- 最佳案例推荐
+
+**5. 方案优化**
 - **P1 成分优化**: Al/Ti 比例、微量元素
 - **P2 结构优化**: 多层/梯度/纳米复合
 - **P3 工艺优化**: 温度/气压/偏压调整
 
-**5. 实验管理**
-- 自动生成实验工单
-- 实验结果分析
+**6. 实验管理**
+- 自动生成实验工单（PDF 下载）
+- 实验数据录入表单
+- 性能对比分析（实验 vs 预测 vs 历史最优）
+- 2x2 可视化图表（散点图 + 柱状图）
 - 迭代优化建议
 
 ## 🐛 常见问题
@@ -378,11 +408,53 @@ A: 检查 `.env` 文件中的 `DASHSCOPE_API_KEY` 是否正确配置。
 **Q: 前端无法连接后端？**  
 A: 确认后端服务已启动（http://localhost:8000），检查防火墙设置。
 
+**Q: 历史数据检索失败？**  
+A: 检查 Milvus 服务是否正常运行，确认 `MILVUS_HOST` 和 `MILVUS_PORT` 配置正确。系统已内置连接重试机制（最多3次）。
+
+**Q: ML 预测服务不可用？**  
+A: 检查 `ML_PREDICTION_URL` 配置，确认 ONNX 推理服务已启动。
+
 **Q: 如何修改服务端口？**  
 A: 编辑 `.env` 文件中的 `SERVER_PORT` 配置项。
 
 **Q: 如何查看日志？**  
 A: 后端日志直接输出到控制台，前端问题检查浏览器开发者工具。
+
+## 📊 数据流说明
+
+### 性能对比数据流
+
+```
+用户输入参数 → 参数验证 → 全面分析
+                              ↓
+              ┌───────────────┼───────────────┐
+              ↓               ↓               ↓
+         TopPhi 模拟     ML 预测      RAG+LLM 历史检索
+              ↓               ↓               ↓
+              └───────────────┼───────────────┘
+                              ↓
+                    实验数据录入表单
+                              ↓
+                    性能对比图表展示
+                    (实验 vs 预测 vs 历史)
+```
+
+### 历史数据检索流程
+
+```
+用户参数 → LLM 查询增强 → Milvus 向量检索
+                              ↓
+                    ┌─────────┴─────────┐
+                    ↓                   ↓
+               中文文献             英文文献
+                    ↓                   ↓
+                    └─────────┬─────────┘
+                              ↓
+                    LLM 结果分析提取
+                    (硬度/模量/结合力/磨损率)
+                              ↓
+                    结构化性能数据返回
+```
 
 ## 📄 许可证
 

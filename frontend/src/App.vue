@@ -20,34 +20,5 @@ onMounted(() => {
 </template>
 
 <style>
-/* 全局样式 */
-:root {
-  --primary: #667eea;
-  --primary-dark: #764ba2;
-  --success: #4caf50;
-  --warning: #ff9800;
-  --danger: #f44336;
-  --info: #2196f3;
-  --border-color: #e0e0e0;
-  --text-primary: #333;
-  --text-secondary: #666;
-  --bg-light: #f5f7fa;
-}
-
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-#app {
-  height: 100vh;
-  overflow: hidden;
-}
+/* 全局样式已移至 style.css */
 </style>

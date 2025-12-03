@@ -14,12 +14,10 @@ Optimizer Agent - 优化方案专家 (v2.1)
 from typing import Any
 from langchain_core.language_models import BaseChatModel
 from langchain.agents import create_agent
-import logging
+from loguru import logger
 
 from ..tools import OPTIMIZER_TOOLS
 from ..state import CoatingState
-
-logger = logging.getLogger(__name__)
 
 # Optimizer Agent 的系统提示词
 OPTIMIZER_SYSTEM_PROMPT = """你是 TopMat 涂层优化系统的优化方案专家（Optimizer Agent）。

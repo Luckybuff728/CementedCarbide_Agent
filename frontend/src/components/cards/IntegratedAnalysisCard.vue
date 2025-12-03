@@ -1,13 +1,5 @@
 <template>
-  <SummaryCard 
-
-    :icon-component="BulbOutline"
-    title="根因分析"
-    :clickable="true"
-    :show-header="showHeader"
-    @click="emit('jump-to-node', 'integrated_analysis')"
-  >
-    <div class="analysis-summary">
+  <div class="integrated-analysis-card">
       <!-- 综合评价 -->
       <div v-if="summary" class="analysis-section">
         <div class="section-header">
@@ -35,41 +27,41 @@
         </div>
       </div>
 
-      <!-- 无数据提示 -->
-      <div v-if="!hasContent" class="no-content">
-        <el-icon><DocumentTextOutline /></el-icon>
-        <span>等待分析结果...</span>
-      </div>
+    <!-- 无数据提示 -->
+    <div v-if="!hasContent" class="no-content">
+      <el-icon><DocumentTextOutline /></el-icon>
+      <span>等待分析结果...</span>
     </div>
-  </SummaryCard>
+  </div>
 </template>
 
 <script setup>
+/**
+ * 根因分析卡片
+ * 
+ * 展示综合评价、关键发现等分析结果
+ */
 import { computed } from 'vue'
 import { ElIcon } from 'element-plus'
 import {
-  BulbOutline,
   CheckmarkCircleOutline,
   AlertCircleOutline,
   ChevronForwardOutline,
   DocumentTextOutline
 } from '@vicons/ionicons5'
-import SummaryCard from '../common/SummaryCard.vue'
-import MarkdownRenderer from '../common/MarkdownRenderer.vue'
 
-// 定义props和emits
 const props = defineProps({
+  // 分析数据对象
   analysis: {
-    type: [Object, String],  // 支持Object和String类型
+    type: [Object, String],
     default: null
   },
+  // 是否显示头部（兼容旧接口）
   showHeader: {
     type: Boolean,
     default: true
   }
 })
-
-const emit = defineEmits(['jump-to-node'])
 
 
 
@@ -116,8 +108,8 @@ const renderInlineMarkdown = (text) => {
 </script>
 
 <style scoped>
-/* 根因分析摘要卡片 - 简洁样式 */
-.analysis-summary {
+.integrated-analysis-card {
+  padding: 16px;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -132,44 +124,37 @@ const renderInlineMarkdown = (text) => {
 .section-header {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 13px;
+  gap: 6px;
+  font-size: 12px;
   font-weight: 600;
-  color: #4b5563;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 
 .section-header .el-icon {
-  font-size: 16px;
+  font-size: 14px;
   color: #10b981;
-}
-
-.section-title {
-  color: #374151;
 }
 
 .summary-text {
   font-size: 14px;
-  color: #1f2937;
+  color: #374151;
   line-height: 1.6;
-  padding: 12px;
-  background: #f9fafb;
-  border-radius: 8px;
-  border-left: 3px solid #10b981;
+  padding-left: 12px;
+  border-left: 2px solid #10b981;
 }
 
 .findings-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
 .finding-item {
   display: flex;
   align-items: flex-start;
   gap: 8px;
-  padding: 10px;
-  background: #f9fafb;
-  border-radius: 8px;
   font-size: 13px;
   color: #374151;
   line-height: 1.5;
@@ -193,17 +178,17 @@ const renderInlineMarkdown = (text) => {
 .finding-text :deep(code) {
   font-family: 'Consolas', 'Monaco', monospace;
   font-size: 12px;
-  padding: 2px 6px;
-  background: #e5e7eb;
-  border-radius: 4px;
+  padding: 1px 4px;
+  background: #f3f4f6;
+  border-radius: 3px;
   color: #4f46e5;
 }
 
 .finding-item .bullet {
   font-size: 14px;
-  color: #4f46e5;
+  color: #10b981;
   flex-shrink: 0;
-  margin-top: 2px;
+  margin-top: 1px;
 }
 
 .no-content {

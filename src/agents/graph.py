@@ -9,11 +9,11 @@
 
 更新说明 (v2.1)：
 - 简化会话管理，依赖 Checkpointer 自动持久化
-- 工具使用 ToolRuntime 访问状态
+    - 工具使用 ToolRuntime 访问状态
 """
-import logging
 import json
 from typing import Dict, Any, Optional, AsyncIterator, List, Literal
+from loguru import logger
 from langchain_core.messages import HumanMessage, AIMessage, BaseMessage, SystemMessage
 from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.memory import MemorySaver
@@ -22,103 +22,79 @@ from langgraph.store.memory import InMemoryStore
 from .state import CoatingState
 from .content_extractor import extract_structured_content
 
-logger = logging.getLogger(__name__)
-
 
 # ==================== 系统提示词 ====================
 
-ROUTER_SYSTEM_PROMPT = """你是 TopMat 涂层研发智能助手的路由器。
+ROUTER_SYSTEM_PROMPT = """你是 TopMat 涂层研发智能助手的路由器。根据用户消息选择处理专家。
 
-根据用户的消息内容，判断应该由哪个专家来处理。
+## 核心区分原则
 
-## 路由规则（按优先级）
+**analyst vs assistant 的关键区别：**
+- **analyst**：用户想要**系统计算/预测**当前涂层参数的性能数据（需调用 ML/TopPhi/历史对比工具）
+- **assistant**：用户想要**查阅文献知识**或**解释已有结果**（需调用 RAG 或直接回答）
 
-### 0. **assistant** - 解释性/对话性问题（最高优先级）
-用户只是想了解、询问、解释已有结果时，必须返回 assistant：
-- 问"为什么"、"怎么理解"、"什么意思"、"解释一下"
-- 追问已有结果的原因，如"为什么硬度是28GPa"、"预测结果怎么来的"
-- 一般问候、闲聊、询问系统功能
-- 对已有分析结果的疑问
-- **关键判断**：如果用户是在追问/理解已有内容，而不是请求新操作，选 assistant
+## 路由规则（按优先级判断）
 
-### 1. **validator** - 参数验证专家
-用户**新提供**参数并希望验证时：
-- 用户提供了涂层成分（Al、Ti、N含量）
-- 用户提供了工艺参数（温度、偏压、气压）
-- 用户明确说"验证"、"检查"、"合理吗"
-- 消息中包含【涂层成分】、【工艺参数】等标记
-   
-### 2. **analyst** - 性能预测专家
-用户请求**调用工具获取数据**时：
-- 用户说“预测性能”、“预测硬度”、“ML预测”
-- 用户说“模拟”、“TopPhi”、“微观结构”
-- 用户说“查找历史案例”、“对比历史”
-- **关键词**：预测、模拟、历史案例（需要调用工具的操作）
-   
-### 3. **optimizer** - 优化建议专家
-用户请求生成优化方案时：
-- 用户说"帮我优化"、"如何提高"、"给出改善方案"
-   
-### 4. **experimenter** - 实验方案专家
-涉及实验工单和实验数据时：
-- 用户要生成实验工单
-- 用户提交实验结果数据（硬度、结合力、弹性模量等测试数据）
-- 用户说"实验完成"、"测试结果"、"实验结果"、"实验数据"
-- 用户请求"实验对比"、"对比预测"、"结果对比"
-- **关键词**：实验结果、测试数据、对比分析、工单
+### 1. **validator** - 参数验证
+用户提供涂层参数并要求验证时：
+- **触发词**：验证、检查参数、参数合理吗、帮我看看参数
+- **典型输入**："Al含量27.5%，验证一下"、"这个配方合理吗"
+
+### 2. **analyst** - 性能预测与计算 
+**用户要求系统对当前参数进行计算/预测时**：
+- **触发词**：预测、预测性能、预测硬度、ML预测、分析性能、计算
+- **触发词**：模拟、TopPhi模拟、相场模拟、微观结构预测
+- **触发词**：历史案例、相似案例、案例对比、全面分析
+- **典型输入**：
+  - "预测一下性能" ← analyst
+  - "帮我分析这个配方的性能" ← analyst（要计算）
+  - "用ML预测硬度" ← analyst
+  - "做个全面分析" ← analyst
+
+### 3. **optimizer** - 优化方案生成
+用户需要生成优化方案时：
+- **触发词**：优化、生成方案、怎么改进、怎么提升、调整配方
+- **触发词**：成分优化、工艺优化、结构优化、P1、P2、P3
+- **典型输入**："帮我优化"、"怎么提高硬度"、"生成优化方案"
+
+### 4. **experimenter** - 实验数据处理
+用户提交实验结果或要生成工单时：
+- **触发词**：实验结果、测试数据、实验完成、实测、录入数据
+- **触发词**：生成工单、实验工单、选择方案
+- **典型输入**："实验完成，硬度29GPa"、"选择P1，生成工单"
+
+### 5. **assistant** - 知识查询与解释（默认） 
+**用户想查阅文献资料或解释原理时**：
+- **触发词**：文献、论文、资料、查一下、查询、搜索
+- **触发词**：原理、机理、为什么、怎么理解、解释、什么是
+- **触发词**：制备工艺、沉积方法、PVD、CVD（知识性问题）
+- **典型输入**：
+  - "TiAlN涂层的制备工艺" ← assistant（查文献）
+  - "为什么硬度这么高" ← assistant（解释原理）
+  - "查一下相关文献" ← assistant
+  - "PVD和CVD有什么区别" ← assistant（知识问题）
 
 ## 输出格式
-请只返回一个词：validator / analyst / optimizer / experimenter / assistant
+只返回一个词：validator / analyst / optimizer / experimenter / assistant
 
-## 重要提示（请仔细区分）
-
-| 用户说... | 真实意图 | 路由到 |
-|-----------|---------|--------|
-| “预测性能”、“预测硬度” | 调用ML工具 | analyst |
-| “分析一下”、“分析结果” | 解释已有数据 | assistant |
-| “为什么硬度是28GPa” | 解释已有预测 | assistant |
-| “帮我做个全面分析” | 调用多个工具 | analyst |
-| “这个结果怎么理解” | 解释已有数据 | assistant |
-| “实验完成，硬度29GPa” | 实验数据录入 | experimenter |
-| “对比预测结果” | 实验vs预测对比 | experimenter |
-| “实验对比” | 实验数据对比 | experimenter |
-
-**核心区分**：
-- 预测 = 调用ML/模拟工具 → analyst
-- 分析/解释 = 解读已有数据 → assistant
-- 实验数据/对比 = 实验结果处理 → experimenter
+## 判断示例（重点区分 analyst vs assistant）
+| 用户说... | 路由到 | 原因 |
+|-----------|--------|------|
+| "预测性能" | analyst | 需要ML计算 |
+| "预测一下硬度" | analyst | 需要ML计算 |
+| "分析这个配方" | analyst | 需要系统分析 |
+| "全面分析" | analyst | 需要调用多个工具 |
+| "历史相似案例" | analyst | 需要检索历史数据 |
+| "TiAlN的制备工艺" | assistant | 查文献知识 |
+| "为什么硬度高" | assistant | 解释原理 |
+| "查一下文献" | assistant | 明确要查文献 |
+| "PVD原理是什么" | assistant | 知识问题 |
+| "帮我优化" | optimizer | 生成方案 |
+| "验证参数" | validator | 参数检查 |
+| "实验完成" | experimenter | 提交结果 |
 """
 
-ASSISTANT_SYSTEM_PROMPT = """你是 TopMat 涂层研发智能助手，专注于硬质合金涂层（如 AlTiN）的研发优化。
-
-## 你的核心职责
-1. **回答解释性问题**：用户追问"为什么预测是XX"、"怎么理解这个结果"时，基于对话历史和专业知识给出解释
-2. **引导对话**：帮助用户理解系统功能，引导他们进行参数验证、性能预测、优化等操作
-3. **总结和澄清**：总结已完成的分析结果，澄清用户的疑问
-
-## 回答解释性问题的要点
-当用户问"为什么硬度预测是28GPa"这类问题时：
-- 从对话历史中找到相关的预测结果
-- 解释影响该指标的主要因素（成分、工艺、结构等）
-- 结合用户当前的参数配置进行具体分析
-- 如果是ML预测，说明这是基于历史数据的统计模型
-
-## 专业知识参考
-- AlTiN 涂层硬度主要受 Al/Ti 比例、N 含量、沉积温度影响
-- 较高的 Al 含量（50-67%）通常有利于高温硬度
-- 沉积温度 400-500°C 有利于形成立方相结构
-- 偏压 -80~-150V 影响膜层致密度和内应力
-- 结合力受界面过渡层、表面清洁度、基材匹配度影响
-
-## 交互风格
-- 直接回答用户问题，不要重复调用工具
-- 给出解释时引用具体数据
-
-## 当前状态
-{context}
-
-请根据对话历史直接回答用户的问题。如果用户需要新的分析操作，建议他们明确请求。
-"""
+# ASSISTANT_SYSTEM_PROMPT 已移至 prompts/assistant.py
 
 
 def create_conversational_graph(
@@ -151,7 +127,7 @@ def create_conversational_graph(
     logger.info("[Graph] Assistant 使用思考模式 LLM")
     
     # ==================== 路由节点 ====================
-    def router_node(state: CoatingState) -> dict:
+    async def router_node(state: CoatingState) -> dict:
         """根据用户消息智能路由"""
         messages = state.get("messages", [])
         if not messages:
@@ -168,7 +144,7 @@ def create_conversational_graph(
         ]
         
         try:
-            response = llm.invoke(router_messages)
+            response = await llm.ainvoke(router_messages)
             route = response.content.strip().lower()
             
             valid_routes = ["validator", "analyst", "optimizer", "experimenter", "assistant"]
@@ -182,7 +158,7 @@ def create_conversational_graph(
             return {"next": "assistant"}
     
     # ==================== 通用助手节点（使用思考模式） ====================
-    def assistant_node(state: CoatingState) -> dict:
+    async def assistant_node(state: CoatingState) -> dict:
         """通用对话助手 - 使用思考模式 LLM"""
         messages = state.get("messages", [])
         context = _build_state_summary(state)
@@ -193,10 +169,10 @@ def create_conversational_graph(
         
         try:
             # 使用思考模式 LLM
-            response = thinking_llm.invoke(chat_messages)
+            response = await thinking_llm.ainvoke(chat_messages)
             return {
                 "messages": [response],
-                "current_agent": "assistant"
+                "current_agent": "assistant"    
             }
         except Exception as e:
             logger.error(f"[Assistant] 生成失败: {e}")
@@ -234,11 +210,11 @@ def create_conversational_graph(
             middleware=middleware,  # v2.1: 使用中间件栈
         )
         
-        def expert_node_func(state: CoatingState) -> dict:
+        async def expert_node_func(state: CoatingState) -> dict:
             logger.info(f"[{expert_name}] 开始处理")
             try:
                 # 直接传递状态，中间件自动处理上下文注入
-                result = expert_agent.invoke(dict(state))
+                result = await expert_agent.ainvoke(dict(state))
                 logger.info(f"[{expert_name}] 处理完成")
                 
                 # 更新状态
@@ -262,7 +238,8 @@ def create_conversational_graph(
         return expert_node_func
     
     # ==================== 导入工具和提示词 ====================
-    from .tools import VALIDATOR_TOOLS, ANALYST_TOOLS, OPTIMIZER_TOOLS, EXPERIMENTER_TOOLS
+    from .tools import VALIDATOR_TOOLS, ANALYST_TOOLS, OPTIMIZER_TOOLS, EXPERIMENTER_TOOLS, SHARED_TOOLS
+    from .prompts.assistant import ASSISTANT_SYSTEM_PROMPT
     from .prompts.validator import VALIDATOR_SYSTEM_PROMPT
     from .prompts.analyst import ANALYST_SYSTEM_PROMPT
     from .prompts.optimizer import OPTIMIZER_SYSTEM_PROMPT
@@ -271,9 +248,13 @@ def create_conversational_graph(
     # ==================== 创建图 ====================
     workflow = StateGraph(CoatingState)
     
-    # 添加节点
+    # Assistant 使用 RAG 工具（通过 create_expert_node 创建以支持工具调用）
+    ASSISTANT_TOOLS = SHARED_TOOLS  # RAG 工具
+    
+    # 添加节点（5 个专家）
     workflow.add_node("router", router_node)
-    workflow.add_node("assistant", assistant_node)
+    # Assistant 使用 create_expert_node 以支持 RAG 工具调用
+    workflow.add_node("assistant", create_expert_node("Assistant", ASSISTANT_SYSTEM_PROMPT.format(context=""), ASSISTANT_TOOLS))
     workflow.add_node("validator", create_expert_node("Validator", VALIDATOR_SYSTEM_PROMPT, VALIDATOR_TOOLS))
     workflow.add_node("analyst", create_expert_node("Analyst", ANALYST_SYSTEM_PROMPT, ANALYST_TOOLS))
     workflow.add_node("optimizer", create_expert_node("Optimizer", OPTIMIZER_SYSTEM_PROMPT, OPTIMIZER_TOOLS))
@@ -282,7 +263,7 @@ def create_conversational_graph(
     # 设置入口
     workflow.set_entry_point("router")
     
-    # 路由条件边
+    # 路由条件边（精简版）
     def route_next(state: CoatingState) -> str:
         return state.get("next", "assistant")
     
@@ -298,7 +279,7 @@ def create_conversational_graph(
         }
     )
     
-    # 所有专家节点完成后结束（等待下一条用户消息）
+    # 所有专家节点完成后结束
     workflow.add_edge("assistant", END)
     workflow.add_edge("validator", END)
     workflow.add_edge("analyst", END)
@@ -475,36 +456,44 @@ class ConversationalGraphManager:
         # 配置 thread_id，Checkpointer 会自动根据此 ID 恢复/保存状态
         config = {"configurable": {"thread_id": session_id}}
         
-        # 构建输入状态
+        # 先获取历史状态（如果存在）
+        existing_state = self.graph.get_state(config)
+        existing_values = existing_state.values if existing_state else {}
+        
+        # 构建输入状态 - 只包含新消息，其他参数通过合并历史状态获取
         input_state = {
             "messages": [HumanMessage(content=user_message)],
             "remaining_steps": 25,
         }
         
-        # 优先使用临时缓存的参数（来自 get_or_create_session / set_parameters）
-        pending = getattr(self, '_pending_params', {}).get(session_id, {})
-        if pending:
-            if pending.get("coating_composition"):
-                input_state["coating_composition"] = pending["coating_composition"]
-            if pending.get("process_params"):
-                input_state["process_params"] = pending["process_params"]
-            if pending.get("structure_design"):
-                input_state["structure_design"] = pending["structure_design"]
-            if pending.get("target_requirements"):
-                input_state["target_requirements"] = pending["target_requirements"]
+        # 合并参数逻辑：优先使用新传入的参数，否则保留历史状态中的参数
+        # 这样确保参数不会因为后续消息没有带 context 而丢失
+        if context_data and context_data.get("coating_composition"):
+            input_state["coating_composition"] = context_data["coating_composition"]
+        elif existing_values.get("coating_composition"):
+            input_state["coating_composition"] = existing_values["coating_composition"]
+            
+        if context_data and context_data.get("process_params"):
+            input_state["process_params"] = context_data["process_params"]
+        elif existing_values.get("process_params"):
+            input_state["process_params"] = existing_values["process_params"]
+            
+        if context_data and context_data.get("structure_design"):
+            input_state["structure_design"] = context_data["structure_design"]
+        elif existing_values.get("structure_design"):
+            input_state["structure_design"] = existing_values["structure_design"]
+            
+        if context_data and context_data.get("target_requirements"):
+            input_state["target_requirements"] = context_data["target_requirements"]
+        elif existing_values.get("target_requirements"):
+            input_state["target_requirements"] = existing_values["target_requirements"]
         
-        # 如果有额外的 context_data，覆盖
-        if context_data:
-            if context_data.get("coating_composition"):
-                input_state["coating_composition"] = context_data["coating_composition"]
-            if context_data.get("process_params"):
-                input_state["process_params"] = context_data["process_params"]
-            if context_data.get("structure_design"):
-                input_state["structure_design"] = context_data["structure_design"]
-            if context_data.get("target_requirements"):
-                input_state["target_requirements"] = context_data["target_requirements"]
+        # 保留历史状态中的工具结果（ml_prediction, historical_comparison 等）
+        for key in ["ml_prediction", "historical_comparison", "topphi_simulation", "performance_prediction"]:
+            if existing_values.get(key):
+                input_state[key] = existing_values[key]
         
-        logger.info(f"[Manager] 会话参数: comp={input_state.get('coating_composition')}, proc={input_state.get('process_params')}")
+        logger.info(f"[Manager] 会话参数: comp={input_state.get('coating_composition')}, proc={input_state.get('process_params')}, target={input_state.get('target_requirements')}")
         
         # 用于收集完整输出内容（用于内容提取）
         collected_content = []
@@ -555,7 +544,7 @@ class ConversationalGraphManager:
                         if content:
                             # 过滤掉单独的 agent 名称 token（LLM 有时会输出这些无意义的标识）
                             content_lower = content.strip().lower()
-                            if content_lower in ["validator", "analyst", "optimizer", "experimenter", "assistant", "supervisor", "router"]:
+                            if content_lower in ["validator", "analyst", "experimenter", "assistant", "supervisor", "router"]:
                                 continue
                             yield {"type": "token", "content": content}
                             # 收集内容用于结构化提取
@@ -571,18 +560,19 @@ class ConversationalGraphManager:
                 elif event_type == "on_tool_end":
                     tool_name = event.get("name", "")
                     tool_output = event.get("data", {}).get("output")
-                    logger.info(f"[Manager] 工具完成: {tool_name}, 结果类型: {type(tool_output)}")
+                    logger.info(f"[Manager] 工具完成: {tool_name}, 结果类型: {type(tool_output).__name__}")
                     
                     # 发送工具结束事件
                     yield {"type": "tool_end", "tool": tool_name}
                     
-                    # 提取工具结果（处理 ToolMessage 对象）
+                    # 提取工具结果
                     result_data = None
                     if tool_output is not None:
-                        # 如果是 ToolMessage，提取 content
-                        if hasattr(tool_output, 'content'):
+                        if isinstance(tool_output, dict):
+                            result_data = tool_output
+                        elif hasattr(tool_output, 'content'):
+                            # ToolMessage
                             content = tool_output.content
-                            # 尝试解析 JSON 字符串
                             if isinstance(content, str):
                                 try:
                                     result_data = json.loads(content)
@@ -590,12 +580,20 @@ class ConversationalGraphManager:
                                     result_data = {"message": content}
                             else:
                                 result_data = content
-                        # 如果是字典，直接使用
-                        elif isinstance(tool_output, dict):
-                            result_data = tool_output
+                    
+                    # 根据工具名称缓存结果到 input_state（供后续工具使用）
+                    # 这是最简单稳定的方案：在前端缓存数据
+                    if result_data and not result_data.get("error"):
+                        if "predict_ml" in tool_name:
+                            input_state["ml_prediction"] = result_data
+                            logger.debug(f"[Manager] 缓存 ML 预测结果到状态")
+                        elif "compare_historical" in tool_name:
+                            input_state["historical_comparison"] = result_data
+                            logger.debug(f"[Manager] 缓存历史对比结果到状态")
                     
                     # 发送工具结果（用于前端展示）
                     if result_data:
+                        logger.debug(f"[Manager] 工具结果: {tool_name} -> {list(result_data.keys()) if isinstance(result_data, dict) else type(result_data)}")
                         yield {
                             "type": "tool_result",
                             "tool": tool_name,
@@ -693,7 +691,13 @@ class ConversationalGraphManager:
             session_id: 会话 ID
         """
         logger.info(f"[Manager] 清除会话请求: {session_id}")
-        logger.warning("[Manager] InMemorySaver 不支持单独清除会话，建议生产环境使用 PostgresSaver")
+        
+        # 清理缓存的参数
+        if hasattr(self, '_pending_params') and session_id in self._pending_params:
+            del self._pending_params[session_id]
+            logger.info(f"[Manager] 已清除会话缓存参数: {session_id}")
+        
+        logger.warning("[Manager] InMemorySaver 不支持单独清除会话历史，建议生产环境使用 PostgresSaver")
 
 
 # ==================== 单例 ====================

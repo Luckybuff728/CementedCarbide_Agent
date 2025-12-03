@@ -1,24 +1,20 @@
 """
-TopMat Agent 主运行脚本
+CementedCarbide Agent 主运行脚本
 
 对话式多 Agent 智能研发助手
 """
 import os
 import sys
 from pathlib import Path
-import logging
 from dotenv import load_dotenv
+from src.utils.logger import setup_logging, logger
 
 # 加载环境变量
 load_dotenv()
 
 # 配置日志
 log_level = os.getenv("LOG_LEVEL", "INFO").upper()
-logging.basicConfig(
-    level=getattr(logging, log_level),
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+setup_logging(log_level=log_level)
 
 def run_fastapi(reload=True):
     """运行FastAPI服务
@@ -85,10 +81,10 @@ def check_environment():
 def print_banner():
     """打印启动横幅"""
     print("""
-    ╔══════════════════════════════════════════╗
-    ║  TopMat Agent - 硬质合金涂层智能研发助手   ║
-    ║         v2.0.0 对话式多Agent              ║
-    ╚══════════════════════════════════════════╝
+    ╔═════════════════════════════════════════════════════╗
+    ║  CementedCarbide Agent - 硬质合金涂层智能研发助手   ║
+    ║           v2.0.0 多Agent                            ║
+    ╚═════════════════════════════════════════════════════╝
     """)
 
 def main():
